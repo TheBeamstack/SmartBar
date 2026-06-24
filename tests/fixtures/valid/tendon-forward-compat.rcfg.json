@@ -1,0 +1,31 @@
+{
+  "rcfg_version": "1.0.2",
+  "region": "FR-MA",
+  "codePack": "EC2",
+  "seismic": null,
+  "units": { "length": "mm", "area": "cm2" },
+  "element": {
+    "type": "E-BEM-01",
+    "geometry": { "b": 300, "h": 600, "L": 6000 },
+    "material": { "f_ck": 25, "f_yk": 500, "exposure": "XC1", "d_g": 20 },
+    "cover_mm": 30,
+    "As_req": { "As_span_bottom": 9.0 }
+  },
+  "reinforcement": {
+    "schemeId": "BEAM_PT",
+    "mode": "advanced",
+    "baseGroups": [
+      {
+        "id": "t-1",
+        "kind": "TENDON",
+        "profile": "parabolic",
+        "prestressForce": { "P0": 1400000, "losses": 0.12 },
+        "anchorage": { "live": "VSL-6", "dead": "loop" },
+        "validationProfile": "PRESTRESS_SERVICE",
+        "futureField": { "nested": [1, 2, 3] }
+      }
+    ],
+    "supplementalGroups": []
+  },
+  "meta": { "note": "v1.0.x tendon — a v1.0.0 reader must preserve this kind on round-trip (§10)." }
+}

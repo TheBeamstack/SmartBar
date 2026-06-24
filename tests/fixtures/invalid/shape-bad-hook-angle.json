@@ -1,0 +1,13 @@
+{
+  "id": "BROKEN_HOOK_ANGLE",
+  "plane": "2D",
+  "closed": false,
+  "params": [{ "key": "L", "type": "length" }],
+  "segments": [{ "line": "L", "dir": "u+" }],
+  "endHooks": {
+    "start": "none",
+    "end": { "angle": 120, "ext_expr": "max(10*diameter, 70)", "mandrel": "code.mandrelMin(diameter)" }
+  },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "L"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "BAIONNETTE",
+  "label_fr": "Baïonnette (barre à crosse)",
+  "label_en": "Cranked (offset) lap bar",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "lower", "label_fr": "Tronçon inférieur", "label_en": "Lower run", "type": "length", "min": 0 },
+    { "key": "crank", "label_fr": "Tronçon incliné", "label_en": "Crank run", "type": "length", "min": 0 },
+    { "key": "upper", "label_fr": "Tronçon supérieur", "label_en": "Upper run", "type": "length", "min": 0 },
+    { "key": "angle", "label_fr": "Angle de crosse", "label_en": "Crank angle", "type": "angle", "min": 0, "max": 45, "default": 11 }
+  ],
+  "segments": [
+    { "line": "lower", "dir": "u+" },
+    { "turn": "angle", "hand": "left" },
+    { "line": "crank" },
+    { "turn": "angle", "hand": "right" },
+    { "line": "upper" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "lower + crank + upper - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

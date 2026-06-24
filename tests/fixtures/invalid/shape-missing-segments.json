@@ -1,0 +1,9 @@
+{
+  "id": "BROKEN_NO_SEGMENTS",
+  "plane": "2D",
+  "params": [{ "key": "L", "type": "length" }],
+  "closed": false,
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "L"
+}

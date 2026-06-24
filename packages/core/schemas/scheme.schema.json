@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rebarconfig/schemas/scheme.schema.json",
+  "title": "SchemeManifest",
+  "description": "Curated, construction-valid reinforcement composition for an element (spec §5.3 [REF-SHAPE-520]).",
+  "type": "object",
+  "required": ["id", "elementType", "baseGroups"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "elementType": { "type": "string", "pattern": "^E-[A-Z]{3}-[0-9]{2}$" },
+    "label_fr": { "type": "string" },
+    "label_en": { "type": "string" },
+    "thumbnail": { "type": "string" },
+    "baseGroups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["role", "shape"],
+        "additionalProperties": true,
+        "properties": {
+          "role": {
+            "enum": [
+              "PRIMARY_LONGITUDINAL", "TRANSVERSE", "SUPPLEMENTAL",
+              "SKIN", "DOWEL", "STARTER", "DISTRIBUTION"
+            ]
+          },
+          "zone": { "type": "string" },
+          "shape": { "type": "string", "minLength": 1 },
+          "placement": { "type": "object" }
+        }
+      }
+    },
+    "supplementalCatalog": { "type": "array", "items": { "type": "string" } },
+    "validationProfile": { "type": "string" }
+  }
+}

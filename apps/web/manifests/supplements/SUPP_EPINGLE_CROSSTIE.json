@@ -1,0 +1,18 @@
+{
+  "id": "SUPP_EPINGLE_CROSSTIE",
+  "label_fr": "Épingle (cadre intermédiaire)",
+  "label_en": "Cross-tie (épingle)",
+  "role": "SUPPLEMENTAL",
+  "shape": "EPINGLE",
+  "requires": { "hostRole": "PRIMARY_LONGITUDINAL", "min_bars": 4 },
+  "placement": {
+    "rule": "LINK_BAR_PAIR",
+    "select": "user",
+    "spacing": "= tie.spacing"
+  },
+  "params": [
+    { "key": "diameter", "type": "diameter", "default": 8 },
+    { "key": "hook_angle", "type": "angle", "default": 135 }
+  ],
+  "validation": ["spacing_with_base", "hook_anchorage"]
+}

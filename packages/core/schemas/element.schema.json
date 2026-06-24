@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rebarconfig/schemas/element.schema.json",
+  "title": "ElementManifest",
+  "description": "Structural element type manifest (spec §3.1 [REF-DATA-200], §4 [REF-DATA-300]).",
+  "type": "object",
+  "required": ["id", "variant", "geometryParams", "As_zones"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "pattern": "^E-[A-Z]{3}-[0-9]{2}$" },
+    "variant": { "type": "string", "minLength": 1 },
+    "label_fr": { "type": "string" },
+    "label_en": { "type": "string" },
+    "geometryParams": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key"],
+        "additionalProperties": true,
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "unit": { "type": "string" },
+          "label_fr": { "type": "string" },
+          "label_en": { "type": "string" },
+          "min": { "type": "number" },
+          "default": { "type": "number" }
+        }
+      }
+    },
+    "As_zones": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key", "unit", "kind"],
+        "additionalProperties": true,
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "label_fr": { "type": "string" },
+          "label_en": { "type": "string" },
+          "unit": { "enum": ["cm2", "cm2/m"] },
+          "kind": { "enum": ["longitudinal", "transverse"] }
+        }
+      }
+    },
+    "compatibleSchemes": { "type": "array", "items": { "type": "string" } },
+    "validationProfile": { "type": "string" }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "COL_TIES_CROSSTIE",
+  "elementType": "E-COL-01",
+  "label_fr": "Cadres + épingles",
+  "label_en": "Ties + cross-ties",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_total",
+      "shape": "DROITE",
+      "placement": { "rule": "SECTION_PERIMETER", "layout": { "principle": "SYMMETRIC", "nTop": 3, "nBottom": 3, "nLeft": 2, "nRight": 2, "layers": 1 } }
+    },
+    {
+      "role": "TRANSVERSE",
+      "zone": "Asw_confinement",
+      "shape": "CADRE_RECT",
+      "placement": { "rule": "ALONG_PATH", "path": { "ref": "COLUMN_HEIGHT" }, "spacing": "param" }
+    }
+  ],
+  "supplementalCatalog": ["SUPP_EPINGLE_CROSSTIE"],
+  "validationProfile": "BAEL_COLUMN"
+}

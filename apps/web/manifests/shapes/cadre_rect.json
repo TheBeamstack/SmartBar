@@ -1,0 +1,27 @@
+{
+  "id": "CADRE_RECT",
+  "label_fr": "Cadre rectangulaire",
+  "label_en": "Rectangular closed tie",
+  "plane": "2D",
+  "closed": true,
+  "params": [
+    { "key": "w", "label_fr": "Largeur entre axes", "type": "length", "min": 0 },
+    { "key": "h", "label_fr": "Hauteur entre axes", "type": "length", "min": 0 }
+  ],
+  "segments": [
+    { "line": "w", "dir": "u+" },
+    { "turn": 90, "hand": "left" },
+    { "line": "h" },
+    { "turn": 90, "hand": "left" },
+    { "line": "w" },
+    { "turn": 90, "hand": "left" },
+    { "line": "h" }
+  ],
+  "endHooks": {
+    "start": { "angle": 135, "ext_expr": "max(10*diameter, 70)", "mandrel": "code.mandrelMin(diameter)" },
+    "end": { "angle": 135, "ext_expr": "max(10*diameter, 70)", "mandrel": "code.mandrelMin(diameter)" }
+  },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "2*(w+h) + 2*hookExt - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

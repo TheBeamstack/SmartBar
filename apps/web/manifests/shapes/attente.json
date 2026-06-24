@@ -1,0 +1,20 @@
+{
+  "id": "ATTENTE",
+  "label_fr": "Barre en attente (amorce)",
+  "label_en": "Starter / dowel bar",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "foot", "label_fr": "Retour d'ancrage", "label_en": "Anchorage foot", "type": "length", "min": 0 },
+    { "key": "h", "label_fr": "Hauteur en attente", "label_en": "Protruding height", "type": "length", "min": 0 }
+  ],
+  "segments": [
+    { "line": "foot", "dir": "u+" },
+    { "turn": 90, "hand": "left" },
+    { "line": "h" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "foot + h - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "E-COL-01",
+  "variant": "RECTANGULAR_TIE_COLUMN",
+  "label_fr": "Poteau rectangulaire (cadres)",
+  "label_en": "Rectangular tied column",
+  "geometryParams": [
+    { "key": "b", "unit": "mm", "label_fr": "Largeur", "min": 0 },
+    { "key": "h", "unit": "mm", "label_fr": "Hauteur de section", "min": 0 },
+    { "key": "H", "unit": "mm", "label_fr": "Hauteur du poteau", "min": 0 }
+  ],
+  "As_zones": [
+    { "key": "As_total", "label_fr": "Acier longitudinal total", "label_en": "Total longitudinal steel", "unit": "cm2", "kind": "longitudinal" },
+    { "key": "Asw_confinement", "label_fr": "Acier transversal (confinement)", "label_en": "Transverse confinement steel", "unit": "cm2/m", "kind": "transverse" }
+  ],
+  "compatibleSchemes": ["COL_TIES_CROSSTIE"],
+  "validationProfile": "BAEL_COLUMN"
+}

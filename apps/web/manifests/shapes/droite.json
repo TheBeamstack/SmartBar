@@ -1,0 +1,16 @@
+{
+  "id": "DROITE",
+  "label_fr": "Barre droite",
+  "label_en": "Straight bar",
+  "plane": "2D",
+  "params": [
+    { "key": "L", "label_fr": "Longueur", "type": "length", "min": 0 }
+  ],
+  "closed": false,
+  "segments": [
+    { "line": "L", "dir": "u+" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "L"
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rebarconfig/schemas/rcfg.schema.json",
+  "title": "RcfgDocument",
+  "description": "The entire element state as one JSON document (spec §10 [REF-DATA-1000]).",
+  "type": "object",
+  "required": ["rcfg_version", "region", "codePack", "units", "element", "reinforcement"],
+  "additionalProperties": true,
+  "properties": {
+    "rcfg_version": { "type": "string" },
+    "region": { "type": "string" },
+    "codePack": { "type": "string" },
+    "seismic": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["code", "zone", "ductility"],
+          "additionalProperties": true,
+          "properties": {
+            "code": { "type": "string" },
+            "zone": { "type": "number" },
+            "ductility": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "units": {
+      "type": "object",
+      "required": ["length", "area"],
+      "additionalProperties": true,
+      "properties": { "length": { "type": "string" }, "area": { "type": "string" } }
+    },
+    "element": {
+      "type": "object",
+      "required": ["type", "geometry", "material", "cover_mm", "As_req"],
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string" },
+        "geometry": { "type": "object" },
+        "material": { "type": "object" },
+        "cover_mm": { "type": "number" },
+        "As_req": { "type": "object" }
+      }
+    },
+    "reinforcement": {
+      "type": "object",
+      "required": ["schemeId", "mode", "baseGroups", "supplementalGroups"],
+      "additionalProperties": true,
+      "properties": {
+        "schemeId": { "type": "string" },
+        "mode": { "enum": ["guided", "advanced"] },
+        "baseGroups": { "type": "array", "items": { "$ref": "#/$defs/reinforcingElement" } },
+        "supplementalGroups": { "type": "array", "items": { "$ref": "#/$defs/reinforcingElement" } }
+      }
+    },
+    "meta": { "type": "object" }
+  },
+  "$defs": {
+    "reinforcingElement": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 }
+      },
+      "comment": "Forward-compat: unknown kinds + extra fields are allowed (preserved on round-trip, §10). REBAR_GROUP additionally requires its serialized fields below.",
+      "if": { "properties": { "kind": { "const": "REBAR_GROUP" } } },
+      "then": {
+        "required": ["id", "kind", "role", "shapeArchetypeId", "params", "diameter", "distribution", "placement"],
+        "properties": {
+          "role": {
+            "enum": [
+              "PRIMARY_LONGITUDINAL", "TRANSVERSE", "SUPPLEMENTAL",
+              "SKIN", "DOWEL", "STARTER", "DISTRIBUTION"
+            ]
+          },
+          "shapeArchetypeId": { "type": "string", "minLength": 1 },
+          "params": { "type": "object" },
+          "diameter": { "type": "number", "exclusiveMinimum": 0 },
+          "distribution": { "type": "object" },
+          "placement": { "type": "object" }
+        }
+      }
+    }
+  }
+}

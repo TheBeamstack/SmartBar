@@ -1,0 +1,10 @@
+{
+  "name": "@rebarconfig/web",
+  "version": "1.0.0-M0",
+  "private": true,
+  "type": "module",
+  "description": "RebarConfig SPA (React + Three.js). Scaffolded in M0 as a workspace; built in P2 (M2). Holds the JSON manifests under ./manifests.",
+  "dependencies": {
+    "@rebarconfig/core": "1.0.0-M0"
+  }
+}

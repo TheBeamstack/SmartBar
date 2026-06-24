@@ -1,0 +1,19 @@
+{
+  "id": "EPINGLE",
+  "label_fr": "Épingle (cadre intermédiaire)",
+  "label_en": "Single-leg cross-tie",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "span", "label_fr": "Portée entre barres", "type": "length", "min": 0 }
+  ],
+  "segments": [
+    { "line": "span", "dir": "u+" }
+  ],
+  "endHooks": {
+    "start": { "angle": 135, "ext_expr": "max(10*diameter, 70)", "mandrel": "code.mandrelMin(diameter)" },
+    "end": { "angle": 135, "ext_expr": "max(10*diameter, 70)", "mandrel": "code.mandrelMin(diameter)" }
+  },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "span + 2*hookExt - bendDeductions"
+}

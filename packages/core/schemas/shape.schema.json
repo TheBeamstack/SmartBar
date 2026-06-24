@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rebarconfig/schemas/shape.schema.json",
+  "title": "ShapeArchetype",
+  "description": "Parametric bar-shape segment grammar (spec §5.2.1).",
+  "type": "object",
+  "required": ["id", "plane", "params", "closed", "segments", "endHooks", "mandrelRule", "totalLengthExpr"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "label_fr": { "type": "string" },
+    "label_en": { "type": "string" },
+    "plane": { "enum": ["2D", "3D"] },
+    "params": { "type": "array", "items": { "$ref": "#/$defs/param" } },
+    "closed": { "type": "boolean" },
+    "segments": { "type": "array", "items": { "$ref": "#/$defs/segmentOp" } },
+    "endHooks": { "$ref": "#/$defs/endHooks" },
+    "mandrelRule": { "type": "string" },
+    "totalLengthExpr": { "type": "string" },
+    "bendDeductionRule": { "type": "string" }
+  },
+  "$defs": {
+    "param": {
+      "type": "object",
+      "required": ["key", "type"],
+      "additionalProperties": true,
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["length", "angle", "diameter", "count", "number"] },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "default": { "type": "number" },
+        "label": { "type": "string" },
+        "label_fr": { "type": "string" },
+        "label_en": { "type": "string" }
+      }
+    },
+    "expr": { "type": ["string", "number"] },
+    "segmentOp": {
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["line"],
+          "properties": { "line": { "type": "string" }, "dir": { "type": "string" } },
+          "additionalProperties": false
+        },
+        {
+          "required": ["turn", "hand"],
+          "properties": { "turn": { "$ref": "#/$defs/expr" }, "hand": { "enum": ["left", "right"] } },
+          "additionalProperties": false
+        },
+        {
+          "required": ["arc", "radius", "hand"],
+          "properties": {
+            "arc": { "$ref": "#/$defs/expr" },
+            "radius": { "type": "string" },
+            "hand": { "enum": ["left", "right"] }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": ["hook"],
+          "properties": { "hook": { "type": "string" } },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hookSpec": {
+      "oneOf": [
+        { "const": "none" },
+        {
+          "type": "object",
+          "required": ["angle", "ext_expr", "mandrel"],
+          "additionalProperties": false,
+          "properties": {
+            "angle": { "enum": [90, 135, 180] },
+            "ext_expr": { "type": "string" },
+            "mandrel": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "endHooks": {
+      "type": "object",
+      "required": ["start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "start": { "$ref": "#/$defs/hookSpec" },
+        "end": { "$ref": "#/$defs/hookSpec" }
+      }
+    }
+  }
+}
