@@ -1,0 +1,95 @@
+{
+  "_provisional": true,
+  "_note": "Eurocode 2 (EN 1992-1-1) constants. PROVISIONAL — gate G-EC2 (spec §14, plan P4a): every numeric cell awaits ratification by the nominated structural engineer before P4a acceptance. The engine reads this the same way once signed; only the values change. The formulas below are the standard EC2 relations (§7.1–7.8 of the spec are written in EC2 terms).",
+  "id": "EC2",
+  "codeRef": "EN 1992-1-1",
+  "allowedDiameters": [6, 8, 10, 12, 14, 16, 20, 25, 32, 40],
+  "materials": {
+    "gamma_s": 1.15,
+    "gamma_c": 1.5,
+    "alpha_ct": 1.0,
+    "fctm_factor": 0.3,
+    "fctm_exp": 0.6666666666666666,
+    "fctk005_factor": 0.7
+  },
+  "anchorage": {
+    "fbd_factor": 2.25,
+    "eta1_poor": 0.7,
+    "eta2_large_phi": 0.92,
+    "largePhiThreshold_mm": 32,
+    "alpha6Over50pct": 1.5,
+    "lbMinFactorOfLbrqd": 0.3,
+    "lbMinPhiMultiple": 10,
+    "lbMinFloor_mm": 100
+  },
+  "ratios": {
+    "columnMinRatioOfAc": 0.002,
+    "columnMinNEdFactor": 0.1,
+    "beamMinFctmFactor": 0.26,
+    "beamMinFloorFactor": 0.0013,
+    "maxRatioOfAc": 0.04,
+    "columnMinBars": 4,
+    "circularMinBars": 6
+  },
+  "tieSpacing": {
+    "column": {
+      "phiLMultiple": 20,
+      "absoluteCap_mm": 400
+    },
+    "criticalZoneFactor": 0.6,
+    "shearRatioFactor": 0.08
+  },
+  "cover": {
+    "default_mm": 25,
+    "deltaCdev_mm": 10,
+    "floor_mm": 10,
+    "byExposure_mm": {
+      "X0": 10,
+      "XC1": 15,
+      "XC2": 25,
+      "XC3": 25,
+      "XC4": 30,
+      "XD1": 35,
+      "XD2": 40,
+      "XD3": 45,
+      "XS1": 35,
+      "XS2": 40,
+      "XS3": 45,
+      "INTERIOR": 15,
+      "EXTERIOR": 25,
+      "AGGRESSIVE": 45,
+      "CAST_AGAINST_EARTH": 65
+    },
+    "fireAxisDistance_mm": {
+      "R30": 25,
+      "R60": 30,
+      "R90": 40,
+      "R120": 55
+    }
+  },
+  "mandrel": {
+    "_note": "min mandrel DIAMETER (mm), EC2 §8.3 baseline 4φ (≤16) / 7φ (>16).",
+    "smallPhiThreshold_mm": 16,
+    "smallMultiple": 4,
+    "largeMultiple": 7
+  },
+  "bendDeduction": {
+    "_note": "Geometric model shared with BAEL pack: deduction = filletRadius·(2·tan(θ/2) − θ).",
+    "capFactorOfFilletRadius": 4,
+    "maxHalfAngle_deg": 85
+  },
+  "tolerance": {
+    "_note": "G-TOL (spec §7.12, §14.8): per-rule WARN band above the minimum, as a fraction. PROVISIONAL.",
+    "spacingWarnBand": 0.05,
+    "anchorageWarnBand": 0.05,
+    "coverWarnBand": 0.1
+  },
+  "slab": {
+    "_note": "EC2 §9.3.1.1: max bar spacing principal min(3h,400), secondary min(3.5h,450); distribution ≥0.20·As,main.",
+    "principalMaxFactorOfH": 3,
+    "principalCap_mm": 400,
+    "secondaryMaxFactorOfH": 3.5,
+    "secondaryCap_mm": 450,
+    "distMinFractionOfMain": 0.2
+  }
+}

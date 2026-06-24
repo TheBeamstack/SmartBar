@@ -1,0 +1,19 @@
+{
+  "id": "TREILLIS_MESH",
+  "label_fr": "Treillis soudé / nappe",
+  "label_en": "Welded mesh / mat",
+  "plane": "3D",
+  "closed": false,
+  "params": [
+    { "key": "pitch_x", "label_fr": "Pas en X", "label_en": "Pitch X", "type": "length", "min": 0 },
+    { "key": "pitch_y", "label_fr": "Pas en Y", "label_en": "Pitch Y", "type": "length", "min": 0 },
+    { "key": "Lx", "label_fr": "Étendue X", "label_en": "Extent X", "type": "length", "min": 0 },
+    { "key": "Ly", "label_fr": "Étendue Y", "label_en": "Extent Y", "type": "length", "min": 0 },
+    { "key": "overhang_x", "label_fr": "Débord X", "label_en": "Overhang X", "type": "length", "min": 0, "default": 0 },
+    { "key": "overhang_y", "label_fr": "Débord Y", "label_en": "Overhang Y", "type": "length", "min": 0, "default": 0 }
+  ],
+  "segments": [],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "(floor(Lx / pitch_x) + 1) * (Ly + 2 * overhang_y) + (floor(Ly / pitch_y) + 1) * (Lx + 2 * overhang_x)"
+}

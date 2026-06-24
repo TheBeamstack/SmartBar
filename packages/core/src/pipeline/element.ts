@@ -17,7 +17,9 @@ import type { BarRole } from "../types/reinforcing-element";
 import type { BarPosition, ZoneGeometry, LayoutDescriptor } from "../types/layout";
 import type { RectLayout } from "../types/placement";
 import type { MaterialContext, ValidationStatus } from "../types/codepack";
-import { generateBarShape, type BarShapeResult } from "../geometry/segment-grammar";
+import type { SeismicOverlay, CritZoneSegment, LapExtent } from "../types/seismic";
+import type { BarShapeResult } from "../geometry/segment-grammar";
+import { generateShape } from "../geometry/registry";
 import {
   solveRectLayout,
   computeZoneGeometry,
@@ -29,6 +31,7 @@ import {
   type ValidationItem,
   type ExtendedCodePack,
 } from "../validation/index";
+import { applySeismicOverlay } from "../validation/seismic";
 import {
   getValidationProfile,
   type SolvedLongZone,
@@ -54,6 +57,8 @@ export interface SolveResult {
   status: ValidationStatus;
   /** true when the active pack ships provisional (unsigned) constants (G-BAEL etc.). */
   provisional: boolean;
+  /** present when a seismic overlay (RPS, §7.10) was applied: l_c + injected segments. */
+  seismic?: { l_c: number; segments: CritZoneSegment[] };
 }
 
 /** One longitudinal group as fed to the generic pipeline (shape + section binding). */
@@ -83,6 +88,10 @@ export interface ElementTransInput {
   nLegs: number;
   aswReqPerM: number;
   userMandrel?: number;
+  /** tie hook angle (90/135/180) — seismic overlay FAILs 90° (§7.10c). Default 135. */
+  hookAngle?: number;
+  /** tie hook extension as a multiple of φ — seismic requires ≥10φ. Default 10. */
+  hookExtFactor?: number;
 }
 
 /** A pre-resolved supplemental group (already positioned by the scheme/placement resolver). */
@@ -93,6 +102,26 @@ export interface ElementSupplementInput {
   params: Record<string, number>;
   diameter: number;
   count: number;
+  /** catalog id (e.g. "SUPP_EPINGLE_CROSSTIE") — used to satisfy required seismic confinement. */
+  catalogId?: string;
+}
+
+/**
+ * Seismic-overlay block (spec §7.10) — when present, the RPS overlay is composed ON TOP of the
+ * base profile validation. Member-level inputs; the per-tie hook data comes from `transverse`.
+ */
+export interface SeismicElementInput {
+  overlay: SeismicOverlay;
+  member: { kind: "COLUMN" | "BEAM"; length: number; bMin: number; hSectionMax: number };
+  /** governing longitudinal ø (mm); defaults to the section's largest. */
+  phiL?: number;
+  /** confinement add-on ids present; defaults to the supplements' catalogIds. */
+  confinementPresent?: string[];
+  /** total longitudinal bars / number laterally engaged (crosstie_engagement, §7.13). */
+  longBarsTotal: number;
+  longBarsEngaged: number;
+  /** lap / splice extents along the member (lap_in_critical_zone, §7.13). */
+  laps?: LapExtent[];
 }
 
 export interface ElementSolveInput {
@@ -115,6 +144,8 @@ export interface ElementSolveInput {
   longitudinal: ElementLongInput[];
   transverse: ElementTransInput[];
   supplements?: ElementSupplementInput[];
+  /** optional RPS seismic overlay (§7.10), composed on top of the base validation. */
+  seismic?: SeismicElementInput;
   code: ExtendedCodePack;
 }
 
@@ -156,7 +187,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       barArea(lz.diameter),
     );
     zones.push(zoneGeom);
-    const shape = generateBarShape(lz.shape, lz.params, lz.diameter, code);
+    const shape = generateShape(lz.shape, lz.params, lz.diameter, code);
     groups.push({
       groupId: lz.groupId,
       role: lz.role ?? "PRIMARY_LONGITUDINAL",
@@ -182,7 +213,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
   // --- per transverse zone: representative shape (1 per set) ---
   const solvedTrans: SolvedTransZone[] = [];
   for (const tz of input.transverse) {
-    const shape = generateBarShape(tz.shape, tz.params, tz.diameter, code);
+    const shape = generateShape(tz.shape, tz.params, tz.diameter, code);
     groups.push({
       groupId: tz.groupId,
       role: "TRANSVERSE",
@@ -204,7 +235,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
 
   // --- supplemental groups (already positioned by the placement resolver) ---
   for (const sup of input.supplements ?? []) {
-    const shape = generateBarShape(sup.shape, sup.params, sup.diameter, code);
+    const shape = generateShape(sup.shape, sup.params, sup.diameter, code);
     groups.push({
       groupId: sup.groupId,
       role: sup.role,
@@ -231,6 +262,36 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     code,
   });
 
+  // --- seismic overlay (RPS, §7.10): compose on top of the base validation if a regime is set ---
+  let seismic: { l_c: number; segments: CritZoneSegment[] } | undefined;
+  if (input.seismic) {
+    const s = input.seismic;
+    const present =
+      s.confinementPresent ??
+      ((input.supplements ?? [])
+        .map((x) => x.catalogId)
+        .filter((id): id is string => typeof id === "string"));
+    const res = applySeismicOverlay({
+      overlay: s.overlay,
+      member: s.member,
+      phiL: s.phiL ?? (phiLMax || input.phiLInset),
+      transverse: input.transverse.map((tz) => ({
+        groupId: tz.groupId,
+        zone: tz.zone,
+        diameter: tz.diameter,
+        spacing: tz.spacing,
+        hookAngle: tz.hookAngle ?? 135,
+        hookExtFactor: tz.hookExtFactor ?? 10,
+      })),
+      confinementPresent: present,
+      longBarsTotal: s.longBarsTotal,
+      longBarsEngaged: s.longBarsEngaged,
+      ...(s.laps !== undefined ? { laps: s.laps } : {}),
+    });
+    validation.push(...res.items);
+    seismic = { l_c: res.l_c, segments: res.segments };
+  }
+
   return {
     element: input.element,
     bars: layout.bars,
@@ -239,6 +300,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     validation,
     status: rollupStatus(validation),
     provisional: (code as { _provisional?: boolean })._provisional === true,
+    ...(seismic !== undefined ? { seismic } : {}),
   };
 }
 

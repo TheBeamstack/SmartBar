@@ -1,0 +1,22 @@
+{
+  "id": "E-SLB-03",
+  "variant": "HOLLOW_BLOCK_JOIST_SLAB",
+  "label_fr": "Plancher à corps creux (poutrelles-hourdis)",
+  "label_en": "Hollow-block joist slab",
+  "geometryParams": [
+    { "key": "L", "unit": "mm", "label_fr": "Portée", "label_en": "Span", "min": 0, "default": 4500 },
+    { "key": "t_total", "unit": "mm", "label_fr": "Épaisseur totale", "label_en": "Total thickness", "min": 0, "default": 250 },
+    { "key": "t_topping", "unit": "mm", "label_fr": "Épaisseur dalle de compression", "label_en": "Topping thickness", "min": 0, "default": 50 },
+    { "key": "b_joist", "unit": "mm", "label_fr": "Largeur de nervure", "label_en": "Joist (rib) width", "min": 0, "default": 100 },
+    { "key": "block_w", "unit": "mm", "label_fr": "Largeur de hourdis", "label_en": "Block width", "min": 0, "default": 500 },
+    { "key": "block_h", "unit": "mm", "label_fr": "Hauteur de hourdis", "label_en": "Block height", "min": 0, "default": 200 },
+    { "key": "joist_spacing", "unit": "mm", "label_fr": "Entraxe des nervures", "label_en": "Joist spacing", "min": 0, "default": 600 }
+  ],
+  "As_zones": [
+    { "key": "As_joist_bottom", "label_fr": "Aciers inférieurs de nervure", "label_en": "Joist bottom steel", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_joist_top_support", "label_fr": "Chapeaux de nervure sur appui", "label_en": "Joist top support steel", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_topping_mesh", "label_fr": "Treillis de dalle de compression", "label_en": "Topping welded mesh", "unit": "cm2/m", "kind": "longitudinal" }
+  ],
+  "compatibleSchemes": ["JOIST_STD"],
+  "validationProfile": "JOIST_SLAB"
+}

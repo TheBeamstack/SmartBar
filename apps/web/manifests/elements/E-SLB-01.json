@@ -1,0 +1,18 @@
+{
+  "id": "E-SLB-01",
+  "variant": "ONE_WAY_SOLID_SLAB",
+  "label_fr": "Dalle pleine portant dans un sens",
+  "label_en": "One-way solid slab",
+  "geometryParams": [
+    { "key": "Lx", "unit": "mm", "label_fr": "Portée (sens porteur)", "label_en": "Span (load direction)", "min": 0 },
+    { "key": "Ly", "unit": "mm", "label_fr": "Largeur", "label_en": "Width", "min": 0 },
+    { "key": "t", "unit": "mm", "label_fr": "Épaisseur", "label_en": "Thickness", "min": 0 }
+  ],
+  "As_zones": [
+    { "key": "As_main_bottom", "label_fr": "Aciers principaux (travée, bas)", "label_en": "Main bottom steel", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_dist", "label_fr": "Aciers de répartition", "label_en": "Distribution steel", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_top_support", "label_fr": "Chapeaux sur appui", "label_en": "Top support steel", "unit": "cm2/m", "kind": "longitudinal" }
+  ],
+  "compatibleSchemes": ["SLAB_ONEWAY_STD"],
+  "validationProfile": "SLAB_ONEWAY"
+}

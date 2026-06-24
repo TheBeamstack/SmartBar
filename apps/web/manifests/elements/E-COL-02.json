@@ -1,0 +1,16 @@
+{
+  "id": "E-COL-02",
+  "variant": "CIRCULAR_SPIRAL_COLUMN",
+  "label_fr": "Poteau circulaire (spirale)",
+  "label_en": "Circular spiral column",
+  "geometryParams": [
+    { "key": "D", "unit": "mm", "label_fr": "Diamètre", "label_en": "Diameter", "min": 0 },
+    { "key": "H", "unit": "mm", "label_fr": "Hauteur", "label_en": "Height", "min": 0 }
+  ],
+  "As_zones": [
+    { "key": "As_total", "label_fr": "Aciers longitudinaux (total)", "label_en": "Total longitudinal steel", "unit": "cm2", "kind": "longitudinal" },
+    { "key": "Asw_spiral", "label_fr": "Spirale de confinement", "label_en": "Confinement spiral", "unit": "cm2/m", "kind": "transverse" }
+  ],
+  "compatibleSchemes": ["COL_SPIRAL"],
+  "validationProfile": "CIRCULAR_COLUMN"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "E-SLB-02",
+  "variant": "TWO_WAY_SOLID_SLAB",
+  "label_fr": "Dalle pleine portant dans deux sens",
+  "label_en": "Two-way solid slab",
+  "geometryParams": [
+    { "key": "Lx", "unit": "mm", "label_fr": "Portée X", "label_en": "Span X", "min": 0 },
+    { "key": "Ly", "unit": "mm", "label_fr": "Portée Y", "label_en": "Span Y", "min": 0 },
+    { "key": "t", "unit": "mm", "label_fr": "Épaisseur", "label_en": "Thickness", "min": 0 }
+  ],
+  "As_zones": [
+    { "key": "As_main_x_bot", "label_fr": "Aciers principaux X (bas)", "label_en": "Main X bottom", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_main_y_bot", "label_fr": "Aciers principaux Y (bas)", "label_en": "Main Y bottom", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_top_x", "label_fr": "Chapeaux X", "label_en": "Top X", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_top_y", "label_fr": "Chapeaux Y", "label_en": "Top Y", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_corner_torsion", "label_fr": "Aciers de torsion d'angle", "label_en": "Corner torsion steel", "unit": "cm2/m", "kind": "longitudinal" }
+  ],
+  "compatibleSchemes": ["SLAB_TWOWAY_STD"],
+  "validationProfile": "SLAB_TWOWAY"
+}

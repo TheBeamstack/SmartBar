@@ -1,0 +1,17 @@
+{
+  "id": "SPIRALE_HELICE",
+  "label_fr": "Spirale / hélice",
+  "label_en": "Spiral / helix",
+  "plane": "3D",
+  "closed": false,
+  "params": [
+    { "key": "pitch", "label_fr": "Pas", "label_en": "Pitch", "type": "length", "min": 0 },
+    { "key": "helix_diameter", "label_fr": "Ø de la spirale", "label_en": "Helix diameter", "type": "length", "min": 0 },
+    { "key": "turns", "label_fr": "Nombre de tours", "label_en": "Turns", "type": "number", "min": 0 },
+    { "key": "height", "label_fr": "Hauteur enroulée", "label_en": "Coil height", "type": "length", "min": 0 }
+  ],
+  "segments": [],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "turns * sqrt((PI * helix_diameter)^2 + pitch^2)"
+}

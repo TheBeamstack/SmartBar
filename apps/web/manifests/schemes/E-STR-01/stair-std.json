@@ -1,0 +1,33 @@
+{
+  "id": "STAIR_STD",
+  "elementType": "E-STR-01",
+  "label_fr": "Escalier — principaux (volée+palier) + répartition + chapeaux + attentes",
+  "label_en": "Stair — main (waist+landing) + distribution + top + starters",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_main_bottom",
+      "shape": "MARCHE_PALIER",
+      "placement": { "rule": "SLAB_LINE", "spacing": "param" }
+    },
+    {
+      "role": "DISTRIBUTION",
+      "zone": "As_dist",
+      "shape": "DROITE",
+      "placement": { "rule": "SLAB_LINE", "spacing": "param" }
+    },
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_top_support",
+      "shape": "CHAPEAU",
+      "placement": { "rule": "TOP_SUPPORT", "spacing": "param" }
+    },
+    {
+      "role": "STARTER",
+      "zone": "As_starter",
+      "shape": "ATTENTE",
+      "placement": { "rule": "SLAB_LINE", "spacing": "param" }
+    }
+  ],
+  "validationProfile": "STAIR"
+}

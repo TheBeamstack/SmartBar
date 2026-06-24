@@ -35,6 +35,10 @@ export interface PackExtras {
   tieDiameterMin(phiLMax: number): number;
   /** straight anchorage l_s (scellement) before α-reductions (mm). */
   lsStraight(diameter: number, material: MaterialContext): number;
+  /** BAEL slab bar spacing (mm): principal min(3h,33cm) / secondary min(4h,45cm) (§7.11). */
+  slabSpacingMax(h: number, secondary: boolean): number;
+  /** min distribution/secondary steel as a fraction of main steel (§7.4, default 0.20). */
+  distMinFraction: number;
 }
 
 export type BaelPack = CodePack & PackExtras;
@@ -143,6 +147,13 @@ export function makeBaelPack(): BaelPack {
 
   const tieDiameterMin = (phiLMax: number): number => Math.max(6, phiLMax / 3);
 
+  const slabSpacingMax = (h: number, secondary: boolean): number => {
+    const s = constants.slab;
+    return secondary
+      ? Math.min(s.secondaryMaxFactorOfH * h, s.secondaryCap_mm)
+      : Math.min(s.principalMaxFactorOfH * h, s.principalCap_mm);
+  };
+
   return {
     id: constants.id,
     allowedDiameters: constants.allowedDiameters,
@@ -165,5 +176,7 @@ export function makeBaelPack(): BaelPack {
     minShearStress_MPa: constants.tieSpacing.minShearStress_MPa,
     tieDiameterMin,
     lsStraight,
+    slabSpacingMax,
+    distMinFraction: constants.slab.distMinFractionOfMain,
   };
 }

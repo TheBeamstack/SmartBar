@@ -1,0 +1,27 @@
+{
+  "id": "JOIST_STD",
+  "elementType": "E-SLB-03",
+  "label_fr": "Corps creux — nervure (bas + chapeaux) + treillis de compression",
+  "label_en": "Joist slab — rib (bottom + top) + topping mesh",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_joist_bottom",
+      "shape": "DROITE",
+      "placement": { "rule": "JOIST_LINE", "spacing": "param" }
+    },
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_joist_top_support",
+      "shape": "CHAPEAU",
+      "placement": { "rule": "TOP_SUPPORT", "spacing": "param" }
+    },
+    {
+      "role": "DISTRIBUTION",
+      "zone": "As_topping_mesh",
+      "shape": "TREILLIS_MESH",
+      "placement": { "rule": "MESH", "spacing": "param" }
+    }
+  ],
+  "validationProfile": "JOIST_SLAB"
+}

@@ -11,6 +11,7 @@
 import type { ShapeArchetype } from "../types/shape";
 import type { RectLayout } from "../types/placement";
 import type { MaterialContext } from "../types/codepack";
+import type { SeismicOverlay, LapExtent } from "../types/seismic";
 import type { ExtendedCodePack } from "../validation/index";
 import { solveElement, type SolveResult } from "./element";
 
@@ -39,8 +40,26 @@ export interface ColumnSolveInput {
     aswReqPerM: number; // mm²/m
     /** optional user-set tie bend mandrel ø (mm) for the §7.6 feasibility check. */
     userMandrel?: number;
+    /** tie hook angle (90/135/180); seismic overlay FAILs 90° (§7.10c). Default 135. */
+    hookAngle?: number;
+    /** tie hook extension as a multiple of φ; seismic requires ≥10φ. Default 10. */
+    hookExtFactor?: number;
   };
+  /** pre-resolved confinement add-ons present (catalog ids satisfy seismic requirements). */
+  confinementPresent?: string[];
+  /** optional RPS seismic overlay (§7.10) — see ColumnSeismicInput. */
+  seismic?: ColumnSeismicInput;
   code: ExtendedCodePack;
+}
+
+/** Column-level seismic-overlay inputs (the overlay + the member's arrangement facts, §7.10). */
+export interface ColumnSeismicInput {
+  overlay: SeismicOverlay;
+  /** total longitudinal bars / number laterally engaged by a tie corner or cross-tie (§7.13). */
+  longBarsTotal: number;
+  longBarsEngaged: number;
+  /** lap / splice extents along the column height (lap_in_critical_zone, §7.13). */
+  laps?: LapExtent[];
 }
 
 /** Solve a rectangular tied column (E-COL-01, BAEL profile). */
@@ -89,8 +108,28 @@ export function solveColumn(input: ColumnSolveInput): SolveResult {
         nLegs: input.tie.nLegs,
         aswReqPerM: input.tie.aswReqPerM,
         ...(input.tie.userMandrel !== undefined ? { userMandrel: input.tie.userMandrel } : {}),
+        ...(input.tie.hookAngle !== undefined ? { hookAngle: input.tie.hookAngle } : {}),
+        ...(input.tie.hookExtFactor !== undefined ? { hookExtFactor: input.tie.hookExtFactor } : {}),
       },
     ],
+    ...(input.seismic
+      ? {
+          seismic: {
+            overlay: input.seismic.overlay,
+            member: {
+              kind: "COLUMN" as const,
+              length: geometry.H,
+              bMin: Math.min(geometry.b, geometry.h),
+              hSectionMax: Math.max(geometry.b, geometry.h),
+            },
+            phiL,
+            longBarsTotal: input.seismic.longBarsTotal,
+            longBarsEngaged: input.seismic.longBarsEngaged,
+            ...(input.confinementPresent !== undefined ? { confinementPresent: input.confinementPresent } : {}),
+            ...(input.seismic.laps !== undefined ? { laps: input.seismic.laps } : {}),
+          },
+        }
+      : {}),
     code,
   });
 }

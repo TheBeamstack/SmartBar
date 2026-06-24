@@ -15,3 +15,5 @@ export * from "./reinforcing-element";
 export * from "./layout";
 export * from "./codepack";
 export * from "./rcfg";
+// P4b — seismic overlay contract (RPS 2000/2011, §7.10)
+export * from "./seismic";

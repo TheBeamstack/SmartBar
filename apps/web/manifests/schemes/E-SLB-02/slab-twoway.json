@@ -1,0 +1,39 @@
+{
+  "id": "SLAB_TWOWAY_STD",
+  "elementType": "E-SLB-02",
+  "label_fr": "Dalle 2 sens — nappes X/Y + torsion d'angle",
+  "label_en": "Two-way slab — X/Y mats + corner torsion",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_main_x_bot",
+      "shape": "TREILLIS_MESH",
+      "placement": { "rule": "SLAB_MAT", "spacing": "param" }
+    },
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_main_y_bot",
+      "shape": "TREILLIS_MESH",
+      "placement": { "rule": "SLAB_MAT", "spacing": "param" }
+    },
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_top_x",
+      "shape": "TREILLIS_MESH",
+      "placement": { "rule": "SLAB_MAT", "spacing": "param" }
+    },
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_top_y",
+      "shape": "TREILLIS_MESH",
+      "placement": { "rule": "SLAB_MAT", "spacing": "param" }
+    },
+    {
+      "role": "SUPPLEMENTAL",
+      "zone": "As_corner_torsion",
+      "shape": "TREILLIS_MESH",
+      "placement": { "rule": "SLAB_CORNER", "spacing": "param" }
+    }
+  ],
+  "validationProfile": "SLAB_TWOWAY"
+}

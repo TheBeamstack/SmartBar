@@ -44,17 +44,19 @@ in the browser — no server, free hosting.**
 | **P1 / M1** — Engine skeleton + `E-COL-01` + **BAEL pack** (headless) | ✅ **DONE** (code) · ⏳ G-BAEL unsigned | Zayd, 2026-06-24 |
 | **P2 / M2** — SPA shell + 3D viewport | ✅ **DONE** (code) | Zayd, 2026-06-24 |
 | **P3 / M3** — Scheme catalog + supplements + advanced builder + `E-BEM-01` | ✅ **DONE** (code) · ⏳ G-BAEL unsigned | Zayd, 2026-06-24 |
-| P4 / M4 — Full element set + EC2 pack + RPS seismic | ⛔ not started | — |
+| **P4a / M4a** — Circular/pile/slab geometries + helix/mesh generators + **EC2 pack** + slab predicates | ✅ **DONE** (code) · ⏳ G-EC2 unsigned | Zayd, 2026-06-24 |
+| **P4b / M4b** — Stair `E-STR-01` + joist slab `E-SLB-03` + **RPS-2011 seismic overlay** | ✅ **DONE** (code) · ⏳ G-RPS unsigned | Zayd, 2026-06-24 |
 | P5 / M5 — Exports (BBS, DXF, PDF) + `.rcfg` I/O | ⛔ not started | — |
 | P6 / M6 — Hardening, sign-off, release | ⛔ not started | — |
 
-**Test status (P3):** `npm run check` green — purity ✓, manifest integrity ✓ (**10 shapes** / **2
-elements** / **4 schemes** / **7 supplements**), core typecheck ✓, **web typecheck ✓**, **123 tests
-passed** across 27 files (84 core + **39 web**). New P3 core suites: `scheme_switch`,
-`placement_resolve`, `supplement_rebind`, `beam_curtailment`, `expert_mode`, `binding_keyboard`
-(+`schema.valid` auto-grew 14→29 as it discovers every manifest). New P3 web suites:
-`element_catalog`, `beam_supplements` (RTL). `vite build` succeeds (~1.7 MB bundle, code-split =
-P6); `vite dev` serves on **127.0.0.1:5180** (HTTP 200, HTML + transpiled entry).
+**Phase 4 is now COMPLETE (a+b). All 8 §3.1 elements solve + validate headlessly.**
+
+**Test status (P4b):** `npm run check` green — purity ✓, manifest integrity ✓ (**13 shapes** / **8
+elements** / **10 schemes** / **7 supplements** — all 8 spec elements present), core typecheck ✓,
+**web typecheck ✓**, **200 tests passed** across 40 files. New P4b core suites: `rps_segment_injection`,
+`seismic_hooks`, `lap_in_critical_zone`, `confinement_required`, `stair_reentrant`, `joist_slab`,
+`rps_reference` (⚠ G-RPS provisional). `npm run build:web` succeeds (~1.72 MB bundle, code-split = P6);
+new engine code is browser-safe (no `node:*`). Headless box: WebGL still not visually verified.
 
 ---
 
@@ -138,16 +140,22 @@ packages/core/            # @rebarconfig/core — the PURE ENGINE (no DOM/React/
   src/types/              # the 6 frozen contracts (see §6 of this map below)
   src/integrity/index.ts  # manifest-integrity gate (ajv + cross-ref + expr-scope check)
   src/geometry/           # P1: expr.ts (mathjs frozen scope) + segment-grammar.ts generator
+                          #   P4a: registry.ts (generateShape seam) + bespoke/{helix,mesh}.ts (§5.2.1g)
   src/layout/             # P1: rect.ts — corner-share layout + computed d/d' (computeZoneGeometry)
+                          #   P4a: circular.ts (EQUAL_PERIMETER pitch circle) + slab.ts (per-metre)
   src/validation/         # P1: index.ts (validateColumn, tierFor, …) + P3: profiles.ts
-                          #   (VALIDATION_PROFILES registry: BAEL_COLUMN/BAEL_BEAM — D-P3-1)
+                          #   (VALIDATION_PROFILES: BAEL_COLUMN/BAEL_BEAM — D-P3-1; +P4a CIRCULAR_COLUMN/
+                          #   SLAB_ONEWAY/SLAB_TWOWAY) + P4a predicates.ts (§7.13 slab/corner-torsion)
   src/scheme/             # P3: resolve.ts — scheme→zone map, placement+supplement resolvers,
                           #   nearestBarIndex, computeCurtailment (§5.3–5.7, D-P3-4)
   src/pipeline/           # element.ts: generic solveElement (D-P3-1) + solve.ts: solveColumn shim
+                          #   P4a: circular.ts (solveCircular) + slab.ts (solveSlab) — section pipelines
   src/index.ts            # public surface: types + geometry/layout/validation/profiles/scheme/pipeline
-packages/codepacks/       # @rebarconfig/codepacks — packs behind core's CodePack iface (P1)
+packages/codepacks/       # @rebarconfig/codepacks — packs behind core's CodePack iface (P1, P4a)
   src/bael/bael-constants.json  # ⚠ PROVISIONAL BAEL constants, "_provisional": true (G-BAEL)
-  src/bael/index.ts       # makeBaelPack(): BaelPack — code.* impls + PackExtras (bands, ls, …)
+  src/bael/index.ts       # makeBaelPack(): BaelPack — code.* impls + PackExtras (bands, ls, slab, …)
+  src/ec2/ec2-constants.json    # ⚠ PROVISIONAL EC2 constants, "_provisional": true (G-EC2) [P4a]
+  src/ec2/index.ts        # makeEc2Pack(): Ec2Pack — same code.* names, EC2 forms (§7.1–7.8) [P4a]
 apps/web/                 # @rebarconfig/web — the SPA (P2): React 18 + Vite + Zustand + R3F
   index.html  vite.config.ts  tsconfig.json  vitest.setup.ts
   manifests/              # the real data (P3): shapes/ (10) elements/ (2) schemes/ (4) supplements/ (7)
@@ -337,10 +345,206 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
   viewport renders supplements centred (shows presence) rather than at the exact resolved midpoint; the
   engine already knows the exact position (`ResolvedSupplement.position`). Beam is drawn with member axis +Y
   (it stands up); orientation is a P6 visual-polish item.
+- **D-P4a-1 — Shape registry is the single geometry seam (§6, §5.2.1g).** `geometry/registry.ts` maps
+  `archetypeId → generator`; `generateShape(...)` dispatches to a registered **bespoke** generator if one
+  exists, else the generic segment-grammar generator. Exactly two bespoke entries: `SPIRALE_HELICE`
+  (`bespoke/helix.ts`) and `TREILLIS_MESH` (`bespoke/mesh.ts`). The whole pipeline (element/circular/slab)
+  now calls `generateShape`, never `generateBarShape` directly — adding a non-polyline shape = register one
+  function, nothing else. The bespoke generators **do not** evaluate `totalLengthExpr` (only the integrity
+  scope-check reads it); their cut/coil lengths come from closed-form geometry.
+- **D-P4a-2 — Section dispatch lives in the pipeline, NOT element branching.** Circular and slab need
+  genuinely different layout algorithms (spec §6.1 enumerates rect/circular/slab as distinct), so they get
+  their own orchestrators — `pipeline/circular.ts` (`solveCircular`: E-COL-02 + E-FND-01) and
+  `pipeline/slab.ts` (`solveSlab`: E-SLB-01/02) — exactly like `solveColumn` is a shim over `solveElement`.
+  All three **share the seams**: shape registry + the **profile registry** (`getValidationProfile`). There
+  is still **no `if (elementType===…)`** anywhere; dispatch is by *section* (a data axis) + *profile id*.
+  `ProfileContext` gained optional `section`/`circular`/`slab` fields and `layout`/`geometry.{b,h}` became
+  optional; the P1/P3 rect profiles assert `ctx.layout` and read `b,h ?? 0` (rect path byte-identical).
+- **D-P4a-3 — Profiles are pack-agnostic; the `BAEL_` prefix is legacy naming.** `validateColumnProfile`/
+  `validateBeamProfile` already validate identically under EC2 (all limits via `code.*`). New P4a families use
+  **neutral element-family names**: `CIRCULAR_COLUMN` (shared by circular column + pile), `SLAB_ONEWAY`,
+  `SLAB_TWOWAY`. `pack_swap.spec` proves swapping BAEL↔EC2 changes only the limits (ρ-limits, cover, tie-ø),
+  not the pipeline or provided area. Renaming the two legacy keys was deliberately deferred (would touch the
+  `solveColumn` shim + E-COL-01/E-BEM-01 manifests + tests for zero behaviour gain).
+- **D-P4a-4 — EC2 pack behind the SAME `code.*` names (§7.11).** `packages/codepacks/src/ec2/` —
+  `makeEc2Pack()` implements EC2 forms: `l_b,rqd=(φ/4)(σ_sd/f_bd)` with `f_bd=2.25·η₁·η₂·f_ctd`,
+  `f_ctm=0.30·f_ck^⅔`; ρ-limits `0.2%/4%·Ac` (col) and `max(0.26·f_ctm/f_yk·b·d, 0.0013·b·d)` (beam/slab);
+  `s_cl,tmax=min(20φ,b,400)`; tie-ø `max(6,φ/4)`; cover by EC2 exposure class + fire; mandrel 4φ/7φ.
+  **All constants in `ec2-constants.json` flagged `"_provisional": true` (gate G-EC2)** — same discipline as
+  BAEL/G-BAEL. The codepacks barrel re-exports both packs selectively (both ship a same-named `PackExtras`).
+  Added `slabSpacingMax(h,secondary)` + `distMinFraction` to **both** packs and to core `CodePackExtras`.
+- **D-P4a-5 — Slabs are per-metre + spacing-driven; topological predicates are pure functions.**
+  `layout/slab.ts` (`slabProvidedPerMetre`, `slabEffectiveDepth`) + `validation/predicates.ts`
+  (`slabDistributionMin` 🔴, `twowayCornerTorsionMissing` 🟠) per §7.13. The slab profile checks provided
+  area/m, `As,min` over a 1 m strip with the **computed d**, and max bar spacing; one-way adds the
+  distribution-min predicate, two-way adds the corner-torsion predicate. `end_support_anchorage_short`
+  stays the beam profile's existing inline check (§7.7).
+- **D-P4a-6 — Helix/mesh are closed-form, oriented for placement; 3D mesh render is indicative.** Helix
+  axis = local +v (coil in u–w), `coilLength = turns·√((π·D_h)²+pitch²)`, sampled at 36 pts/turn. Mesh emits
+  per-direction wire counts (`floor(extent/pitch)+1`) + lengths + total; its `centerline3D` is the **panel
+  outline only** (presence), exact per-wire 3D deferred like supplements (D-P3-6). Spiral confinement is
+  treated as a 2-leg hoop at `spacing = pitch` for `Asw/m` (reuses `aswProvidedPerMetre`).
+- **D-P4b-1 — The seismic overlay is a SECOND injectable contract, parallel to `CodePack` (§7.10).**
+  New frozen interface `SeismicOverlay` (`packages/core/src/types/seismic.ts`): the engine stays
+  overlay-agnostic exactly as it is pack-agnostic — it calls `overlay.criticalZoneLength / critSpacingMax /
+  injectCriticalSegments / hookRule / requiredConfinement / engagementRule / lapInCriticalZoneTier`, and the
+  RPS implementation (`packages/codepacks/src/seismic/`) supplies constants + behaviour. `makeRpsOverlay(regime)`
+  rides on **either** BAEL or EC2 (it never touches the base pack). A future EC8/ASCE7 overlay = a second
+  `makeXxxOverlay` — **no engine change**. All cells in `rps-2011.json` flagged `"_provisional": true` → gate
+  **G-RPS** (same discipline as G-BAEL/G-EC2). **Don't fold seismic constants into the base packs.**
+- **D-P4b-2 — Overlay composes AFTER the base profile, in `solveElement` (no element branching).** When
+  `ElementSolveInput.seismic` is set, `solveElement` runs the base profile validator, then `applySeismicOverlay`
+  (`validation/seismic.ts`) appends the §7.10 items (per-segment critical-zone spacing, crit tie-ø, 135°/10φ
+  hooks, `confinement_required`) + the §7.13 seismic predicates (`lap_in_critical_zone`, `crosstie_engagement`),
+  and the status rolls up once over the combined list. `solveColumn` passes a `seismic` block through (derives
+  the member `{length,bMin,hSectionMax}` from geometry). **Segment injection is data, not geometry:** the
+  result carries `seismic.{l_c, segments}` (`END_BOTTOM/MIDDLE/END_TOP`, user spacing → `MIDDLE`) for preview +
+  per-segment BBS marks. Seismic wired to column/beam (the members with plastic-hinge zones); slabs/piles/stairs
+  don't get it in v1.0 (out of scope, no test). **No `if (elementType===…)`; dispatch stays by section + profile.**
+- **D-P4b-3 — Stair + joist are SLAB-FAMILY sections (reuse the per-metre machinery).** `pipeline/stair.ts`
+  (`solveStair` → `STAIR` profile) and `pipeline/joist.ts` (`solveJoist` → `JOIST_SLAB` profile) mirror
+  `solveSlab`: per-metre provided steel (`slabProvidedPerMetre`), computed `d` (`slabEffectiveDepth`), shapes via
+  the registry, `SolvedSlabZone`/`SlabContext` reused. Both profiles call the shared `slabZoneChecks` +
+  `slabDistributionMin` (stair: As_dist; joist: topping mesh ≥ 0.2·joist-bottom). The stair adds a `StairContext`
+  + the `stair_reentrant_corner_pullout` predicate. **No new layout solver was needed** — the slab seam already
+  covered them; this is the §0.1 thesis a third way (new element = new pipeline shim + profile + manifests).
+- **D-P4b-4 — `MARCHE_PALIER` is a GENERIC polyline shape (no new generator).** Authored as a 3-op segment-grammar
+  shape (`flight` line → `bend` turn → `landing` line, like `RELEVE`/`BAIONNETTE`); it goes through the generic
+  generator, **not** the bespoke registry — confirming only helix+mesh are truly bespoke (D-P4a-1). The
+  re-entrant-corner risk is **not** geometry; it's the `stair_reentrant_corner_pullout` predicate fed by
+  `StairContext.{reentrantCorner (landing_L>0), mainBarWrapsCorner}`: 🔴 when a tension bar is continuous around
+  the concave kink, PASS when split+anchored or no landing. `mainBarWrapsCorner` defaults **false** (the correct
+  split detailing) — a wrapped main bar is an explicit unsafe choice.
+- **D-P4b-5 — Hook/lap/engagement facts are INPUTS the overlay reads, not new geometry.** Ties carry optional
+  `hookAngle`/`hookExtFactor` (default 135/10 — the gravity good-practice default per §5.2.1d); the seismic block
+  carries `longBarsTotal`/`longBarsEngaged`, `confinementPresent` (catalog ids; defaults to the supplements'
+  `catalogId`s), and `laps[]` (extents along the member axis). `lap_in_critical_zone` tests `[start,end] ∩ ([0,l_c]
+  ∪ [L−l_c, L])`; `confinement_required` FAILs (export-blocking, §0.1) when a required add-on id is absent. These
+  are honest **edge-supplied** facts for v1.0 — the UI will populate them in a later pass (see deferred, below).
 
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-06-24 — P4b / M4b complete → **Phase 4 DONE** (code; G-RPS unsigned) — by **Zayd** (dev box)
+
+**What I did (in detail).** Implemented **the second half of Phase 4** per `v1.0_imp_plan.md` Phase 4b:
+the two disproportionately-hard remaining geometries (**straight-flight stair `E-STR-01`**, **hollow-block
+joist slab `E-SLB-03`**) and the **RPS-2011 seismic overlay** — the composable parasismic module that rides on
+**either** BAEL or EC2. This closes the §3.1 element catalog: **all 8 elements now solve + validate headlessly.**
+
+1. **Seismic overlay contract + RPS pack (D-P4b-1).** New frozen `SeismicOverlay` interface
+   (`packages/core/src/types/seismic.ts`) — a second injectable contract parallel to `CodePack`. RPS impl:
+   `packages/codepacks/src/seismic/` (`makeRpsOverlay(regime)` + `rps-2011.json`, all cells `"_provisional": true`,
+   gate **G-RPS**). Re-exported from the codepacks barrel.
+2. **Overlay validation + seismic/stair predicates (D-P4b-2/4).** `validation/seismic.ts` (`applySeismicOverlay`:
+   END_*/MIDDLE segment injection per §5.1.1, per-segment critical-zone spacing, crit tie-ø, 135°/10φ hooks,
+   `confinement_required`). `validation/predicates.ts` += `stairReentrantCornerPullout` (🔴/PASS),
+   `lapInCriticalZone` (🔴 ND2/3 · 🟠 ND1), `crosstieEngagement` (🟠 ND2 · 🔴 ND3).
+3. **Stair + joist pipelines + profiles (D-P4b-3).** `pipeline/stair.ts` (`solveStair`) + `pipeline/joist.ts`
+   (`solveJoist`); profiles `STAIR` + `JOIST_SLAB` in `validation/profiles.ts` (reuse `slabZoneChecks` +
+   `slabDistributionMin`; stair adds the re-entrant predicate via `StairContext`).
+4. **Seismic wired into `solveElement`/`solveColumn` (D-P4b-2/5).** Optional `seismic` block; ties gained
+   `hookAngle`/`hookExtFactor`; supplements gained `catalogId`; `SolveResult.seismic = {l_c, segments}`. No
+   element branching; the gravity path is byte-identical (all 163 prior tests unchanged).
+5. **Manifests (integrity-green {13/8/10/7}):** shape `marche_palier` (generic polyline — no new generator);
+   elements `E-STR-01` + `E-SLB-03`; one scheme each (`STAIR_STD`, `JOIST_STD`).
+6. **Tests:** 7 new core suites — `rps_segment_injection`, `seismic_hooks`, `lap_in_critical_zone`,
+   `confinement_required`, `stair_reentrant`, `joist_slab`, `rps_reference` (⚠ G-RPS provisional).
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {13/8/10/7} · core typecheck ✓ ·
+web typecheck ✓ · **200 tests / 40 files**. `npm run build:web` ✓ (~1.72 MB; new engine code browser-safe, no
+`node:*`). `vite dev` unaffected (port 5180).
+
+**Decisions:** D-P4b-1…D-P4b-5 in §8. Load-bearing: the seismic overlay as a second injectable contract
+(D-P4b-1), overlay-composes-after-profile with no element branching (D-P4b-2), and stair/joist reusing the slab
+per-metre seam (D-P4b-3).
+
+**Open / deliberately deferred (be honest):**
+- **G-RPS UNSIGNED** — every RPS cell (`l_c`, per-ND critical-zone spacing, min tie ø, required confinement,
+  engagement, zone→a_g) is provisional; `rps_reference` is flagged. P4b *code* done; *acceptance* waits on the
+  engineer (§6, §14.6). G-BAEL + G-EC2 also still unsigned.
+- **Seismic edge facts are inputs, not yet UI-driven (D-P4b-5).** Hook angle/ext, bars-engaged, confinement-present,
+  and lap extents are passed into the solve; the SPA does not yet collect them (no seismic regime picker wired).
+  The headless engine + tests fully exercise the overlay.
+- **New P4b elements are engine + manifests only — NOT in the SPA UI** (same as the P4a four). `apps/web/src/
+  engine/manifests.ts` still imports only E-COL-01/E-BEM-01. Wiring the six new elements (forms + 3D + seismic
+  picker) is a UI task for P4-polish/P6.
+- **Stair/joist are slab-family/representative:** waist treated as a per-metre flat plate (slope geometry not
+  modelled in 3D); joist bottom steel is smeared per-metre; topping mesh 3D is the panel outline (D-P4a-6). The
+  re-entrant predicate is topological (not a 3D collision). Disclosed.
+- **No human has seen stair/joist/seismic 3D** (headless box). No git commit (owner-gated, §7.6).
+
+**→ Next agent: P5 / M5 (exports BBS/DXF/PDF + `.rcfg` I/O + Section/Coupe engine).** Phase 4 is fully closed:
+every §3.1 element is solvable + validating, both packs swap as data, the RPS overlay composes on either. The
+P5 prerequisites: build the **Section/Coupe engine first** (`sectionAt(solveResult, cut) → CoupeView`, pure core,
+§9.5) since DXF/PDF consume it; then BBS (from each group's `cutLength`/count/Ø — already emitted), DXF (staged
+DXF-1/DXF-2), PDF (export locked on 🔴, §7.9). `.rcfg` I/O must preserve unknown fields/kinds (D-P0-2, already
+tested). *Before starting: `git log`/diff to confirm nothing moved; `npm run check` GREEN + `npm run build:web`;
+then append your own §9 entry.* Highest-value gap-closing if you don't start P5: **wire the 6 new elements + the
+seismic regime picker into the SPA**, and chase the **G-BAEL / G-EC2 / G-RPS** signatures (all three unsigned).
+
+### 2026-06-24 — P4a / M4a complete (code; G-EC2 unsigned) — by **Zayd** (dev box)
+
+**What I did (in detail).** Implemented **the first half of Phase 4** per `v1.0_imp_plan.md` Phase 4a:
+the remaining "regular" geometries (circular column, drilled-shaft pile, 1-way + 2-way slabs), the two
+bespoke geometry generators (helix + mesh), the **full second code pack (EC2)** behind the same `code.*`
+names, and the slab topological predicates. Proves the data-driven thesis a second way: a new section/
+element = new layout solver + a registered profile + manifests, and a new code = swap the pack only.
+
+1. **EC2 code pack (D-P4a-4)** — `packages/codepacks/src/ec2/` (`makeEc2Pack` + `ec2-constants.json`,
+   all cells `"_provisional": true`, gate **G-EC2**). Same `CodePack` interface + extras as BAEL; the
+   barrel re-exports both packs (selective, to avoid the same-named `PackExtras` collision). Added
+   `slabSpacingMax` + `distMinFraction` to **both** packs + core `CodePackExtras`.
+2. **Shape registry seam + bespoke generators (D-P4a-1/6)** — `geometry/registry.ts` (`generateShape`
+   dispatch), `geometry/bespoke/helix.ts` (`SPIRALE_HELICE`) + `mesh.ts` (`TREILLIS_MESH`). The whole
+   pipeline now goes through `generateShape`.
+3. **Circular + slab layout solvers (§6.1)** — `layout/circular.ts` (EQUAL_PERIMETER pitch circle,
+   `s_arc`, min 6) + `layout/slab.ts` (per-metre provided steel, computed `d`, 1-D bar lines).
+4. **New validation profiles + predicates (D-P4a-3/5)** — `CIRCULAR_COLUMN`, `SLAB_ONEWAY`, `SLAB_TWOWAY`
+   in `validation/profiles.ts`; `validation/predicates.ts` (`slabDistributionMin` 🔴,
+   `twowayCornerTorsionMissing` 🟠). `ProfileContext` extended (optional `section`/`circular`/`slab`); the
+   P1/P3 rect path is byte-identical.
+5. **Section pipelines (D-P4a-2)** — `pipeline/circular.ts` (`solveCircular`) + `pipeline/slab.ts`
+   (`solveSlab`); both share the shape + profile registries. No element branching anywhere.
+6. **Manifests (integrity-green {12/6/8/7}):** shapes `spirale_helice` + `treillis_mesh`; elements
+   `E-COL-02`, `E-FND-01`, `E-SLB-01`, `E-SLB-02`; one scheme each.
+7. **Tests:** 6 new core suites — `helix_geometry`, `mesh_geometry`, `circular_layout`, `ec2_reference`
+   (⚠ G-EC2), `pack_swap`, `slab_rules`.
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {12/6/8/7} · core typecheck ✓ ·
+web typecheck ✓ · **163 tests / 33 files**. `npm run build:web` ✓ (~1.72 MB; new engine code is browser-safe,
+no `node:*`). `vite dev` unaffected (port 5180).
+
+**Decisions:** D-P4a-1…D-P4a-6 in §8. Load-bearing: the shape registry seam (D-P4a-1), section dispatch
+without element branching (D-P4a-2), and pack-agnostic profiles proven by `pack_swap` (D-P4a-3/4).
+
+**Open / deliberately deferred (be honest):**
+- **G-EC2 UNSIGNED** — every EC2 number is provisional (mirrors G-BAEL). P4a *code* done; *acceptance* waits
+  on the engineer (§6, §14). The `ec2_reference` suite is explicitly flagged provisional.
+- **New elements are engine + manifests only — NOT wired into the SPA UI.** `apps/web/src/engine/
+  manifests.ts` uses explicit imports (the new JSON is intentionally not imported there yet), so the SPA
+  still exposes only E-COL-01/E-BEM-01. Wiring the catalog dropdown + per-element sidebar forms + 3D for
+  circular/slab is a UI task (do it in P4b or a P6 polish pass). The headless engine + tests fully drive all
+  six elements.
+- **Slab model is per-metre/representative:** one representative strip, no two-way moment-field nuance; the
+  TOP/CHAPEAU slab zone is supported by the profile but the test focuses on main/dist + corner-torsion.
+  Mesh 3D render is the panel outline only (D-P4a-6). `EC2 α₁..α₆` coefficients default to 1.0 (disclosed),
+  like BAEL.
+- **Profile legacy naming:** `BAEL_COLUMN`/`BAEL_BEAM` keys are pack-agnostic despite the prefix (D-P4a-3) —
+  not renamed to avoid churn. The §14.7-style numeric discrepancies (e.g. EC2 l_bd ≈ 40φ) are honest
+  computed values pending G-EC2.
+- **No git commit** (owner-gated, §7.6). No human has seen circular/slab 3D (headless box).
+
+**→ Next agent: P4b / M4b (stair `E-STR-01` + joist slab `E-SLB-03` + RPS-2011 seismic overlay).** The seams
+are ready: the stair `MARCHE_PALIER` is a planar polyline (generic generator) + a new profile + the
+`stair_reentrant_corner_pullout` predicate; the joist slab is another section/profile. **RPS overlay**
+composes onto either pack as keyed overrides (§7.10): inject `END_*` `l_c` segments into transverse
+distribution, tighten limits per ND class, force 135°/10φ hooks, promote confinement supplements to required,
+add `lap_in_critical_zone` + `crosstie_engagement` predicates. Gate **G-RPS** blocks the *phase close*; ship
+provisional flagged. *Before starting: `git log`/diff to confirm nothing moved; `npm run check` GREEN +
+`npm run build:web`; then append your own §9 entry.* Highest-value P4a follow-ups if you close gaps first:
+**wire the four new elements into the SPA** and chase **G-EC2 / G-BAEL** signatures.
 
 ### 2026-06-24 — P3 / M3 complete (code; G-BAEL unsigned) — by **Zayd** (dev box)
 

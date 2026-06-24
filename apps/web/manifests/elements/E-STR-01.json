@@ -1,0 +1,22 @@
+{
+  "id": "E-STR-01",
+  "variant": "STRAIGHT_FLIGHT_STAIR",
+  "label_fr": "Escalier droit (paillasse)",
+  "label_en": "Straight-flight stair",
+  "geometryParams": [
+    { "key": "g", "unit": "mm", "label_fr": "Giron", "label_en": "Going", "min": 0, "default": 280 },
+    { "key": "r", "unit": "mm", "label_fr": "Contremarche", "label_en": "Riser", "min": 0, "default": 170 },
+    { "key": "n_steps", "unit": "—", "label_fr": "Nombre de marches", "label_en": "Number of steps", "min": 1, "default": 14 },
+    { "key": "waist_t", "unit": "mm", "label_fr": "Épaisseur paillasse", "label_en": "Waist thickness", "min": 0, "default": 180 },
+    { "key": "flight_width", "unit": "mm", "label_fr": "Largeur de volée", "label_en": "Flight width", "min": 0, "default": 1200 },
+    { "key": "landing_L", "unit": "mm", "label_fr": "Longueur de palier", "label_en": "Landing length", "min": 0, "default": 1000 }
+  ],
+  "As_zones": [
+    { "key": "As_main_bottom", "label_fr": "Aciers principaux (travée, bas)", "label_en": "Main bottom steel", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_dist", "label_fr": "Aciers de répartition", "label_en": "Distribution steel", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_top_support", "label_fr": "Chapeaux sur appui", "label_en": "Top support steel", "unit": "cm2/m", "kind": "longitudinal" },
+    { "key": "As_starter", "label_fr": "Aciers en attente", "label_en": "Starter steel", "unit": "cm2/m", "kind": "longitudinal" }
+  ],
+  "compatibleSchemes": ["STAIR_STD"],
+  "validationProfile": "STAIR"
+}

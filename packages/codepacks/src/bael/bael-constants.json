@@ -79,5 +79,13 @@
     "spacingWarnBand": 0.05,
     "anchorageWarnBand": 0.05,
     "coverWarnBand": 0.10
+  },
+  "slab": {
+    "_note": "BAEL slab bar spacing (§7.11): principal ≤ min(3h,33cm); secondary ≤ min(4h,45cm). Distribution steel ≥0.20·As,main.",
+    "principalMaxFactorOfH": 3,
+    "principalCap_mm": 330,
+    "secondaryMaxFactorOfH": 4,
+    "secondaryCap_mm": 450,
+    "distMinFractionOfMain": 0.2
   }
 }

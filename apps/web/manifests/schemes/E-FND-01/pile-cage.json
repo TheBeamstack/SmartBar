@@ -1,0 +1,26 @@
+{
+  "id": "PILE_CAGE",
+  "elementType": "E-FND-01",
+  "label_fr": "Cage de pieu — barres + attentes + spirale",
+  "label_en": "Pile cage — bars + dowels + spiral",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_longitudinal",
+      "shape": "DROITE",
+      "placement": { "rule": "EQUAL_PERIMETER", "count": "param" }
+    },
+    {
+      "role": "STARTER",
+      "zone": "As_dowels",
+      "shape": "ATTENTE",
+      "placement": { "rule": "EQUAL_PERIMETER", "count": "param" }
+    },
+    {
+      "role": "TRANSVERSE",
+      "shape": "SPIRALE_HELICE",
+      "placement": { "rule": "ALONG_PATH", "path": { "ref": "PILE_LENGTH" }, "spacing": "param" }
+    }
+  ],
+  "validationProfile": "CIRCULAR_COLUMN"
+}

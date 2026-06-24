@@ -26,6 +26,10 @@ export interface CodePackExtras {
   minShearStress_MPa?: number;
   tieDiameterMin?(phiLMax: number): number;
   lsStraight?(diameter: number, material: MaterialContext): number;
+  /** max slab bar spacing (mm), §7.4 (principal vs secondary/distribution). P4a. */
+  slabSpacingMax?(h: number, secondary: boolean): number;
+  /** min distribution/secondary steel as a fraction of main steel, §7.4 (default 0.20). P4a. */
+  distMinFraction?: number;
 }
 export type ExtendedCodePack = CodePack & CodePackExtras;
 

@@ -13,6 +13,10 @@ export * from "./layout/index";
 export * from "./validation/index";
 // P3 — validation-profile registry (D-P1-4) + scheme/placement/supplement resolvers (§5.3–5.6)
 export * from "./validation/profiles";
+// P4a — topological / detailing-logic predicates (§7.13)
+export * from "./validation/predicates";
+// P4b — seismic overlay validation (RPS composes on either pack, §7.10)
+export * from "./validation/seismic";
 export * from "./scheme/index";
 export * from "./pipeline/index";
 

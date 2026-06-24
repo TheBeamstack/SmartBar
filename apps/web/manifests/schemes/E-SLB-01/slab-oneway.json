@@ -1,0 +1,27 @@
+{
+  "id": "SLAB_ONEWAY_STD",
+  "elementType": "E-SLB-01",
+  "label_fr": "Dalle 1 sens — principaux + répartition + chapeaux",
+  "label_en": "One-way slab — main + distribution + top",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_main_bottom",
+      "shape": "DROITE",
+      "placement": { "rule": "SLAB_LINE", "spacing": "param" }
+    },
+    {
+      "role": "DISTRIBUTION",
+      "zone": "As_dist",
+      "shape": "DROITE",
+      "placement": { "rule": "SLAB_LINE", "spacing": "param" }
+    },
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_top_support",
+      "shape": "CHAPEAU",
+      "placement": { "rule": "TOP_SUPPORT", "spacing": "param" }
+    }
+  ],
+  "validationProfile": "SLAB_ONEWAY"
+}

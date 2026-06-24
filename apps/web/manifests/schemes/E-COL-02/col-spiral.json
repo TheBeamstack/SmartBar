@@ -1,0 +1,21 @@
+{
+  "id": "COL_SPIRAL",
+  "elementType": "E-COL-02",
+  "label_fr": "Poteau circulaire — barres + spirale",
+  "label_en": "Circular column — bars + spiral",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_total",
+      "shape": "DROITE",
+      "placement": { "rule": "EQUAL_PERIMETER", "count": "param" }
+    },
+    {
+      "role": "TRANSVERSE",
+      "zone": "Asw_spiral",
+      "shape": "SPIRALE_HELICE",
+      "placement": { "rule": "ALONG_PATH", "path": { "ref": "COLUMN_HEIGHT" }, "spacing": "param" }
+    }
+  ],
+  "validationProfile": "CIRCULAR_COLUMN"
+}

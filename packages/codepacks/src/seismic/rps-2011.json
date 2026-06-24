@@ -1,0 +1,60 @@
+{
+  "_provisional": true,
+  "_note": "RPS 2000/2011 Moroccan parasismic overlay (spec §7.10 [REF-MATH-710]). PROVISIONAL — gate G-RPS (§14.5/§14.6): every cell marked ⚠ in §7.10b awaits ratification by the nominated structural engineer before M4b acceptance. The TABLE SHAPE, the override mechanism, and the dispatch are FINAL; only the values change once signed. The engine reads this the same way regardless.",
+  "id": "RPS-2011",
+  "codeRef": "RPS 2000/2011",
+  "criticalZone": {
+    "_note": "l_c plastic-hinge length at member ends (§7.10a). ⚠ VERIFY against RPS 2011 text. Column: max(h_section_max, H_clear/6, 450 mm); Beam: 2·h from each support face.",
+    "columnFloor_mm": 450,
+    "columnClearLengthDivisor": 6,
+    "beamHeightMultiple": 2
+  },
+  "critSpacing": {
+    "_note": "max tie spacing in a critical zone (mm), per ND class (§7.10b). s_crit = min(phiLMultiple·φ_ℓ, bMinFraction·b_min, cap). ⚠ VERIFY.",
+    "ND1": { "phiLMultiple": 12, "bMinFraction": 0.5, "cap_mm": 200 },
+    "ND2": { "phiLMultiple": 8, "bMinFraction": 0.5, "cap_mm": 150 },
+    "ND3": { "phiLMultiple": 6, "bMinFraction": 0.25, "cap_mm": 100 }
+  },
+  "minTieDiameter_mm": {
+    "_note": "min transverse ø inside a critical zone (§7.10b). ⚠ VERIFY.",
+    "ND1": 6,
+    "ND2": 8,
+    "ND3": 8
+  },
+  "hook": {
+    "_note": "135°/≥10φ mandatory on ties/cross-ties/épingles (§7.10c) — RPS firm.",
+    "angle": 135,
+    "extFactor": 10
+  },
+  "confinement": {
+    "_note": "required confinement add-on supplement ids per ND class (§7.10b/c). ⚠ VERIFY which add-ons. ND3 = every long. bar engaged.",
+    "ND1": ["SUPP_EPINGLE_CROSSTIE"],
+    "ND2": ["SUPP_EPINGLE_CROSSTIE", "SUPP_DIAMANT_TIE"],
+    "ND3": ["SUPP_EPINGLE_CROSSTIE", "SUPP_DIAMANT_TIE"]
+  },
+  "engagement": {
+    "_note": "lateral engagement of longitudinal bars by tie corners / cross-ties (§7.10b, predicate crosstie_engagement). ⚠ VERIFY.",
+    "ND1": "none",
+    "ND2": "alternate",
+    "ND3": "every"
+  },
+  "longRatioUplift": {
+    "_note": "uplift factor applied to the base pack's column AsMin per ND class (§7.10b). ⚠ VERIFY.",
+    "ND1": 1.0,
+    "ND2": 1.1,
+    "ND3": 1.25
+  },
+  "lapTier": {
+    "_note": "laps/splices forbidden in critical zones (§7.10c): ND2/3 FAIL, ND1 WARN.",
+    "ND1": "WARN",
+    "ND2": "FAIL",
+    "ND3": "FAIL"
+  },
+  "zones": {
+    "_note": "zone → a_g (m/s²) map (§7.10 zone note). ⚠ VERIFY (RPS 2000 vs 2011 zonation). Engine treats zone as an opaque key.",
+    "1": 0.01,
+    "2": 0.08,
+    "3": 0.16,
+    "4": 0.24
+  }
+}

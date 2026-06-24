@@ -9,7 +9,7 @@
  */
 import type { RectLayout } from "./placement";
 
-export type SectionKind = "RECT" | "CIRCULAR";
+export type SectionKind = "RECT" | "CIRCULAR" | "SLAB";
 
 /** Input descriptor for the layout solver. */
 export interface LayoutDescriptor {

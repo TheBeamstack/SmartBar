@@ -1,0 +1,21 @@
+{
+  "id": "MARCHE_PALIER",
+  "label_fr": "Barre principale escalier (volée + palier)",
+  "label_en": "Stair main bar (waist + landing bend)",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "flight", "label_fr": "Tronçon de volée (paillasse)", "label_en": "Flight (waist) run", "type": "length", "min": 0 },
+    { "key": "landing", "label_fr": "Tronçon de palier", "label_en": "Landing run", "type": "length", "min": 0 },
+    { "key": "bend", "label_fr": "Angle volée/palier", "label_en": "Flight↔landing angle", "type": "angle", "min": 0, "max": 60, "default": 30 }
+  ],
+  "segments": [
+    { "line": "flight", "dir": "u+" },
+    { "turn": "bend", "hand": "left" },
+    { "line": "landing" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "flight + landing - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}
