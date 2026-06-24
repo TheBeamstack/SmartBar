@@ -1,0 +1,17 @@
+{
+  "id": "SUPP_RELEVE_BARS",
+  "label_fr": "Aciers relevés",
+  "label_en": "Bent-up bars",
+  "role": "SUPPLEMENTAL",
+  "shape": "RELEVE",
+  "requires": { "hostRole": "PRIMARY_LONGITUDINAL", "min_bars": 2 },
+  "placement": {
+    "rule": "BEND_UP_SPAN_BAR",
+    "select": "user"
+  },
+  "params": [
+    { "key": "diameter", "type": "diameter", "default": 16 },
+    { "key": "angle", "type": "angle", "default": 45 }
+  ],
+  "validation": ["anchorage", "shear_contribution"]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "SUPP_DIAMANT_TIE",
+  "label_fr": "Cadre diamant (confinement intérieur)",
+  "label_en": "Interior diamond tie",
+  "role": "SUPPLEMENTAL",
+  "shape": "CADRE_RECT",
+  "requires": { "hostRole": "PRIMARY_LONGITUDINAL", "min_bars": 8 },
+  "placement": {
+    "rule": "INTERIOR_DIAMOND",
+    "select": "user",
+    "spacing": "= tie.spacing"
+  },
+  "params": [
+    { "key": "diameter", "type": "diameter", "default": 8 }
+  ],
+  "validation": ["spacing_with_base", "hook_anchorage"]
+}

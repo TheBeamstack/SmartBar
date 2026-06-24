@@ -8,7 +8,27 @@
  * World frame: column axis = +Y (height H); cross-section = X–Z plane (engine u→X, v→Z).
  */
 import type { SolveResult, BarPosition } from "@rebarconfig/core";
-import type { ColumnDoc } from "../engine/document";
+import { type ElementDoc, isColumnDoc } from "../engine/document";
+
+/** Member axis (length + transverse spacing + concrete box) for either element. */
+function memberAxis(doc: ElementDoc): {
+  length: number;
+  spacing: number;
+  concrete: { b: number; h: number; H: number };
+} {
+  if (isColumnDoc(doc)) {
+    return {
+      length: doc.geometry.H,
+      spacing: doc.tie.spacing,
+      concrete: { b: doc.geometry.b, h: doc.geometry.h, H: doc.geometry.H },
+    };
+  }
+  return {
+    length: doc.geometry.L,
+    spacing: doc.stirrup.spacing,
+    concrete: { b: doc.geometry.b, h: doc.geometry.h, H: doc.geometry.L },
+  };
+}
 
 export type RenderMode = "tubes" | "lines";
 export type ValidationMode = "live" | "deferred";
@@ -89,12 +109,16 @@ function tieHeights(H: number, spacing: number): number[] {
 
 /**
  * Build the full render scene. Pure: same (result, doc, dragMode, selected) → identical Scene.
- * `result.bars` are the solved longitudinal positions; the tie group carries the bent loop
- * centerline that we instance up the height at `doc.tie.spacing`.
+ * `result.bars` are the solved longitudinal positions; transverse + supplemental groups carry
+ * bent-loop centerlines instanced up the member at the transverse spacing.
+ *
+ * Generic over the element: the member axis = +Y (H for a column, L for a beam) and the
+ * cross-section lives in X–Z. Bottom/side bars belong to the first longitudinal group, top bars
+ * to the second (a beam's chapeaux) — so failing/selected colouring is per zone.
  */
 export function buildScene(
   result: SolveResult,
-  doc: ColumnDoc,
+  doc: ElementDoc,
   dragMode: boolean,
   selectedGroupIds: readonly string[] = [],
 ): Scene {
@@ -102,26 +126,30 @@ export function buildScene(
   const failingIds = failingGroupIds(result);
   const isFailing = (id: string) => failingIds.includes(id);
   const isSelected = (id: string) => selectedGroupIds.includes(id);
+  const { length, spacing, concrete } = memberAxis(doc);
 
   const bars: BarInstance[] = [];
 
-  const longGroup = result.groups.find((g) => g.role === "PRIMARY_LONGITUDINAL");
-  if (longGroup) {
+  const longGroups = result.groups.filter((g) => g.role === "PRIMARY_LONGITUDINAL");
+  const mainLong = longGroups[0];
+  const topLong = longGroups[1] ?? longGroups[0]; // a beam's chapeau group, else the main group
+  if (mainLong) {
     for (const p of result.bars) {
+      const g = p.faceTag === "TOP" ? topLong! : mainLong;
       bars.push({
-        groupId: longGroup.groupId,
-        points: longitudinalPolyline(p, doc.geometry.H),
-        diameter: longGroup.diameter,
+        groupId: g.groupId,
+        points: longitudinalPolyline(p, length),
+        diameter: g.diameter,
         closed: false,
-        failing: isFailing(longGroup.groupId),
-        selected: isSelected(longGroup.groupId),
+        failing: isFailing(g.groupId),
+        selected: isSelected(g.groupId),
       });
     }
   }
 
   const tieGroup = result.groups.find((g) => g.role === "TRANSVERSE");
   if (tieGroup) {
-    for (const y of tieHeights(doc.geometry.H, doc.tie.spacing)) {
+    for (const y of tieHeights(length, spacing)) {
       bars.push({
         groupId: tieGroup.groupId,
         points: placeTieLoop(tieGroup.shape.centerline3D, y),
@@ -133,5 +161,19 @@ export function buildScene(
     }
   }
 
-  return { concrete: doc.geometry, bars, mode, validation, failingIds };
+  // supplemental groups (épingles, skin, diamond, …). Precise placement is a polish item; here
+  // we surface their presence — closed add-ons as a centred loop, open ones as a centred run.
+  for (const g of result.groups) {
+    if (g.role === "PRIMARY_LONGITUDINAL" || g.role === "TRANSVERSE") continue;
+    bars.push({
+      groupId: g.groupId,
+      points: placeTieLoop(g.shape.centerline3D, length / 2),
+      diameter: g.diameter,
+      closed: g.shape.closed,
+      failing: isFailing(g.groupId),
+      selected: isSelected(g.groupId),
+    });
+  }
+
+  return { concrete, bars, mode, validation, failingIds };
 }

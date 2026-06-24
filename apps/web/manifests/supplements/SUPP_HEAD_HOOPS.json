@@ -1,0 +1,17 @@
+{
+  "id": "SUPP_HEAD_HOOPS",
+  "label_fr": "Frettes de tête",
+  "label_en": "Head hoops",
+  "role": "SUPPLEMENTAL",
+  "shape": "CADRE_RECT",
+  "requires": { "hostRole": "TRANSVERSE", "min_bars": 0 },
+  "placement": {
+    "rule": "HEAD_ZONE",
+    "select": "user",
+    "spacing": "= 0.5 * tie.spacing"
+  },
+  "params": [
+    { "key": "diameter", "type": "diameter", "default": 8 }
+  ],
+  "validation": ["spacing_with_base"]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "COL_TIES",
+  "elementType": "E-COL-01",
+  "label_fr": "Cadres simples",
+  "label_en": "Ties only",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_total",
+      "shape": "DROITE",
+      "placement": { "rule": "SECTION_PERIMETER", "layout": { "principle": "SYMMETRIC", "nTop": 2, "nBottom": 2, "nLeft": 2, "nRight": 2, "layers": 1 } }
+    },
+    {
+      "role": "TRANSVERSE",
+      "zone": "Asw_confinement",
+      "shape": "CADRE_RECT",
+      "placement": { "rule": "ALONG_PATH", "path": { "ref": "COLUMN_HEIGHT" }, "spacing": "param" }
+    }
+  ],
+  "supplementalCatalog": ["SUPP_EPINGLE_CROSSTIE", "SUPP_DIAMANT_TIE"],
+  "validationProfile": "BAEL_COLUMN"
+}

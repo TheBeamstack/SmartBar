@@ -1,0 +1,16 @@
+{
+  "id": "SUPP_DIAGONALE_ANGLE",
+  "label_fr": "Diagonale d'angle",
+  "label_en": "Corner diagonal bar",
+  "role": "SUPPLEMENTAL",
+  "shape": "CROCHET_L",
+  "requires": { "hostRole": "PRIMARY_LONGITUDINAL", "min_bars": 4 },
+  "placement": {
+    "rule": "CORNER_DIAGONAL",
+    "select": "user"
+  },
+  "params": [
+    { "key": "diameter", "type": "diameter", "default": 12 }
+  ],
+  "validation": ["cover", "anchorage"]
+}

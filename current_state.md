@@ -43,16 +43,18 @@ in the browser — no server, free hosting.**
 | **P0 / M0** — Pin core contracts (types + JSON Schemas + fixtures + integrity gate) | ✅ **DONE** | Zayd, 2026-06-24 |
 | **P1 / M1** — Engine skeleton + `E-COL-01` + **BAEL pack** (headless) | ✅ **DONE** (code) · ⏳ G-BAEL unsigned | Zayd, 2026-06-24 |
 | **P2 / M2** — SPA shell + 3D viewport | ✅ **DONE** (code) | Zayd, 2026-06-24 |
-| P3 / M3 — Scheme catalog + supplements + advanced builder + `E-BEM-01` | ⛔ not started | — |
+| **P3 / M3** — Scheme catalog + supplements + advanced builder + `E-BEM-01` | ✅ **DONE** (code) · ⏳ G-BAEL unsigned | Zayd, 2026-06-24 |
 | P4 / M4 — Full element set + EC2 pack + RPS seismic | ⛔ not started | — |
 | P5 / M5 — Exports (BBS, DXF, PDF) + `.rcfg` I/O | ⛔ not started | — |
 | P6 / M6 — Hardening, sign-off, release | ⛔ not started | — |
 
-**Test status (P2):** `npm run check` green — purity ✓, manifest integrity ✓ (**5 shapes** / 1
-element / 1 scheme / 1 supplement), core typecheck ✓, **web typecheck ✓**, **78 tests passed**
-across 19 files (64 core + **14 web**). Two vitest projects now (`core` = node, `web` = jsdom).
-New P2 web suites: `store_resolve`, `perf_budget` (<16 ms), `red_fail_mapping`, `degradation`,
-`smoke` (RTL). `vite build` succeeds; `vite dev` serves on **127.0.0.1:5180** (HTTP 200).
+**Test status (P3):** `npm run check` green — purity ✓, manifest integrity ✓ (**10 shapes** / **2
+elements** / **4 schemes** / **7 supplements**), core typecheck ✓, **web typecheck ✓**, **123 tests
+passed** across 27 files (84 core + **39 web**). New P3 core suites: `scheme_switch`,
+`placement_resolve`, `supplement_rebind`, `beam_curtailment`, `expert_mode`, `binding_keyboard`
+(+`schema.valid` auto-grew 14→29 as it discovers every manifest). New P3 web suites:
+`element_catalog`, `beam_supplements` (RTL). `vite build` succeeds (~1.7 MB bundle, code-split =
+P6); `vite dev` serves on **127.0.0.1:5180** (HTTP 200, HTML + transpiled entry).
 
 ---
 
@@ -137,22 +139,25 @@ packages/core/            # @rebarconfig/core — the PURE ENGINE (no DOM/React/
   src/integrity/index.ts  # manifest-integrity gate (ajv + cross-ref + expr-scope check)
   src/geometry/           # P1: expr.ts (mathjs frozen scope) + segment-grammar.ts generator
   src/layout/             # P1: rect.ts — corner-share layout + computed d/d' (computeZoneGeometry)
-  src/validation/         # P1: validation engine + validity tiers (validateColumn, tierFor, …)
-  src/pipeline/           # P1: solve.ts — solveColumn orchestrator (layout→shape→validate)
-  src/index.ts            # public surface: types + integrity + geometry/layout/validation/pipeline
+  src/validation/         # P1: index.ts (validateColumn, tierFor, …) + P3: profiles.ts
+                          #   (VALIDATION_PROFILES registry: BAEL_COLUMN/BAEL_BEAM — D-P3-1)
+  src/scheme/             # P3: resolve.ts — scheme→zone map, placement+supplement resolvers,
+                          #   nearestBarIndex, computeCurtailment (§5.3–5.7, D-P3-4)
+  src/pipeline/           # element.ts: generic solveElement (D-P3-1) + solve.ts: solveColumn shim
+  src/index.ts            # public surface: types + geometry/layout/validation/profiles/scheme/pipeline
 packages/codepacks/       # @rebarconfig/codepacks — packs behind core's CodePack iface (P1)
   src/bael/bael-constants.json  # ⚠ PROVISIONAL BAEL constants, "_provisional": true (G-BAEL)
   src/bael/index.ts       # makeBaelPack(): BaelPack — code.* impls + PackExtras (bands, ls, …)
 apps/web/                 # @rebarconfig/web — the SPA (P2): React 18 + Vite + Zustand + R3F
   index.html  vite.config.ts  tsconfig.json  vitest.setup.ts
-  manifests/              # the real data: shapes/ (5: +attente,+baionnette) elements/ schemes/ supplements/
+  manifests/              # the real data (P3): shapes/ (10) elements/ (2) schemes/ (4) supplements/ (7)
   src/
     main.tsx App.tsx styles.css
-    engine/               # adapter (NOT engine code): document.ts (ColumnDoc + default ref col),
-                          #   manifests.ts (Vite JSON imports), solveDoc.ts (doc→SolveResult via core)
-    store/                # useStore.ts — Zustand; every mutation re-solves synchronously
-    viewport/             # Viewport.tsx (R3F Canvas) + Rebar.tsx + rebarProps.ts (PURE mapping)
-    ui/                   # Navbar Sidebar AlertsPanel NumberField derived.ts
+    engine/               # adapter (NOT engine code): document.ts (ElementDoc = column|beam + factories),
+                          #   manifests.ts (full registry), solveDoc.ts (doc→solveElement, 2-pass supplements)
+    store/                # useStore.ts — Zustand; element/scheme catalog + supplements + expert; re-solves sync
+    viewport/             # Viewport.tsx (R3F Canvas) + Rebar.tsx + rebarProps.ts (PURE mapping, both elements)
+    ui/                   # Navbar Sidebar SupplementsPanel AlertsPanel NumberField derived.ts
     i18n/strings.ts       # FR/EN bundles (typed)
     *.spec.ts(x)          # P2 web suites (run under the jsdom vitest project)
 tests/                    # P0 contract tests + P1 engine suites + fixtures (valid/ + invalid/)
@@ -296,10 +301,113 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
   locked to `E-COL-01` and code ▼ to BAEL-FR (the only element + pack that exist pre-P3/P4). Import
   is a stub; **Export is wired to the §7.9 export-lock now** (disabled on a 🔴 FAIL) even though the
   exporters themselves are P5. Diameter set `{6,8,…,32}` is a P2 convention (ratified set = §14 item).
+- **D-P3-1 — Validation-profile registry + generic `solveElement` (closes D-P1-4).** `packages/core/
+  src/validation/profiles.ts` holds `VALIDATION_PROFILES = { BAEL_COLUMN, BAEL_BEAM }` (a name→validator
+  map); `packages/core/src/pipeline/element.ts` `solveElement` is the ONE orchestrator — it assembles the
+  layout, generates each group's shape, computes per-zone `d`, and dispatches the profile named by the
+  manifest. **`solveColumn` is now a thin shim over `solveElement`** (it just applies the column's tie-inset
+  / `L=H` conventions) → one engine, no fork. `BAEL_COLUMN` *delegates to the proven P1 `validateColumn`*
+  (single source of truth — all 78 prior tests stayed byte-identical). **No `if(elementType)` in core.**
+- **D-P3-2 — Beam is one representative cross-section (v1.0).** `E-BEM-01` zones: `As_span_bottom` (BOTTOM
+  face, tension BOTTOM), `As_top_support` (TOP face = chapeaux, tension TOP), `Asw_shear` (stirrups). The
+  spec's separate `As_top_left`/`As_top_right` supports are **collapsed into one representative support
+  zone** — faithful enough to prove generality + curtailment; the left/right split is a P4+ refinement.
+  `validateBeamProfile` does per-zone provided-area + ratio (As,min = `0.23·b·d·ft28/fe` with the **computed
+  `d`**, not `0.9h`), clear spacing, cover, stirrup `s ≤ 0.75·d`, leg-counted Asw, and **end-support
+  anchorage ≥ 0.25·As,span** (WARN if short).
+- **D-P3-3 — Curtailment/shift (§7.7) feeds the chapeau bar length.** `computeCurtailment(code, …)` =
+  `{ shift=a_l≈d, lbd, extension = supportZone + a_l + l_bd }`. The `CHAPEAU` archetype is a horizontal run
+  (its principal leg = `extension`) + two 90° down-returns (end hooks) → its `cutLength` carries the
+  curtailment length onto the BBS. (Honest: the support return detailing is minimal; `beam_curtailment.spec`
+  checks leg a == extension and cutLength > extension.)
+- **D-P3-4 — Scheme/placement/supplement resolvers are PURE core** (`packages/core/src/scheme/resolve.ts`).
+  `resolveScheme` maps base groups → declared zones (switching = call again, wholesale remap). Supplements
+  **bind by STABLE bar indices, never coordinates** (§10): `resolveBarPairPlacement` positions a
+  `LINK_BAR_PAIR` épingle at the midpoint and re-solves when bars move; a deleted ref or unmet
+  `requires.min_bars` → **WARN + rebind prompt**. **`nearestBarIndex` is the shared backbone of BOTH 3D
+  click-binding and the keyboard/index list** → identical binding (a11y parity, `binding_keyboard.spec`).
+- **D-P3-5 — UI generalised to `ElementDoc` (column | beam) via `solveDoc` → `solveElement`.** The store
+  holds either doc; the adapter marshals conventions + does a **two-pass solve for supplements** (solve base
+  → bind against `result.bars` → re-solve with the add-ons). The column path is byte-identical to P2 (all P2
+  web tests pass unchanged). **Scheme switch preserves geometry/material/cover/exposure**, remaps the
+  reinforcement to the scheme default, and clears supplements.
+- **D-P3-6 — Supplement shape-params + 3D placement are UI-edge conventions.** The engine stays generic;
+  `solveDoc.supplementShapeParams` computes archetype params (e.g. épingle `span` from the resolved
+  midpoint) so `generateBarShape` never throws. **Precise 3D supplement placement is deferred** — the
+  viewport renders supplements centred (shows presence) rather than at the exact resolved midpoint; the
+  engine already knows the exact position (`ResolvedSupplement.position`). Beam is drawn with member axis +Y
+  (it stands up); orientation is a P6 visual-polish item.
 
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-06-24 — P3 / M3 complete (code; G-BAEL unsigned) — by **Zayd** (dev box)
+
+**What I did (in detail).** Built the **scheme catalog + supplements + advanced builder + the beam
+`E-BEM-01`** as the second element — proving the "add JSON + a registered profile, no engine
+rewrite" thesis — per `v1.0_imp_plan.md` Phase 3. Concretely:
+
+1. **Validation-profile registry + generic `solveElement` (D-P3-1, closes the P1 D-P1-4 prereq).**
+   New `validation/profiles.ts` (`VALIDATION_PROFILES`, `validateColumnProfile`, `validateBeamProfile`)
+   and `pipeline/element.ts` (`solveElement`). Rewrote `pipeline/solve.ts` so **`solveColumn` is a
+   convention-applying shim over `solveElement`** — one engine, zero element branching. `BAEL_COLUMN`
+   delegates to the unchanged P1 `validateColumn` (all 78 prior tests stayed identical).
+2. **Beam validation profile (D-P3-2/3).** Per-zone provided-area + ratio (beam As,min with the
+   **computed `d`**), clear spacing, cover, stirrup `s≤0.75·d`, leg-counted Asw, **end-support anchorage
+   ≥0.25·As,span**, and the **curtailment/shift** helper (`computeCurtailment`) feeding the chapeau
+   cutLength.
+3. **Scheme / placement / supplement resolvers (D-P3-4)** — new pure `scheme/resolve.ts`:
+   `resolveScheme` (base groups→zones, clean remap on switch), `resolveBarPairPlacement` +
+   `nearestBarIndex` (LINK_BAR_PAIR midpoint; click==keyboard binding), `resolveSupplement` (broken-ref
+   / min_bars → WARN + rebind), `computeCurtailment`.
+4. **Manifests (data, integrity-green):** `elements/E-BEM-01.json`; **5 new shapes** (`CHAPEAU`,
+   `ETRIER`, `U_BAR`, `CROCHET_L`, `RELEVE`); **2 beam schemes** (simple span; chapeaux+relevés) + a
+   2nd column scheme (`COL_TIES`); **6 new supplements** (`SUPP_DIAGONALE_ANGLE`, `_RELEVE_BARS`,
+   `_SKIN_SIDE`, `_DIAMANT_TIE`, `_DOUBLE_STIRRUP_SUPPORT`, `_HEAD_HOOPS`). Gate: {shapes:10,
+   elements:2, schemes:4, supplements:7}.
+5. **UI generalised to the catalog (D-P3-5/6).** `engine/document.ts` → `ElementDoc` (column|beam) +
+   factories; `engine/manifests.ts` → full registry; `engine/solveDoc.ts` → routes both elements
+   through `solveElement` with a **two-pass supplement solve**. `store/useStore.ts`: `selectElement` /
+   `selectScheme` / beam setters / `addSupplement`/`removeSupplement`/`rebindSupplement` / `expert`.
+   `Navbar` (element ▼ + scheme ▼ enabled, expert toggle), `Sidebar` (conditional column/beam controls
+   + expert group list), new **`SupplementsPanel`** (catalog + **keyboard index binding** + rebind/
+   remove + WARN rows). Viewport/`rebarProps` generalised to render either element + supplements.
+6. **Tests (headless + RTL):** 6 new core suites (`scheme_switch`, `placement_resolve`,
+   `supplement_rebind`, `beam_curtailment`, `expert_mode`, `binding_keyboard`) + 2 web suites
+   (`element_catalog`, `beam_supplements`).
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {10/2/4/7} · core
+typecheck ✓ · web typecheck ✓ · **123 tests / 27 files** (84 core + 39 web). `npm run build:web` ✓
+(~1.7 MB — three.js; code-split = P6). `vite dev` serves **HTTP 200** on 127.0.0.1:5180.
+
+**Decisions:** D-P3-1…D-P3-6 in §8. Load-bearing: the profile registry + `solveColumn`-as-shim
+(D-P3-1), stable-index supplement binding with click==keyboard parity (D-P3-4), and the two-pass
+UI supplement solve (D-P3-5).
+
+**Open / deliberately deferred (be honest):**
+- **Beam left/right support split collapsed** into one representative support zone (D-P3-2) — fine for
+  v1.0 detailing; revisit when slabs/continuous beams land (P4).
+- **3D supplement placement is indicative** (centred), not the exact resolved midpoint, and **3D
+  click-to-bind UI wiring** (viewport pointer→store) is minimal — the *pure backbone* (`nearestBarIndex`)
+  and the **keyboard/index binding path are fully wired + tested**; the click path is a thin add (D-P3-6).
+- **Advanced builder = view + supplement add/remove + the resolved group list** under the expert toggle;
+  arbitrary add/replace of *any* base group with explicit coordinates is supported at the **data/engine**
+  level (`expert_mode.spec` proves the `.rcfg` round-trip + tier-1 block / tier-2 warn-only) but the
+  *form UI* for it is minimal. Custom-scheme **saving** stays 1.1 (spec §5.6). Full `.rcfg` I/O = P5.
+- **No human has seen the beam (or any) 3D in a browser** — headless dev box, no WebGL. Render *logic*
+  is tested; *pixels* are not. Open `vite dev` on a GPU machine to eyeball.
+- **G-BAEL still UNSIGNED** — the beam reuses the same provisional BAEL pack (provisional pill shows in
+  the UI). P3 *code* done; *acceptance* still waits on the engineer (§6, §14.7). No git commit (§7.6).
+
+**→ Next agent: P4 / M4 (full element set + EC2 pack + RPS seismic).** The seams are ready: a new
+element = manifests + a registered `VALIDATION_PROFILES` entry (no engine rewrite); the bespoke
+geometry generators (`SPIRALE_HELICE`, `TREILLIS_MESH`) register in the shape map (§5.2.1g). EC2 = a
+2nd `CodePack` behind the same `code.*` names + an `EC2_*` profile pair. RPS overlay composes onto
+either pack as keyed overrides (§7.10). *Before starting: `git log`/diff to confirm nothing moved;
+`npm run check` GREEN + `npm run build:web`; then append your own §9 entry.* If you instead close P3
+gaps first, the highest-value are: **exact 3D supplement placement + 3D click-to-bind wiring** and
+chasing the **G-BAEL signature**.
 
 ### 2026-06-24 — P2 / M2 complete (code) — by **Zayd** (dev box)
 

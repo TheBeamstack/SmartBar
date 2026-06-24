@@ -1,0 +1,22 @@
+{
+  "id": "BEAM_SPAN_SIMPLE",
+  "elementType": "E-BEM-01",
+  "label_fr": "Travée simple (filants + cadres)",
+  "label_en": "Simple span (straight bars + stirrups)",
+  "baseGroups": [
+    {
+      "role": "PRIMARY_LONGITUDINAL",
+      "zone": "As_span_bottom",
+      "shape": "DROITE",
+      "placement": { "rule": "BOTTOM_LAYER", "faces": ["BOTTOM"], "count": "param" }
+    },
+    {
+      "role": "TRANSVERSE",
+      "zone": "Asw_shear",
+      "shape": "ETRIER",
+      "placement": { "rule": "ALONG_PATH", "path": { "ref": "BEAM_LENGTH" }, "spacing": "param" }
+    }
+  ],
+  "supplementalCatalog": ["SUPP_SKIN_SIDE", "SUPP_DOUBLE_STIRRUP_SUPPORT", "SUPP_EPINGLE_CROSSTIE"],
+  "validationProfile": "BAEL_BEAM"
+}

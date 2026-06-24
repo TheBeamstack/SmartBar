@@ -1,0 +1,24 @@
+{
+  "id": "RELEVE",
+  "label_fr": "Acier relevé (barre relevée)",
+  "label_en": "Bent-up bar",
+  "plane": "2D",
+  "params": [
+    { "key": "bottom", "label_fr": "Tronçon inférieur", "label_en": "Bottom run", "type": "length", "min": 0 },
+    { "key": "incline", "label_fr": "Tronçon relevé", "label_en": "Bent-up run", "type": "length", "min": 0 },
+    { "key": "top", "label_fr": "Tronçon supérieur", "label_en": "Top run", "type": "length", "min": 0 },
+    { "key": "angle", "label_fr": "Angle de relevage", "label_en": "Bend-up angle", "type": "angle", "min": 0, "max": 60, "default": 45 }
+  ],
+  "closed": false,
+  "segments": [
+    { "line": "bottom", "dir": "u+" },
+    { "turn": "angle", "hand": "left" },
+    { "line": "incline" },
+    { "turn": "angle", "hand": "right" },
+    { "line": "top" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "bottom + incline + top - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

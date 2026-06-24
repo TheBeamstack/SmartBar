@@ -18,6 +18,29 @@ export interface Strings {
   tabProject: string;
   primaryBars: string;
   ties: string;
+  scheme: string;
+  expert: string;
+  supplements: {
+    title: string;
+    add: string;
+    remove: string;
+    none: string;
+    bar1: string;
+    bar2: string;
+    rebind: string;
+    boundTo: string;
+  };
+  beam: {
+    span: string;
+    bottomBars: string;
+    topBars: string;
+    chapeaux: string;
+    stirrups: string;
+    supportZone: string;
+    continued: string;
+    spanSteel: string;
+  };
+  groups: string;
   section: { b: string; h: string; height: string };
   material: { title: string; concrete: string; steel: string };
   cover: string;
@@ -53,6 +76,29 @@ const FR: Strings = {
   tabProject: "Projet / Code",
   primaryBars: "Armatures principales",
   ties: "Armatures transversales (cadres)",
+  scheme: "Schéma",
+  expert: "Mode expert",
+  supplements: {
+    title: "Armatures complémentaires",
+    add: "Ajouter",
+    remove: "Retirer",
+    none: "Aucune armature complémentaire",
+    bar1: "Barre 1 (indice)",
+    bar2: "Barre 2 (indice)",
+    rebind: "Re-lier",
+    boundTo: "Liée aux barres",
+  },
+  beam: {
+    span: "Portée L (mm)",
+    bottomBars: "Barres inférieures",
+    topBars: "Chapeaux (barres)",
+    chapeaux: "Chapeaux sur appui",
+    stirrups: "Cadres (effort tranchant)",
+    supportZone: "Zone d'appui (mm)",
+    continued: "Fraction ancrée sur appui",
+    spanSteel: "Aciers de travée",
+  },
+  groups: "Liste des armatures",
   section: { b: "Largeur b (mm)", h: "Hauteur h (mm)", height: "Hauteur H (mm)" },
   material: { title: "Matériaux", concrete: "Béton f_c28 (MPa)", steel: "Acier f_e (MPa)" },
   cover: "Enrobage (mm)",
@@ -88,6 +134,29 @@ const EN: Strings = {
   tabProject: "Project / Code",
   primaryBars: "Primary bars",
   ties: "Transverse reinforcement (ties)",
+  scheme: "Scheme",
+  expert: "Expert mode",
+  supplements: {
+    title: "Supplemental reinforcement",
+    add: "Add",
+    remove: "Remove",
+    none: "No supplemental reinforcement",
+    bar1: "Bar 1 (index)",
+    bar2: "Bar 2 (index)",
+    rebind: "Rebind",
+    boundTo: "Bound to bars",
+  },
+  beam: {
+    span: "Span L (mm)",
+    bottomBars: "Bottom bars",
+    topBars: "Chapeau bars",
+    chapeaux: "Top support bars (chapeaux)",
+    stirrups: "Stirrups (shear)",
+    supportZone: "Support zone (mm)",
+    continued: "Fraction anchored at support",
+    spanSteel: "Span steel",
+  },
+  groups: "Reinforcement list",
   section: { b: "Width b (mm)", h: "Depth h (mm)", height: "Height H (mm)" },
   material: { title: "Materials", concrete: "Concrete f_c28 (MPa)", steel: "Steel f_e (MPa)" },
   cover: "Cover (mm)",

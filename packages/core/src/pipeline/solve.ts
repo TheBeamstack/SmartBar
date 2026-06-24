@@ -1,45 +1,18 @@
 /**
- * Pipeline orchestrator (spec §6): params + reinforcement → layout → shape-gen → assembly
- * → validation → outputs. Pure function returning a plain SolveResult. Headless (no UI).
+ * Column entry point (spec §6) — now a thin, convention-applying shim over the generic
+ * `solveElement` (element.ts). It marshals the column's element-specific conventions
+ * (longitudinal bars run the height H; the closed tie centreline insets cover+φ_t/2 from each
+ * face; tension face = BOTTOM for strong-axis flexure) into the generic zone model and
+ * dispatches through the `BAEL_COLUMN` profile. No validation/geometry math lives here.
  *
- * v1.0 / P1 implements the rectangular tied column (E-COL-01) path. The orchestration is
- * generic (layout → per-group shape → validation profile); adding the beam (P3) reuses it
- * with a different validation profile and layout descriptor — NO element branching here.
+ * Keeping this shim preserves the P1/P2 public surface (`solveColumn`, `SolveResult`,
+ * `SolvedGroup`) while proving the engine is one generic machine (D-P1-4).
  */
 import type { ShapeArchetype } from "../types/shape";
-import type { BarRole } from "../types/reinforcing-element";
-import type { BarPosition, ZoneGeometry, LayoutDescriptor } from "../types/layout";
 import type { RectLayout } from "../types/placement";
-import type { MaterialContext, ValidationStatus } from "../types/codepack";
-import { generateBarShape, type BarShapeResult } from "../geometry/segment-grammar";
-import { solveRectLayout, computeZoneGeometry } from "../layout/rect";
-import {
-  validateColumn,
-  rollupStatus,
-  barArea,
-  type ValidationItem,
-  type ExtendedCodePack,
-} from "../validation/index";
-
-export interface SolvedGroup {
-  groupId: string;
-  role: BarRole;
-  diameter: number;
-  /** bars in the cross-section (longitudinal) or 1 representative (transverse set). */
-  count: number;
-  shape: BarShapeResult;
-}
-
-export interface SolveResult {
-  element: string;
-  bars: BarPosition[];
-  zones: ZoneGeometry[];
-  groups: SolvedGroup[];
-  validation: ValidationItem[];
-  status: ValidationStatus;
-  /** true when the active pack ships provisional (unsigned) constants (G-BAEL etc.). */
-  provisional: boolean;
-}
+import type { MaterialContext } from "../types/codepack";
+import type { ExtendedCodePack } from "../validation/index";
+import { solveElement, type SolveResult } from "./element";
 
 export interface ColumnSolveInput {
   element: string;
@@ -75,92 +48,49 @@ export function solveColumn(input: ColumnSolveInput): SolveResult {
   const { geometry, code } = input;
   const phiL = input.longitudinal.diameter;
   const phiT = input.tie.diameter;
-  const dg = input.dg ?? 20;
-
-  // --- step 1: layout solver (cross-section) ---
-  const descriptor: LayoutDescriptor = {
-    section: "RECT",
-    geometry: { b: geometry.b, h: geometry.h },
-    cover: input.cover,
-    phiT,
-    phiL,
-    rect: input.longitudinal.layout,
-  };
-  const layout = solveRectLayout(descriptor);
-
-  // --- computed effective depth d/d' per flexural zone ([REF-SYS-611]) ---
-  // column default flexure: tension face BOTTOM (strong-axis bending)
-  const zone = computeZoneGeometry(
-    "As_total",
-    layout.bars,
-    { b: geometry.b, h: geometry.h },
-    "BOTTOM",
-    barArea(phiL),
-  );
-  const zones: ZoneGeometry[] = [zone];
-
-  // --- step 2: shape generation per group ---
-  // longitudinal straight bars run the column height H
-  const longShape = generateBarShape(
-    input.longitudinal.shape,
-    { L: geometry.H },
-    phiL,
-    code,
-  );
-  // closed tie wraps the bars: centreline at cover + φ_t/2 from each face
+  // closed tie wraps the bars: centreline at cover + φ_t/2 from each face (§6.1)
   const wTie = geometry.b - 2 * input.cover - phiT;
   const hTie = geometry.h - 2 * input.cover - phiT;
-  const tieShape = generateBarShape(input.tie.shape, { w: wTie, h: hTie }, phiT, code);
 
-  const groups: SolvedGroup[] = [
-    {
-      groupId: input.longitudinal.groupId,
-      role: "PRIMARY_LONGITUDINAL",
-      diameter: phiL,
-      count: layout.count,
-      shape: longShape,
-    },
-    {
-      groupId: input.tie.groupId,
-      role: "TRANSVERSE",
-      diameter: phiT,
-      count: 1,
-      shape: tieShape,
-    },
-  ];
-
-  // --- step 4: validation ---
-  const validation = validateColumn({
-    geometry,
+  return solveElement({
+    element: input.element,
+    profile: "BAEL_COLUMN",
+    section: "RECT",
+    geometry: { b: geometry.b, h: geometry.h, H: geometry.H },
+    material: input.material,
     cover: input.cover,
     exposure: input.exposure,
-    fire: input.fire,
-    dg,
-    material: input.material,
-    layout,
-    zones,
-    inputs: {
-      longGroupId: input.longitudinal.groupId,
-      phiL,
-      phiLMax: phiL,
-      asReq: input.longitudinal.asReq,
-      tieGroupId: input.tie.groupId,
-      phiT,
-      tieSpacing: input.tie.spacing,
-      nLegs: input.tie.nLegs,
-      aswReqPerM: input.tie.aswReqPerM,
-      ...(input.tie.userMandrel !== undefined ? { userTieMandrel: input.tie.userMandrel } : {}),
-    },
+    ...(input.fire !== undefined ? { fire: input.fire } : {}),
+    ...(input.dg !== undefined ? { dg: input.dg } : {}),
+    layout: input.longitudinal.layout,
+    phiT,
+    phiLInset: phiL,
+    longitudinal: [
+      {
+        zone: "As_total",
+        groupId: input.longitudinal.groupId,
+        role: "PRIMARY_LONGITUDINAL",
+        shape: input.longitudinal.shape,
+        params: { L: geometry.H },
+        diameter: phiL,
+        faces: ["TOP", "BOTTOM", "LEFT", "RIGHT"],
+        asReq: input.longitudinal.asReq,
+        tensionFace: "BOTTOM",
+      },
+    ],
+    transverse: [
+      {
+        zone: "Asw_confinement",
+        groupId: input.tie.groupId,
+        shape: input.tie.shape,
+        params: { w: wTie, h: hTie },
+        diameter: phiT,
+        spacing: input.tie.spacing,
+        nLegs: input.tie.nLegs,
+        aswReqPerM: input.tie.aswReqPerM,
+        ...(input.tie.userMandrel !== undefined ? { userMandrel: input.tie.userMandrel } : {}),
+      },
+    ],
     code,
   });
-
-  return {
-    element: input.element,
-    bars: layout.bars,
-    zones,
-    groups,
-    validation,
-    status: rollupStatus(validation),
-    provisional: (code as { _provisional?: boolean })._provisional === true,
-  };
 }

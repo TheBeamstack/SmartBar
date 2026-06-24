@@ -1,0 +1,18 @@
+{
+  "id": "SUPP_SKIN_SIDE",
+  "label_fr": "Armatures de peau",
+  "label_en": "Side skin reinforcement",
+  "role": "SKIN",
+  "shape": "DROITE",
+  "requires": { "hostRole": "PRIMARY_LONGITUDINAL", "min_bars": 2 },
+  "placement": {
+    "rule": "SIDE_FACES",
+    "faces": ["LEFT", "RIGHT"],
+    "select": "user"
+  },
+  "params": [
+    { "key": "diameter", "type": "diameter", "default": 10 },
+    { "key": "count_per_side", "type": "count", "default": 1 }
+  ],
+  "validation": ["spacing_with_base"]
+}

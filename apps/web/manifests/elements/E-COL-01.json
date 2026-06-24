@@ -12,6 +12,6 @@
     { "key": "As_total", "label_fr": "Acier longitudinal total", "label_en": "Total longitudinal steel", "unit": "cm2", "kind": "longitudinal" },
     { "key": "Asw_confinement", "label_fr": "Acier transversal (confinement)", "label_en": "Transverse confinement steel", "unit": "cm2/m", "kind": "transverse" }
   ],
-  "compatibleSchemes": ["COL_TIES_CROSSTIE"],
+  "compatibleSchemes": ["COL_TIES", "COL_TIES_CROSSTIE"],
   "validationProfile": "BAEL_COLUMN"
 }

@@ -1,0 +1,20 @@
+{
+  "id": "CHAPEAU",
+  "label_fr": "Chapeau (acier sur appui)",
+  "label_en": "Top support bar (chapeau)",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "L", "label_fr": "Longueur horizontale", "label_en": "Horizontal run", "type": "length", "min": 0 }
+  ],
+  "segments": [
+    { "line": "L", "dir": "u+" }
+  ],
+  "endHooks": {
+    "start": { "angle": 90, "ext_expr": "max(15*diameter, 120)", "mandrel": "code.mandrelMin(diameter)" },
+    "end": { "angle": 90, "ext_expr": "max(15*diameter, 120)", "mandrel": "code.mandrelMin(diameter)" }
+  },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "L + 2*hookExt - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

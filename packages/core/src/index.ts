@@ -11,6 +11,9 @@ export * from "./types/index";
 export * from "./geometry/index";
 export * from "./layout/index";
 export * from "./validation/index";
+// P3 — validation-profile registry (D-P1-4) + scheme/placement/supplement resolvers (§5.3–5.6)
+export * from "./validation/profiles";
+export * from "./scheme/index";
 export * from "./pipeline/index";
 
 // NOTE: the manifest-integrity gate (validateManifest / checkManifestDir / crossReferenceCheck)

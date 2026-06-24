@@ -66,7 +66,8 @@ export function clearSpacing(coreEdge: number, n: number, phiL: number): number 
   return (coreEdge - (n - 1) * phiL) / (n - 1);
 }
 
-function item(
+/** Build a tiered ValidationItem (shared by all validation profiles, §7/§0.1). */
+export function item(
   rule: string,
   status: ValidationStatus,
   value: number | string | null,
@@ -370,9 +371,9 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
   return out;
 }
 
-function round(n: number): number {
+export function round(n: number): number {
   return Math.round(n * 100) / 100;
 }
-function mm2(n: number): string {
+export function mm2(n: number): string {
   return `${(n / 100).toFixed(2)} cm²`;
 }

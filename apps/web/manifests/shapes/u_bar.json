@@ -1,0 +1,22 @@
+{
+  "id": "U_BAR",
+  "label_fr": "Étrier ouvert en U",
+  "label_en": "Open U-bar / U-stirrup",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "h", "label_fr": "Hauteur des branches", "label_en": "Leg height", "type": "length", "min": 0 },
+    { "key": "w", "label_fr": "Largeur entre branches", "label_en": "Inner width", "type": "length", "min": 0 }
+  ],
+  "segments": [
+    { "line": "h", "dir": "v+" },
+    { "turn": 90, "hand": "right" },
+    { "line": "w" },
+    { "turn": 90, "hand": "right" },
+    { "line": "h" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "2*h + w - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

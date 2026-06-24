@@ -1,0 +1,20 @@
+{
+  "id": "CROCHET_L",
+  "label_fr": "Crochet en L (ancrage)",
+  "label_en": "L-bar anchorage hook",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "a", "label_fr": "Branche principale", "label_en": "Main leg", "type": "length", "min": 0 },
+    { "key": "b", "label_fr": "Retour d'ancrage", "label_en": "Anchorage return", "type": "length", "min": 0 }
+  ],
+  "segments": [
+    { "line": "a", "dir": "u+" },
+    { "turn": 90, "hand": "left" },
+    { "line": "b" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "a + b - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

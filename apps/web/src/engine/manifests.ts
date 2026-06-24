@@ -1,22 +1,106 @@
 /**
- * Manifest loading for the SPA. The JSON manifests under apps/web/manifests are the real
- * data (current_state.md §5); Vite imports them as typed objects. The engine stays a generic
- * machine — the UI just hands it the archetype JSON the active scheme references.
+ * Manifest registry for the SPA. The JSON manifests under apps/web/manifests are the real data
+ * (current_state.md §5); Vite imports them as typed objects. The engine stays a generic machine
+ * — the UI just hands it the archetype/scheme/supplement JSON the active catalog references.
  *
- * v1.0/P2 only needs the two column archetypes (DROITE longitudinals, CADRE_RECT ties). P3
- * generalises this to a manifest registry keyed by id when the beam + scheme catalog land.
+ * P3 turns the two-shape P2 stub into the full catalog: every shape, both elements, all schemes
+ * (keyed by id + filterable by element), and all supplements. "Add JSON, no engine change"
+ * (§0.1) means new manifests appear here by import alone.
  */
-import type { ShapeArchetype } from "@rebarconfig/core";
+import type {
+  ShapeArchetype,
+  ElementManifestView,
+  SchemeManifestView,
+  SupplementManifestView,
+} from "@rebarconfig/core";
+
 import droite from "../../manifests/shapes/droite.json";
 import cadreRect from "../../manifests/shapes/cadre_rect.json";
+import epingle from "../../manifests/shapes/epingle.json";
+import attente from "../../manifests/shapes/attente.json";
+import baionnette from "../../manifests/shapes/baionnette.json";
+import chapeau from "../../manifests/shapes/chapeau.json";
+import etrier from "../../manifests/shapes/etrier.json";
+import uBar from "../../manifests/shapes/u_bar.json";
+import crochetL from "../../manifests/shapes/crochet_l.json";
+import releve from "../../manifests/shapes/releve.json";
+
+import eCol01 from "../../manifests/elements/E-COL-01.json";
+import eBem01 from "../../manifests/elements/E-BEM-01.json";
+
+import colTies from "../../manifests/schemes/E-COL-01/col-ties.json";
+import colTiesCross from "../../manifests/schemes/E-COL-01/col-ties-crosstie.json";
+import beamSimple from "../../manifests/schemes/E-BEM-01/beam-span-simple.json";
+import beamChapeaux from "../../manifests/schemes/E-BEM-01/beam-span-chapeaux-releves.json";
+
+import suppEpingle from "../../manifests/supplements/SUPP_EPINGLE_CROSSTIE.json";
+import suppDiagonale from "../../manifests/supplements/SUPP_DIAGONALE_ANGLE.json";
+import suppReleve from "../../manifests/supplements/SUPP_RELEVE_BARS.json";
+import suppSkin from "../../manifests/supplements/SUPP_SKIN_SIDE.json";
+import suppDiamant from "../../manifests/supplements/SUPP_DIAMANT_TIE.json";
+import suppDouble from "../../manifests/supplements/SUPP_DOUBLE_STIRRUP_SUPPORT.json";
+import suppHead from "../../manifests/supplements/SUPP_HEAD_HOOPS.json";
 
 export const SHAPES: Record<string, ShapeArchetype> = {
   DROITE: droite as ShapeArchetype,
   CADRE_RECT: cadreRect as ShapeArchetype,
+  EPINGLE: epingle as ShapeArchetype,
+  ATTENTE: attente as ShapeArchetype,
+  BAIONNETTE: baionnette as ShapeArchetype,
+  CHAPEAU: chapeau as ShapeArchetype,
+  ETRIER: etrier as ShapeArchetype,
+  U_BAR: uBar as ShapeArchetype,
+  CROCHET_L: crochetL as ShapeArchetype,
+  RELEVE: releve as ShapeArchetype,
+};
+
+export const ELEMENTS: Record<string, ElementManifestView> = {
+  "E-COL-01": eCol01 as ElementManifestView,
+  "E-BEM-01": eBem01 as ElementManifestView,
+};
+
+export const SCHEMES: Record<string, SchemeManifestView> = {
+  COL_TIES: colTies as SchemeManifestView,
+  COL_TIES_CROSSTIE: colTiesCross as SchemeManifestView,
+  BEAM_SPAN_SIMPLE: beamSimple as SchemeManifestView,
+  BEAM_SPAN_CHAPEAUX_RELEVES: beamChapeaux as SchemeManifestView,
+};
+
+export const SUPPLEMENTS: Record<string, SupplementManifestView> = {
+  SUPP_EPINGLE_CROSSTIE: suppEpingle as SupplementManifestView,
+  SUPP_DIAGONALE_ANGLE: suppDiagonale as SupplementManifestView,
+  SUPP_RELEVE_BARS: suppReleve as SupplementManifestView,
+  SUPP_SKIN_SIDE: suppSkin as SupplementManifestView,
+  SUPP_DIAMANT_TIE: suppDiamant as SupplementManifestView,
+  SUPP_DOUBLE_STIRRUP_SUPPORT: suppDouble as SupplementManifestView,
+  SUPP_HEAD_HOOPS: suppHead as SupplementManifestView,
 };
 
 export function loadShape(id: string): ShapeArchetype {
   const s = SHAPES[id];
   if (!s) throw new Error(`unknown shape archetype: ${id}`);
   return s;
+}
+
+export function elementManifest(id: string): ElementManifestView {
+  const e = ELEMENTS[id];
+  if (!e) throw new Error(`unknown element: ${id}`);
+  return e;
+}
+
+export function schemeManifest(id: string): SchemeManifestView {
+  const s = SCHEMES[id];
+  if (!s) throw new Error(`unknown scheme: ${id}`);
+  return s;
+}
+
+export function supplementManifest(id: string): SupplementManifestView {
+  const s = SUPPLEMENTS[id];
+  if (!s) throw new Error(`unknown supplement: ${id}`);
+  return s;
+}
+
+/** Schemes compatible with an element (catalog filter, §5.3). */
+export function schemesForElement(elementId: string): SchemeManifestView[] {
+  return Object.values(SCHEMES).filter((s) => s.elementType === elementId);
 }

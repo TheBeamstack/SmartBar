@@ -1,0 +1,18 @@
+{
+  "id": "E-BEM-01",
+  "variant": "RECTANGULAR_BEAM",
+  "label_fr": "Poutre rectangulaire",
+  "label_en": "Rectangular beam",
+  "geometryParams": [
+    { "key": "b", "unit": "mm", "label_fr": "Largeur", "label_en": "Width", "min": 0 },
+    { "key": "h", "unit": "mm", "label_fr": "Hauteur de section", "label_en": "Section depth", "min": 0 },
+    { "key": "L", "unit": "mm", "label_fr": "Portée", "label_en": "Span", "min": 0 }
+  ],
+  "As_zones": [
+    { "key": "As_span_bottom", "label_fr": "Aciers inférieurs (travée)", "label_en": "Bottom span steel", "unit": "cm2", "kind": "longitudinal" },
+    { "key": "As_top_support", "label_fr": "Chapeaux (sur appui)", "label_en": "Top support steel (chapeaux)", "unit": "cm2", "kind": "longitudinal" },
+    { "key": "Asw_shear", "label_fr": "Aciers d'effort tranchant (cadres)", "label_en": "Shear stirrups", "unit": "cm2/m", "kind": "transverse" }
+  ],
+  "compatibleSchemes": ["BEAM_SPAN_SIMPLE", "BEAM_SPAN_CHAPEAUX_RELEVES"],
+  "validationProfile": "BAEL_BEAM"
+}

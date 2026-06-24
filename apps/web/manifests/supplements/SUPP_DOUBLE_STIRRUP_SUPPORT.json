@@ -1,0 +1,17 @@
+{
+  "id": "SUPP_DOUBLE_STIRRUP_SUPPORT",
+  "label_fr": "Cadres densifiés sur appui",
+  "label_en": "Densified stirrups at support",
+  "role": "SUPPLEMENTAL",
+  "shape": "ETRIER",
+  "requires": { "hostRole": "TRANSVERSE", "min_bars": 0 },
+  "placement": {
+    "rule": "SUPPORT_ZONE_DENSIFY",
+    "select": "user",
+    "spacing": "= 0.5 * tie.spacing"
+  },
+  "params": [
+    { "key": "diameter", "type": "diameter", "default": 8 }
+  ],
+  "validation": ["spacing_with_base"]
+}

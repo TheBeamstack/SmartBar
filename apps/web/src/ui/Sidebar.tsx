@@ -1,14 +1,18 @@
 /**
- * Left sidebar (spec §8): live As,prov/As,req + computed-d badges on top, then the three tabs
- * (Schéma / Géométrie / Projet-Code). Every control mutates the store, which re-solves
- * synchronously — the badges + viewport update live. Common diameter set is a P2 convention
- * (the ratified set is a §14 owner item).
+ * Left sidebar (spec §8): live As,prov/As,req + computed-d badges, the three tabs (Schéma /
+ * Géométrie / Projet-Code), the **Armatures complémentaires** (supplements) panel, and — under
+ * the expert toggle — the resolved bar-group list (§5.6). Controls are conditional on the active
+ * element (column ⇄ beam). Every control mutates the store, which re-solves synchronously.
+ *
+ * Common diameter set is a v1.0 convention (the ratified set is a §14 owner item).
  */
 import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { NumberField } from "./NumberField";
+import { SupplementsPanel } from "./SupplementsPanel";
 import { asProvidedMm2, asReqMm2, cm2, effectiveDepthMm, meetsAsReq } from "./derived";
+import { isColumnDoc } from "../engine/document";
 
 type Tab = "scheme" | "geometry" | "project";
 
@@ -58,17 +62,18 @@ function DiameterSelect({ value, onChange }: { value: number; onChange: (v: numb
   );
 }
 
-function SchemeTab() {
+function ColumnSchemeControls() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
   const setLongitudinal = useStore((s) => s.setLongitudinal);
   const setTie = useStore((s) => s.setTie);
   const s = t(lang);
+  if (!isColumnDoc(doc)) return null;
   const L = doc.longitudinal;
   const T = doc.tie;
 
   return (
-    <div className="tab-body">
+    <>
       <h3>{s.primaryBars}</h3>
       <DiameterSelect value={L.diameter} onChange={(v) => setLongitudinal({ diameter: v })} />
       <NumberField label={s.countsTop} value={L.nTop} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v })} />
@@ -82,6 +87,53 @@ function SchemeTab() {
       <NumberField label={s.spacing} value={T.spacing} min={50} max={400} step={5} onChange={(v) => setTie({ spacing: v })} />
       <NumberField label={s.legs} value={T.nLegs} min={2} max={6} onChange={(v) => setTie({ nLegs: v })} />
       <NumberField label="Asw,req (mm²/m)" value={T.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setTie({ aswReqPerM: v })} />
+    </>
+  );
+}
+
+function BeamSchemeControls() {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const setSpan = useStore((s) => s.setSpan);
+  const setChapeau = useStore((s) => s.setChapeau);
+  const setStirrup = useStore((s) => s.setStirrup);
+  const s = t(lang);
+  if (isColumnDoc(doc)) return null;
+  const { span, chapeau, stirrup } = doc;
+
+  return (
+    <>
+      <h3>{s.beam.spanSteel}</h3>
+      <DiameterSelect value={span.diameter} onChange={(v) => setSpan({ diameter: v })} />
+      <NumberField label={s.beam.bottomBars} value={span.nBottom} min={2} max={8} onChange={(v) => setSpan({ nBottom: v })} />
+      <NumberField label={s.asRequired + " (mm²)"} value={span.asReq} min={0} max={20000} step={50} onChange={(v) => setSpan({ asReq: v })} />
+      <NumberField label={s.beam.continued} value={span.continuedToSupport} min={0} max={1} step={0.05} onChange={(v) => setSpan({ continuedToSupport: v })} />
+
+      {chapeau.enabled && (
+        <>
+          <h3>{s.beam.chapeaux}</h3>
+          <DiameterSelect value={chapeau.diameter} onChange={(v) => setChapeau({ diameter: v })} />
+          <NumberField label={s.beam.topBars} value={chapeau.nTop} min={2} max={8} onChange={(v) => setChapeau({ nTop: v })} />
+          <NumberField label={s.asRequired + " (mm²)"} value={chapeau.asReq} min={0} max={20000} step={50} onChange={(v) => setChapeau({ asReq: v })} />
+          <NumberField label={s.beam.supportZone} value={chapeau.supportZone} min={0} max={3000} step={50} onChange={(v) => setChapeau({ supportZone: v })} />
+        </>
+      )}
+
+      <h3>{s.beam.stirrups}</h3>
+      <DiameterSelect value={stirrup.diameter} onChange={(v) => setStirrup({ diameter: v })} />
+      <NumberField label={s.spacing} value={stirrup.spacing} min={50} max={400} step={5} onChange={(v) => setStirrup({ spacing: v })} />
+      <NumberField label={s.legs} value={stirrup.nLegs} min={2} max={6} onChange={(v) => setStirrup({ nLegs: v })} />
+      <NumberField label="Asw,req (mm²/m)" value={stirrup.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setStirrup({ aswReqPerM: v })} />
+    </>
+  );
+}
+
+function SchemeTab() {
+  const doc = useStore((s) => s.doc);
+  return (
+    <div className="tab-body">
+      {isColumnDoc(doc) ? <ColumnSchemeControls /> : <BeamSchemeControls />}
+      <SupplementsPanel />
     </div>
   );
 }
@@ -90,20 +142,25 @@ function GeometryTab() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
   const setGeometry = useStore((s) => s.setGeometry);
+  const setBeamGeometry = useStore((s) => s.setBeamGeometry);
   const setCover = useStore((s) => s.setCover);
   const s = t(lang);
 
   return (
     <div className="tab-body">
-      <NumberField label={s.section.b} value={doc.geometry.b} min={150} max={1200} step={10} onChange={(v) => setGeometry({ b: v })} />
-      <NumberField label={s.section.h} value={doc.geometry.h} min={150} max={1500} step={10} onChange={(v) => setGeometry({ h: v })} />
-      <NumberField label={s.section.height} value={doc.geometry.H} min={500} max={8000} step={50} onChange={(v) => setGeometry({ H: v })} />
+      <NumberField label={s.section.b} value={doc.geometry.b} min={150} max={1200} step={10} onChange={(v) => (isColumnDoc(doc) ? setGeometry({ b: v }) : setBeamGeometry({ b: v }))} />
+      <NumberField label={s.section.h} value={doc.geometry.h} min={150} max={1500} step={10} onChange={(v) => (isColumnDoc(doc) ? setGeometry({ h: v }) : setBeamGeometry({ h: v }))} />
+      {isColumnDoc(doc) ? (
+        <NumberField label={s.section.height} value={doc.geometry.H} min={500} max={8000} step={50} onChange={(v) => setGeometry({ H: v })} />
+      ) : (
+        <NumberField label={s.beam.span} value={doc.geometry.L} min={1000} max={12000} step={100} onChange={(v) => setBeamGeometry({ L: v })} />
+      )}
       <NumberField label={s.cover} value={doc.cover} min={15} max={60} onChange={setCover} />
     </div>
   );
 }
 
-const EXPOSURES = ["INTERIOR", "EXTERIOR", "MARINE", "CAST_AGAINST_EARTH"];
+const EXPOSURES = ["INTERIOR", "EXTERIOR", "XS1", "CAST_AGAINST_EARTH"];
 
 function ProjectTab() {
   const lang = useStore((s) => s.lang);
@@ -131,8 +188,30 @@ function ProjectTab() {
   );
 }
 
+function ExpertGroups() {
+  const lang = useStore((s) => s.lang);
+  const groups = useStore((s) => s.result.groups);
+  const s = t(lang);
+  return (
+    <div className="expert-groups">
+      <h3>{s.groups}</h3>
+      <ul className="group-list">
+        {groups.map((g) => (
+          <li key={g.groupId} className="group-row">
+            <span className="group-id">{g.groupId}</span>
+            <span className="group-meta">
+              {g.role} · Ø{g.diameter} · ×{g.count}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function Sidebar() {
   const lang = useStore((s) => s.lang);
+  const expert = useStore((s) => s.expert);
   const [tab, setTab] = useState<Tab>("scheme");
   const s = t(lang);
 
@@ -153,6 +232,7 @@ export function Sidebar() {
       {tab === "scheme" && <SchemeTab />}
       {tab === "geometry" && <GeometryTab />}
       {tab === "project" && <ProjectTab />}
+      {expert && <ExpertGroups />}
     </aside>
   );
 }
