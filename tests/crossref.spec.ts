@@ -5,7 +5,7 @@
  * an out-of-scope archetype expression symbol is flagged (§5.2.1f).
  */
 import { describe, expect, it } from "vitest";
-import { checkManifestDir, crossReferenceCheck } from "@rebarconfig/core";
+import { checkManifestDir, crossReferenceCheck } from "@rebarconfig/core/integrity";
 import { MANIFESTS_DIR } from "./helpers";
 
 describe("integrity gate — happy path", () => {

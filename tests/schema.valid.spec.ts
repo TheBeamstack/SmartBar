@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { validateManifest, type ManifestKind } from "@rebarconfig/core";
+import { validateManifest, type ManifestKind } from "@rebarconfig/core/integrity";
 import { MANIFESTS_DIR, FIXTURES_DIR } from "./helpers";
 
 function jsonFiles(dir: string): string[] {

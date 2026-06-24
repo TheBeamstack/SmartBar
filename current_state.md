@@ -42,17 +42,17 @@ in the browser — no server, free hosting.**
 |---|---|---|
 | **P0 / M0** — Pin core contracts (types + JSON Schemas + fixtures + integrity gate) | ✅ **DONE** | Zayd, 2026-06-24 |
 | **P1 / M1** — Engine skeleton + `E-COL-01` + **BAEL pack** (headless) | ✅ **DONE** (code) · ⏳ G-BAEL unsigned | Zayd, 2026-06-24 |
-| P2 / M2 — SPA shell + 3D viewport | ⛔ not started | — |
+| **P2 / M2** — SPA shell + 3D viewport | ✅ **DONE** (code) | Zayd, 2026-06-24 |
 | P3 / M3 — Scheme catalog + supplements + advanced builder + `E-BEM-01` | ⛔ not started | — |
 | P4 / M4 — Full element set + EC2 pack + RPS seismic | ⛔ not started | — |
 | P5 / M5 — Exports (BBS, DXF, PDF) + `.rcfg` I/O | ⛔ not started | — |
 | P6 / M6 — Hardening, sign-off, release | ⛔ not started | — |
 
-**Test status (P1):** `npm run check` green — purity ✓, manifest integrity ✓ (**5 shapes** / 1
-element / 1 scheme / 1 supplement), typecheck ✓, **64 tests passed** across 14 files. New P1
-suites: `segment_grammar`, `layout_corner_sharing`, `effective_depth`, `leg_count_asw`,
-`anchorage_reduction`, `validity_tiers`, `determinism`, `bael_reference` (⚠ provisional —
-G-BAEL unsigned).
+**Test status (P2):** `npm run check` green — purity ✓, manifest integrity ✓ (**5 shapes** / 1
+element / 1 scheme / 1 supplement), core typecheck ✓, **web typecheck ✓**, **78 tests passed**
+across 19 files (64 core + **14 web**). Two vitest projects now (`core` = node, `web` = jsdom).
+New P2 web suites: `store_resolve`, `perf_budget` (<16 ms), `red_fail_mapping`, `degradation`,
+`smoke` (RTL). `vite build` succeeds; `vite dev` serves on **127.0.0.1:5180** (HTTP 200).
 
 ---
 
@@ -102,14 +102,21 @@ G-BAEL unsigned).
 
 ```bash
 npm install            # once; npm workspaces (Node 20, npm 10 on this box; no pnpm)
-npm run check          # FULL gate: purity → manifests → typecheck → tests  (use before handoff)
-npm run test           # vitest only
+npm run check          # FULL gate: purity → manifests → typecheck(core) → typecheck:web → tests
+npm run test           # vitest run (both projects: core=node, web=jsdom)
 npm run check:manifests# JSON-Schema + cross-ref validation of apps/web/manifests
 npm run check:purity   # engine-purity scan of packages/core
-npm run typecheck      # tsc --noEmit on the whole repo
+npm run typecheck      # tsc --noEmit on the engine + tests (root tsconfig)
+npm run typecheck:web  # tsc --noEmit on apps/web (DOM/React tsconfig)
+npm run build:web      # vite production build of the SPA (proves browser-bundleability)
+
+# Run the SPA (P2):
+cd apps/web && npm run dev    # vite dev → http://127.0.0.1:5180  (SmartBar's port; 5173 is Planitor)
 ```
 
-There is **no app to launch yet** (the SPA is P2). Everything in P0 is headless TS + JSON.
+The SPA exists now (P2): pick `E-COL-01`, edit geometry/material/cover/Ø/spacing/counts, see
+live 3D + live alerts, failing bars turn RED. Run it via `vite dev` (port **5180**). Headless
+boxes can't see WebGL — prove it with `npm run build:web` + the `web` vitest suites instead.
 
 ---
 
@@ -136,9 +143,21 @@ packages/core/            # @rebarconfig/core — the PURE ENGINE (no DOM/React/
 packages/codepacks/       # @rebarconfig/codepacks — packs behind core's CodePack iface (P1)
   src/bael/bael-constants.json  # ⚠ PROVISIONAL BAEL constants, "_provisional": true (G-BAEL)
   src/bael/index.ts       # makeBaelPack(): BaelPack — code.* impls + PackExtras (bands, ls, …)
-apps/web/                 # @rebarconfig/web — SPA placeholder (built in P2)
+apps/web/                 # @rebarconfig/web — the SPA (P2): React 18 + Vite + Zustand + R3F
+  index.html  vite.config.ts  tsconfig.json  vitest.setup.ts
   manifests/              # the real data: shapes/ (5: +attente,+baionnette) elements/ schemes/ supplements/
+  src/
+    main.tsx App.tsx styles.css
+    engine/               # adapter (NOT engine code): document.ts (ColumnDoc + default ref col),
+                          #   manifests.ts (Vite JSON imports), solveDoc.ts (doc→SolveResult via core)
+    store/                # useStore.ts — Zustand; every mutation re-solves synchronously
+    viewport/             # Viewport.tsx (R3F Canvas) + Rebar.tsx + rebarProps.ts (PURE mapping)
+    ui/                   # Navbar Sidebar AlertsPanel NumberField derived.ts
+    i18n/strings.ts       # FR/EN bundles (typed)
+    *.spec.ts(x)          # P2 web suites (run under the jsdom vitest project)
 tests/                    # P0 contract tests + P1 engine suites + fixtures (valid/ + invalid/)
+vitest.config.ts          # core project config (node env)
+vitest.workspace.ts       # P2: two projects — core (node) + web (jsdom + react plugin)
 ```
 
 **The six frozen contracts (P0 deliverable, spec §12 M0)** — `packages/core/src/types/`:
@@ -177,11 +196,13 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 
 1. **Node 20.20 / npm 10.8 on this box; no pnpm.** Use `npm` workspaces. `package-lock.json` is
    committed.
-2. **`@rebarconfig/core` `main`/`types` point at `src/index.ts` (raw TS).** This works because
-   vitest/tsx transpile on the fly and npm-workspaces symlinks the package into `node_modules`. It
-   means **no build step exists yet** — fine for P0–P1 (headless). When the SPA (P2) or a Node
-   consumer needs compiled JS, add a `dist` build (tsup/tsc) and point `exports` at it. Not needed
-   yet; don't add prematurely.
+2. **`@rebarconfig/core` `main`/`types` point at `src/index.ts` (raw TS) — and that's now proven in
+   the browser too.** vitest/tsx transpile on the fly; **Vite** also consumes the raw TS (the
+   workspace packages are in `optimizeDeps.exclude`). So **there is still no `dist` build of core**,
+   and P2 did NOT add one — `vite build` succeeds against the raw source. See **D-P2-2**. The one
+   change P2 needed was moving the Node-only integrity gate off the runtime barrel (**D-P2-1**), so
+   the browser graph is free of `node:*`. Don't add a core `dist` build unless a *Node* consumer
+   needs compiled JS.
 3. **ajv draft 2020-12:** the integrity gate imports `ajv/dist/2020.js` (not the default `ajv`
    entry, which is draft-07). Keep that if you add schemas.
 4. **Purity/scan scripts strip comments before matching** so prose like "JSON document." is not a
@@ -246,10 +267,109 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
   returns `d`/`d'`/tension-centroid per zone, area-weighted across layers (NOT `0.9h`). Column
   default flexure assumes tension face = BOTTOM (strong-axis). Beams/slabs (P3) pass the zone's real
   tension face. Every `d`-consuming rule reads this value.
+- **D-P2-1 — Integrity gate moved off the runtime barrel (browser-safety).** The manifest-integrity
+  gate (`validateManifest`/`checkManifestDir`/`crossReferenceCheck`/`ManifestKind`) imports
+  `node:fs/path/url` + ajv, so a browser bundle that imports anything from `@rebarconfig/core`
+  used to pull Node built-ins → `vite build` failed. **Resolution:** dropped `export * from
+  "./integrity"` out of `packages/core/src/index.ts`; it is now a **Node-only subpath**
+  `@rebarconfig/core/integrity` (added to core `package.json` `exports`). The runtime barrel is now
+  pure (types + geometry/layout/validation/pipeline; mathjs is browser-safe). Updated the 4 Node
+  consumers (`scripts/check-manifests.ts`, `tests/crossref`, `tests/schema.valid`,
+  `tests/schema.invalid`). **No engine logic changed; no `.rcfg`/contract change.** This is the
+  clean answer to the §7.2 "need a dist build for the browser" worry — see D-P2-2.
+- **D-P2-2 — No separate `dist` build of core; Vite transpiles the raw-TS workspace.** `core`/
+  `codepacks` still point `main`/`types` at `src/*.ts`. Vite consumes them via its own TS transform
+  (they're in `optimizeDeps.exclude` so they go through the source pipeline, not pre-bundle). So the
+  browser gets the engine **unchanged** and there is still **no build step for core**. `vite build`
+  bundles the whole graph; the SPA bundle is ~1.6 MB (three.js) — a P6 code-splitting item, not a
+  blocker.
+- **D-P2-3 — The SPA is a DUMB renderer; all geometry stays in core.** `apps/web/src/viewport/
+  rebarProps.ts` is a **pure** mapper (no three/DOM) that turns a `SolveResult` into plain world
+  polylines + flags; it is unit-tested headlessly (`red_fail_mapping`, `degradation`). The R3F
+  components only instance/colour/clip — they never compute bend geometry (that's the engine's
+  `centerline3D`, only translated/centred for placement). Keep it that way (plan P2 risk note).
+- **D-P2-4 — Degradation affects render+UI, never correctness.** The store **always** re-solves
+  synchronously on every mutation (solve ≪ 16 ms). `dragMode` only flips the *viewport* to
+  centreline `Line`s and *defers the alerts list* during an active slider drag (`viewportDirectives`
+  in rebarProps.ts), restoring full fidelity on release. Correctness is never skipped on commit (§2.2).
+- **D-P2-5 — Element/code pickers are stubbed to the only built options.** Navbar element ▼ is
+  locked to `E-COL-01` and code ▼ to BAEL-FR (the only element + pack that exist pre-P3/P4). Import
+  is a stub; **Export is wired to the §7.9 export-lock now** (disabled on a 🔴 FAIL) even though the
+  exporters themselves are P5. Diameter set `{6,8,…,32}` is a P2 convention (ratified set = §14 item).
 
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-06-24 — P2 / M2 complete (code) — by **Zayd** (dev box)
+
+**What I did (in detail).** Built the **running SPA** (`apps/web`) — React 18 + Vite + Zustand +
+Three.js/R3F — that drives the P1 engine **unchanged**: pick `E-COL-01`, edit
+geometry/material/cover/Ø/spacing/counts, watch live 3D + live alerts, failing bars turn RED.
+Per `v1.0_imp_plan.md` Phase 2. Concretely:
+
+1. **Vite React app scaffolded** — `apps/web/package.json` (react 18.3, three 0.169, @react-three/
+   fiber 8.17 + drei 9.114, zustand 4.5; dev: vite 5.4, @vitejs/plugin-react, jsdom, RTL),
+   `index.html`, `vite.config.ts` (port **5180**; `optimizeDeps.exclude` the workspace packages so
+   Vite transpiles raw-TS core — **D-P2-2**), `tsconfig.json` (DOM lib + react-jsx).
+2. **Engine adapter (pure, not engine code)** — `src/engine/`: `document.ts` (`ColumnDoc` editable
+   state + `defaultColumnDoc()` = the P1 reference column), `manifests.ts` (Vite JSON imports of the
+   DROITE/CADRE_RECT archetypes), `solveDoc.ts` (`ColumnDoc → SolveResult` via `solveColumn` +
+   `makeBaelPack`). **No geometry/validation math here** — all in core.
+3. **Zustand store** — `src/store/useStore.ts`: holds the doc + result; **every mutation re-solves
+   synchronously** in the same tick (times it for the perf HUD). `dragMode`, `selectedGroupIds`,
+   `lang`, `showSection`, `debugPerf`. **D-P2-4** (solve always runs; only render/UI degrade).
+4. **PURE viewport mapping** — `src/viewport/rebarProps.ts`: `failingGroupIds`, `viewportDirectives`
+   (drag→lines+deferred), `buildScene` (SolveResult→world polylines + failing/selected flags). No
+   three/DOM → unit-tested headlessly. **D-P2-3**.
+5. **R3F viewport** — `Viewport.tsx` (Canvas, semi-transparent concrete box opacity 0.30,
+   OrbitControls, **section-cut** global clip plane, perf HUD behind `debugPerf`) + `Rebar.tsx`
+   (TubeGeometry in full fidelity / drei `Line` in drag-degradation; RED on FAIL, cyan on select).
+6. **UI shell + i18n** — `Navbar` (element/code locked to E-COL-01/BAEL, FR/EN, section+perf toggles,
+   **Export disabled on 🔴** per §7.9, Import stub — **D-P2-5**), `Sidebar` (tabs Schéma/Géométrie/
+   Projet-Code; per-zone Ø + counts/spacing/legs; **live As,prov/As,req + computed-d badges**),
+   `AlertsPanel` (FR/EN rows, click/Enter to highlight affected bars, icon+text+colour for a11y),
+   `NumberField` (slider flips `dragMode` on pointer down/up). `i18n/strings.ts` = typed FR/EN bundles.
+7. **Browser-safety fix (D-P2-1).** `vite build` initially failed: importing `@rebarconfig/core`
+   transitively pulled the Node-only **integrity gate** (`node:fs/path/url`+ajv). Moved it off the
+   runtime barrel to a **subpath** `@rebarconfig/core/integrity`; updated the 4 Node consumers
+   (`scripts/check-manifests.ts`, `tests/crossref`, `tests/schema.valid`, `tests/schema.invalid`).
+   Runtime barrel is now pure. **No engine logic / no contract / no `.rcfg` change.**
+8. **Tests + gate wiring.** `vitest.workspace.ts` = two projects: **core** (node, `tests/**`) +
+   **web** (jsdom, react plugin, `apps/web/src/**`). Added `typecheck:web` + `build:web` scripts and
+   folded `typecheck:web` into `npm run check`. New web suites: `store_resolve`, `perf_budget`
+   (best-of-50 solve < 16 ms), `red_fail_mapping`, `degradation`, `smoke` (RTL: change Ø → As,prov
+   badge updates 18.85→29.45 cm², click alert → group selected).
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {shapes:5, elements:1,
+schemes:1, supplements:1} · core typecheck ✓ · **web typecheck ✓** · **78 tests / 19 files** (64
+core + 14 web). `npm run build:web` ✓ (bundle ~1.6 MB — three.js; code-split = P6). `vite dev`
+boots and serves **HTTP 200** on 127.0.0.1:5180 (HTML + transpiled `/src/main.tsx` → whole
+three/r3f graph resolves). **Headless box: WebGL not visually verified** — proven via build + the
+jsdom suites + the pure mapping tests instead (honest limitation).
+
+**Decisions:** D-P2-1…D-P2-5 in §8. Load-bearing: integrity-off-barrel (D-P2-1), dumb-renderer/
+pure-mapping (D-P2-3), and "store always solves; degradation is render-only" (D-P2-4).
+
+**Open / deliberately deferred (be honest):**
+- **No human has seen the 3D in a browser** (headless dev box). The render *logic* is tested; the
+  *pixels* are not. Owner/Amer should open `vite dev` on a machine with a GPU/browser to eyeball it.
+- **Section-cut** uses a single global horizontal clip plane at mid-height (simple + correct for a
+  column); a movable/oriented cut plane is a polish item.
+- **i18n** covers the chrome + manifest labels only; full bundle + missing-key assertion is P6.
+- **Perf** asserted on the solve (<16 ms) headlessly; the §2.2 *render* budget under heavy elements
+  (dense ties/mesh) is a P6 pass — degradation path is wired + tested but not load-profiled.
+- G-BAEL still UNSIGNED (provisional constants surface in the UI as a ⚠ "provisoire" pill). Export
+  lock on 🔴 is wired; the **exporters themselves are P5**. No git commit (owner-gated, §7.6).
+
+**→ Next agent: P3 / M3 (scheme catalog + supplements + advanced builder + `E-BEM-01`).** The two
+prerequisites flagged in P1 are still the right first moves: the **validation-profile registry +
+generic `solve(element,…)`** (D-P1-4 — needed before the beam) and chasing the **G-BAEL signature**.
+The UI is ready to grow: the store holds one `ColumnDoc` today — P3 should generalise it to a
+scheme-driven element document and add the scheme/supplement panels (§5.3–5.6). The viewport mapper
+(`rebarProps.ts`) and the R3F layer already render arbitrary bar polylines, so new archetypes/
+supplements render for free once the engine emits them. *Before starting: `git log`/diff to confirm
+nothing moved; `npm run check` GREEN + `npm run build:web`; then append your own §9 entry.*
 
 ### 2026-06-24 — P1 / M1 complete (code; G-BAEL unsigned) — by **Zayd** (dev box)
 

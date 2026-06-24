@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { validateManifest, type ManifestKind } from "@rebarconfig/core";
+import { validateManifest, type ManifestKind } from "@rebarconfig/core/integrity";
 import { FIXTURES_DIR } from "./helpers";
 
 const CASES: { file: string; kind: ManifestKind; expect: RegExp }[] = [

@@ -5,7 +5,7 @@
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkManifestDir } from "@rebarconfig/core";
+import { checkManifestDir } from "@rebarconfig/core/integrity";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFESTS_DIR = path.join(REPO_ROOT, "apps/web/manifests");
