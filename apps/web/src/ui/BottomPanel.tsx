@@ -5,13 +5,16 @@
 import { useStore } from "../store/useStore";
 import { CoupePanel } from "./CoupePanel";
 import { BbsPanel } from "./BbsPanel";
+import { ProjectPanel } from "./ProjectPanel";
 
 export function BottomPanel() {
   const bottomPanel = useStore((s) => s.bottomPanel);
   if (bottomPanel === null) return null;
   return (
     <div className="bottom-panel">
-      {bottomPanel === "coupes" ? <CoupePanel /> : <BbsPanel />}
+      {bottomPanel === "coupes" && <CoupePanel />}
+      {bottomPanel === "bbs" && <BbsPanel />}
+      {bottomPanel === "project" && <ProjectPanel />}
     </div>
   );
 }

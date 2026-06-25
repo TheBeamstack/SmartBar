@@ -28,8 +28,13 @@ import {
   isBeamDoc,
   isGenericDoc,
 } from "../engine/document";
-import { rcfgToDoc } from "../engine/rcfgDoc";
 import { solveDoc, type SolveResult } from "../engine/solveDoc";
+import {
+  type ElementInstance,
+  makeInstance,
+  defaultMark,
+} from "../engine/project";
+import { rcfgToInstances } from "../engine/projectRcfg";
 
 export interface AppState {
   doc: ElementDoc;
@@ -50,8 +55,21 @@ export interface AppState {
   cuts: SectionCut[];
   /** the coupe currently shown in the manager preview + 3D cutting-line. */
   activeCutId: string;
-  /** which bottom panel is open (coupe manager / BBS table), or none. */
-  bottomPanel: "coupes" | "bbs" | null;
+  /** which bottom panel is open (coupe manager / BBS table / project takeoff), or none. */
+  bottomPanel: "coupes" | "bbs" | "project" | null;
+
+  // --- project model (Phase 7, §3.2) ---
+  /** every element TYPE in the project; the active one is checked out into doc/cuts. */
+  instances: ElementInstance[];
+  activeInstanceId: string;
+  /** snapshot the live doc/cuts back into the active instance (reconcile before any project read). */
+  syncActiveInstance: () => ElementInstance[];
+  addInstance: (element: ElementId) => void;
+  duplicateActiveInstance: () => void;
+  removeInstance: (id: string) => void;
+  renameInstance: (id: string, mark: string) => void;
+  setInstanceQuantity: (id: string, quantity: number) => void;
+  selectInstance: (id: string) => void;
 
   // catalog
   selectElement: (element: ElementId) => void;
@@ -92,9 +110,9 @@ export interface AppState {
   removeCut: (id: string) => void;
   updateCut: (id: string, patch: Partial<SectionCut>) => void;
   selectCut: (id: string) => void;
-  setBottomPanel: (panel: "coupes" | "bbs" | null) => void;
+  setBottomPanel: (panel: "coupes" | "bbs" | "project" | null) => void;
 
-  // project I/O (§10)
+  // project I/O (§10) — accepts a legacy v1.0 single element OR a v1.1 project envelope
   loadProject: (project: RcfgProject) => void;
 
   setDragMode: (on: boolean) => void;
@@ -136,14 +154,19 @@ const asGeneric = (doc: ElementDoc, fn: (d: GenericDoc) => GenericDoc): ElementD
 
 export const useStore = create<AppState>((set, get) => {
   const initial = withDoc(defaultColumnDoc());
+  const firstInstance = makeInstance(initial.doc, initial.cuts, "P1");
   /** Solve `doc`, preserving the current user cuts (call sites that switch element pass nothing). */
   const edit = (doc: ElementDoc) => withDoc(doc, get().cuts);
+  /** Check out an instance into the live editing slice (fresh solve + re-seeded default coupe). */
+  const checkout = (inst: ElementInstance): DocSlice => withDoc(inst.doc, inst.cuts);
   return {
     doc: initial.doc,
     result: initial.result,
     lastSolveMs: initial.lastSolveMs,
     cuts: initial.cuts,
     activeCutId: initial.cuts[0]!.id,
+    instances: [firstInstance],
+    activeInstanceId: firstInstance.id,
     dragMode: false,
     selectedGroupIds: [],
     expert: false,
@@ -151,6 +174,72 @@ export const useStore = create<AppState>((set, get) => {
     showSection: false,
     debugPerf: false,
     bottomPanel: null,
+
+    // --- project model (Phase 7) ---
+    syncActiveInstance: () => {
+      const { instances, activeInstanceId, doc, cuts } = get();
+      const next = instances.map((i) =>
+        i.id === activeInstanceId ? { ...i, doc, cuts } : i,
+      );
+      set({ instances: next });
+      return next;
+    },
+
+    addInstance: (element) => {
+      const synced = get().syncActiveInstance();
+      const slice = withDoc(defaultDocFor(element));
+      const inst = makeInstance(slice.doc, slice.cuts, defaultMark(element, synced.map((i) => i.mark)));
+      set({
+        instances: [...synced, inst],
+        activeInstanceId: inst.id,
+        ...slice,
+        activeCutId: slice.cuts[0]!.id,
+        selectedGroupIds: [],
+      });
+    },
+
+    duplicateActiveInstance: () => {
+      const synced = get().syncActiveInstance();
+      const active = synced.find((i) => i.id === get().activeInstanceId);
+      if (!active) return;
+      const slice = withDoc(active.doc, active.cuts);
+      const inst = makeInstance(slice.doc, slice.cuts, defaultMark(active.doc.element, synced.map((i) => i.mark)), active.quantity);
+      set({
+        instances: [...synced, inst],
+        activeInstanceId: inst.id,
+        ...slice,
+        activeCutId: slice.cuts[0]!.id,
+        selectedGroupIds: [],
+      });
+    },
+
+    removeInstance: (id) => {
+      const synced = get().syncActiveInstance();
+      if (synced.length <= 1) return; // a project always has at least one element
+      const idx = synced.findIndex((i) => i.id === id);
+      const instances = synced.filter((i) => i.id !== id);
+      if (id !== get().activeInstanceId) {
+        set({ instances });
+        return;
+      }
+      const next = instances[Math.max(0, idx - 1)]!;
+      const slice = checkout(next);
+      set({ instances, activeInstanceId: next.id, ...slice, activeCutId: slice.cuts[0]!.id, selectedGroupIds: [] });
+    },
+
+    renameInstance: (id, mark) =>
+      set({ instances: get().syncActiveInstance().map((i) => (i.id === id ? { ...i, mark } : i)) }),
+
+    setInstanceQuantity: (id, quantity) =>
+      set({ instances: get().syncActiveInstance().map((i) => (i.id === id ? { ...i, quantity: Math.max(1, Math.round(quantity)) } : i)) }),
+
+    selectInstance: (id) => {
+      const synced = get().syncActiveInstance();
+      const target = synced.find((i) => i.id === id);
+      if (!target || id === get().activeInstanceId) return;
+      const slice = checkout(target);
+      set({ instances: synced, activeInstanceId: id, ...slice, activeCutId: slice.cuts[0]!.id, selectedGroupIds: [] });
+    },
 
     selectElement: (element) => {
       const s = withDoc(defaultDocFor(element));
@@ -250,13 +339,18 @@ export const useStore = create<AppState>((set, get) => {
     setBottomPanel: (panel) => set({ bottomPanel: get().bottomPanel === panel ? null : panel }),
 
     loadProject: (project) => {
-      const doc = rcfgToDoc(project);
-      if (!doc) return; // a file with no recoverable app_document (other-tool/future file) — ignore
-      const result = solveDoc(doc);
-      const seeded = defaultCoupeFor(result);
-      const userCuts = (project.section_cuts ?? []).filter((c) => !c.isDefault);
-      const cuts = [seeded, ...userCuts];
-      set({ doc, result, lastSolveMs: 0, cuts, activeCutId: seeded.id, selectedGroupIds: [], expert: false });
+      const instances = rcfgToInstances(project);
+      if (!instances || instances.length === 0) return; // no recoverable doc (other-tool/future file)
+      const first = instances[0]!;
+      const slice = checkout(first);
+      set({
+        instances,
+        activeInstanceId: first.id,
+        ...slice,
+        activeCutId: slice.cuts[0]!.id,
+        selectedGroupIds: [],
+        expert: false,
+      });
     },
 
     setDragMode: (on) => set({ dragMode: on }),
@@ -267,7 +361,15 @@ export const useStore = create<AppState>((set, get) => {
     toggleDebugPerf: () => set({ debugPerf: !get().debugPerf }),
     reset: () => {
       const s = withDoc(defaultColumnDoc());
-      set({ ...s, activeCutId: s.cuts[0]!.id, selectedGroupIds: [], expert: false });
+      const inst = makeInstance(s.doc, s.cuts, "P1");
+      set({
+        ...s,
+        activeCutId: s.cuts[0]!.id,
+        instances: [inst],
+        activeInstanceId: inst.id,
+        selectedGroupIds: [],
+        expert: false,
+      });
     },
   };
 });

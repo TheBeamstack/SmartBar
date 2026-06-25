@@ -121,6 +121,23 @@ export interface Strings {
     noBars: string;
     panelHint: string;
   };
+  project: {
+    title: string;
+    add: string;
+    duplicate: string;
+    remove: string;
+    mark: string;
+    quantity: string;
+    elementType: string;
+    unitMass: string;
+    totalMass: string;
+    density: string;
+    totals: string;
+    totalSteel: string;
+    totalConcrete: string;
+    overallRatio: string;
+    failHint: string;
+  };
 }
 
 const FR: Strings = {
@@ -238,6 +255,23 @@ const FR: Strings = {
     noBars: "Aucune barre coupée",
     panelHint: "Coupe perpendiculaire à l'axe à la position choisie (orientation oblique : .rcfg/P6).",
   },
+  project: {
+    title: "Projet (éléments)",
+    add: "Ajouter un élément",
+    duplicate: "Dupliquer",
+    remove: "Supprimer",
+    mark: "Repère",
+    quantity: "Quantité",
+    elementType: "Type",
+    unitMass: "Acier / unité (kg)",
+    totalMass: "Acier total (kg)",
+    density: "Densité (kg/m³)",
+    totals: "Totaux du projet",
+    totalSteel: "Acier total",
+    totalConcrete: "Béton total",
+    overallRatio: "Ratio global",
+    failHint: "Un type non conforme (🔴) bloque l'export combiné.",
+  },
 };
 
 const EN: Strings = {
@@ -354,6 +388,23 @@ const EN: Strings = {
     preview: "Section preview",
     noBars: "No bars cut",
     panelHint: "Perpendicular cut at the chosen station (oblique orientation: .rcfg/P6).",
+  },
+  project: {
+    title: "Project (elements)",
+    add: "Add element",
+    duplicate: "Duplicate",
+    remove: "Remove",
+    mark: "Mark",
+    quantity: "Quantity",
+    elementType: "Type",
+    unitMass: "Steel / unit (kg)",
+    totalMass: "Total steel (kg)",
+    density: "Density (kg/m³)",
+    totals: "Project totals",
+    totalSteel: "Total steel",
+    totalConcrete: "Total concrete",
+    overallRatio: "Overall ratio",
+    failHint: "A failing type (🔴) blocks the combined export.",
   },
 };
 

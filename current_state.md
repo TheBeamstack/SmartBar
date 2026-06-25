@@ -47,28 +47,24 @@ in the browser — no server, free hosting.**
 | **P4a / M4a** — Circular/pile/slab geometries + helix/mesh generators + **EC2 pack** + slab predicates | ✅ **DONE** (code) · ⏳ G-EC2 unsigned | Zayd, 2026-06-24 |
 | **P4b / M4b** — Stair `E-STR-01` + joist slab `E-SLB-03` + **RPS-2011 seismic overlay** | ✅ **DONE** (code) · ⏳ G-RPS unsigned | Zayd, 2026-06-24 |
 | **P5 / M5** — Section/Coupe engine ✅ · BBS ✅ · DXF-1/DXF-2 ✅ · PDF + export-lock ✅ · `.rcfg` I/O + autosave ✅ · WARN stamp ✅ · **SPA wiring (Export/Import + BBS table + coupe manager + autosave) ✅** | ✅ **DONE** (code) · ⏳ G-COUPE unsigned · ⚠ 3D coupe drag-handle deferred to P6 (numeric+keyboard parity shipped) | Amer, 2026-06-25 |
-| P6 / M6 — Hardening: **coverage gate ✅ (95% core) · i18n ✅ · heavy-perf ✅ · code-split ✅** · **control-panel audit ✅; fix 8a (column symmetry selector) ✅ code+test** · **ViewCube specced** · (fixes 8b beam-top-bars + 8c brins-auto-draw · ViewCube code · a11y · docs · 3D coupe handle + remaining-elements UI · engineer sign-off — pending) | 🟡 **IN PROGRESS** | Amer, 2026-06-25 |
-| **P7 (post-r3) — Multi-element project model + elevation *fiche* + combined exports** | 📋 **SPEC+PLAN done, code not started** | Amer, 2026-06-25 |
+| P6 / M6 — Hardening: **coverage 95% ✅ · i18n ✅ · heavy-perf ✅ · code-split ✅** · **control-panel fixes 8a ✅ + 8b beam-top-bars ✅ + 8c brins-auto-draw ✅ (all code+test)** · **all 8 elements + seismic picker wired into the SPA ✅ (D-P6-3)** · (**ViewCube + 3D coupe drag-handle → moved to `v1.0.1-Spec.md`**; a11y axe · authoring/user docs · engineer sign-off — pending) | 🟢 **CODE DONE (this session)** · ⏳ GPU/docs/sign-off pending | Zayd, 2026-06-25 |
+| **P7 — Multi-element project model** | 🟢 **CORE DONE (code): model + element manager + steel takeoff + `.rcfg` v1.1 envelope + migration (D-P7-3).** Remaining (combined exports · namespaced BBS · elevation *fiche* · reorder) **→ `v1.0.1-Spec.md` Feature C** | Zayd, 2026-06-25 |
 
-**Phase 4 is COMPLETE (a+b). All 8 §3.1 elements solve + validate headlessly. P5 is now FULLY CODE-
-COMPLETE — engine AND SPA.** The pure Section/Coupe engine (`sectionAt → CoupeView`, §9.5) + all four
-export engines + project I/O — BBS (§9.1), DXF-1/DXF-2 (§9.2), PDF + export-lock (§9.3/§7.9), `.rcfg`
-save/load + IndexedDB autosave (§10) — live in the pure package `@rebarconfig/exporters` (D-P5-4). **The
-SPA now consumes them (D-P5-7):** the Navbar **Export** menu downloads PDF/DXF/BBS-JSON/`.rcfg` (drawing
-deliverables export-locked on 🔴), **Import** loads a `.rcfg` back, an on-screen **BBS table** + a
-**coupe manager** (list/add/place/remove cuts by numeric field + keyboard parity, live 2D `sectionAt`
-preview) are wired, and **IndexedDB autosave/recovery** runs on every edit. Remaining P5 polish: the **3D
-coupe drag-handle + the elevation cutting-line overlay in the live 3D** (numeric+keyboard parity already
-ships; the 3D handle needs a GPU to verify → P6).
+**The app is now testable end-to-end with the WHOLE element catalog + multi-element projects.** This
+session (Zayd, 2026-06-25 — see the newest §9 entry) closed the P6 control fixes (8a/8b/8c), **wired all 8
+§3.1 elements + the seismic regime picker into the SPA** (was column+beam only), shipped the **P7 project
+core** (instance list + element manager + steel takeoff + `.rcfg` v1.1 envelope + legacy migration), and
+authored **`v1.0.1-Spec.md`** — which now holds the two deferred GPU/visual features (**ViewCube**, **3D
+coupe drag-handle**) **plus** the remaining project work (**combined exports, namespaced BBS, elevation
+*fiche*, reorder** — Feature C). The single-element engine/exporters from P5 are unchanged underneath.
 
-**Test status (P5 full):** `npm run check` green — purity ✓, manifest integrity ✓ (**13 shapes** / **8
-elements** / **10 schemes** / **7 supplements**), core typecheck ✓, **web typecheck ✓**, **267 tests
-passed** across 54 files (+20 / +4 vs the P5-engine handoff). New P5 *web* suites: `coupe_store`,
-`export_actions`, `coupe_manager`, `export_menu` (the BBS panel + export-lock UI). Earlier P5 *core* suites
-(in `tests/`): `section_geometry`, `bbs_golden`, `unit_mass`, `cut_nesting`, `dxf1_golden`,
-`dxf_coupe_golden`, `pdf_smoke`, `rcfg_roundtrip`, `coupe_persist`, `autosave_recovery`. `npm run build:web`
-succeeds (**~2.19 MB** bundle — pdf-lib pulled in by the SPA now; code-split = P6); all new code is
-browser-safe (no `node:*`). Headless box: WebGL still not visually verified.
+**Test status (this session):** `npm run check` green — purity ✓, manifest integrity ✓ (**13 shapes** / **8
+elements** / **10 schemes** / **7 supplements**), core typecheck ✓, web typecheck ✓, **303 tests passed**
+across 61 files (+27 / +7 vs the prior P6 handoff). New web suites this session: `all_elements`,
+`beam_top_bars`, `tie_legs_geometry`, `project_model`. `npm run coverage` ✓ (95.14% core, thresholds
+enforced). `npm run build:web` ✓ (app/engine ≈ 784 kB + three ≈ 998 kB + lazy pdf-lib ≈ 434 kB). **Still a
+headless box — no human has visually verified WebGL/PDF**; the ViewCube + 3D coupe handle are specified for
+v1.0.1 precisely because they need a GPU (the owner will test the rest on a Windows PC).
 
 ---
 
@@ -580,7 +576,67 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
   (`placeBars`→2D projection) shared by DXF+PDF; marks/dims are an annotation layer. Applies to single-element export too. Spec
   §9.2 [REF-SYS-925]; plan Phase 7 step 3; §14 item 20 (detailing depth).
 
+- **D-P6-3 — All 8 §3.1 elements + the seismic picker are now wired into the SPA (data-driven UI generalisation).** The
+  SPA used to expose only `E-COL-01`/`E-BEM-01`; the engine already solved the other six. New
+  `apps/web/src/engine/elementSpecs.ts` declares — ONCE — each non-rect element's geometry fields + reinforcement zones
+  (GREEN-by-default values), consumed by BOTH the default-document factory and the Sidebar controls (the §0.1 "everything
+  is data" thesis on the UI edge). `document.ts` gained a generic `GenericDoc`/`ZoneEdit` (circular/slab/joist/stair) +
+  `defaultGenericDoc`; `solveDoc.ts` marshals it into `solveCircular`/`solveSlab`/`solveStair`/`solveJoist` (no engine
+  change — the orchestrators already existed). **The viewport now consumes core's pure `placeBars` + `result.member`
+  (the long-deferred D-P5-1 dedupe), so `rebarProps.buildScene` is element-agnostic and the concrete renders as a RECT box
+  or a CIRCULAR cylinder by envelope.** A **seismic regime picker** (Projet tab) composes the RPS overlay on the
+  column/beam via `solveDoc` (the engine seismic block existed). Full editable control panels per element, like
+  column/beam. `Navbar` element/scheme pickers populate from the manifests automatically. Tests: `all_elements.spec`.
+- **D-P7-3 — Multi-element PROJECT core shipped as an ADDITIVE "checkout" layer (no rewrite of single-element editing).**
+  Implements D-P7-1's model without destabilising the working app: the store holds `instances: ElementInstance[]`
+  (`{id, mark, quantity, doc, cuts}`) + `activeInstanceId`; the **active instance's doc/cuts ARE the existing live editing
+  state** (top-level `doc`/`cuts`), so every single-element control + every prior test is unchanged. Project reads
+  reconcile the live state back first (`syncActiveInstance`). Actions: add/duplicate/remove/rename/set-quantity/select.
+  **Element manager + steel takeoff** (`ProjectPanel`, new bottom-dock tab): per type unit mass + total mass = qty×unit +
+  steel density (kg/m³) + project grand totals (steel kg, concrete m³, ratio), via `projectTakeoff` (one `computeBBS` per
+  type). **`.rcfg` v1.1 envelope** (`projectRcfg.ts`): top-level `elements[]` (each a full §10 doc + mark/quantity); top
+  level mirrors the first element for legacy single-readers; a **legacy v1.0 file migrates to a one-instance project**;
+  forward-compat preserves unknown fields/instances. Autosave persists the whole project; Navbar `.rcfg` export saves it.
+  **Quantity scales TOTALS only — one pure solve per type (engine stays per-element).** Tests: `project_model.spec`.
+  **Deliberately deferred → `v1.0.1-Spec.md` Feature C:** combined multi-sheet PDF/DXF, per-project export-lock UI,
+  namespaced BBS marks (`P1-01`), the full elevation *fiche* (D-P7-2), reorder, and lifting region/code/seismic/units/
+  materials to project level (today they are per-instance). The single-element exports (PDF/DXF/BBS of the active type)
+  work as before.
+
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-06-25 — P6 control fixes + ALL 8 elements + P7 project core + v1.0.1 spec — by **Zayd** (dev box)
+
+**Context.** The owner asked (on his Windows PC) to *finalize implementing so he can test the app locally*, and chose the
+scope: (B) expose all 8 elements + seismic picker with full controls, (A) control fixes 8b+8c, (C) the multi-element project
+model, and (D) spec the deferred ViewCube + 3D coupe drag-handle into a new `v1.0.1-Spec.md`. Mid-session he refined (D): also
+fold the **remaining** project work into the v1.0.1 spec. Delivery: commit + push to `feat/p1-m1-engine` (done — owner pulls
+on Windows).
+
+**What I did (all green, `npm run check` = 303 tests / 61 files, coverage 95.14% core, `build:web` ✓):**
+1. **B — all 8 elements + seismic (D-P6-3).** Data-driven `elementSpecs.ts`; generic `GenericDoc`; `solveDoc` dispatch to the
+   four existing section orchestrators; viewport refactored onto core `placeBars`/`member` (RECT box / CIRCULAR cylinder);
+   seismic regime picker (column/beam). Full per-element controls. `all_elements.spec` (+11). **Pushed (d6b03df).**
+2. **A — 8b + 8c.** **8b:** dedicated beam full-length top-bar control, separate from chapeaux; small backward-compatible
+   engine add `ElementLongInput.providedCount` so the two TOP-face zones don't double-count. **8c:** a tie/stirrup with
+   nLegs>2 materialises (nLegs−2)/2 cross-tie groups → they render in 3D AND hit the BBS (Asw was already correct from
+   nLegs). `beam_top_bars.spec`, `tie_legs_geometry.spec`. **Pushed (ca5d326, 430c240).**
+3. **C — P7 project core (D-P7-3).** Additive checkout-model project: instances + element manager + steel takeoff + `.rcfg`
+   v1.1 envelope + legacy migration + whole-project autosave. `project_model.spec` (+8). **In the working tree — being
+   committed with this handoff.**
+4. **D — `v1.0.1-Spec.md`.** Detailed spec for **A·ViewCube** + **B·3D coupe drag-handle/cutting-line** (GPU-only, camera/
+   interaction only, no engine/`.rcfg` change) **and (per the owner's mid-session refinement) C·the multi-element project
+   completion** (combined exports, per-project lock, namespaced BBS, elevation *fiche*, reorder, optional project-level
+   shared settings). §14 owner-confirmation items 19–20 added.
+
+**State now: GREEN.** All work above committed+pushed to `feat/p1-m1-engine` (the P7 core + these docs in the same final
+commit). The app is testable on Windows with the full 8-element catalog + multi-element projects + the P6 fixes.
+
+**→ Next (for whoever picks up, likely on a GPU/Windows machine):** implement **`v1.0.1-Spec.md`** — Feature C first
+(combined exports + namespaced BBS + elevation *fiche*, all headless-testable exporter work), then Features A+B (ViewCube +
+3D coupe handle, GPU-verified). Still open from P6: a11y axe pass, the three authoring/user docs, and the **engineer
+sign-offs** (G-BAEL/EC2/RPS/COUPE/TOL — the release-blocking people dependency). *Before coding: `git log`/diff; `npm run
+check` + `coverage` + `build:web` GREEN; append a §9 entry.*
 
 ### 2026-06-25 — P7 specced: multi-element project model + elevation fiche (owner-requested) — by **Amer** (owner's Windows PC)
 

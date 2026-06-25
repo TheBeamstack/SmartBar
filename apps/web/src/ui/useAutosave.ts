@@ -8,7 +8,8 @@
 import { useEffect, useRef } from "react";
 import { AutosaveManager, indexedDbStore } from "@rebarconfig/exporters";
 import { useStore } from "../store/useStore";
-import { docToRcfg } from "../engine/rcfgDoc";
+import { projectToRcfg } from "../engine/projectRcfg";
+import type { ElementInstance } from "../engine/project";
 
 const DEBOUNCE_MS = 600;
 
@@ -32,10 +33,14 @@ export function useAutosave() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const unsub = useStore.subscribe((state, prev) => {
-      if (state.doc === prev.doc && state.cuts === prev.cuts) return;
+      if (state.doc === prev.doc && state.cuts === prev.cuts && state.instances === prev.instances) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
-        void managerRef.current!.save(docToRcfg(state.doc, state.cuts));
+        // persist the WHOLE project (v1.1 envelope), reconciling the active instance's live edits.
+        const reconciled: ElementInstance[] = state.instances.map((i) =>
+          i.id === state.activeInstanceId ? { ...i, doc: state.doc, cuts: state.cuts } : i,
+        );
+        void managerRef.current!.save(projectToRcfg(reconciled));
       }, DEBOUNCE_MS);
     });
     return () => {

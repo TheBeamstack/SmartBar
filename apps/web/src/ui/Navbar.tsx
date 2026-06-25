@@ -13,7 +13,7 @@ import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { ELEMENTS, schemesForElement } from "../engine/manifests";
 import type { ElementId } from "../engine/document";
-import { docToRcfg } from "../engine/rcfgDoc";
+import { projectToRcfg } from "../engine/projectRcfg";
 import { exportPdf, exportDxf, exportBbsJson, exportRcfg } from "../engine/exportActions";
 import { parseRcfg } from "@rebarconfig/exporters";
 
@@ -34,6 +34,7 @@ export function Navbar() {
   const bottomPanel = useStore((s) => s.bottomPanel);
   const setBottomPanel = useStore((s) => s.setBottomPanel);
   const loadProject = useStore((s) => s.loadProject);
+  const syncActiveInstance = useStore((s) => s.syncActiveInstance);
   const status = useStore((s) => s.result.status);
   const provisional = useStore((s) => s.result.provisional);
   const s = t(lang);
@@ -63,7 +64,8 @@ export function Navbar() {
   };
   const onExportRcfg = () => {
     closeMenu();
-    exportRcfg(docToRcfg(doc, cuts));
+    // save the WHOLE project (all element types), v1.1 envelope (§10 / D-P7-1).
+    exportRcfg(projectToRcfg(syncActiveInstance()));
   };
 
   const onImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +143,14 @@ export function Navbar() {
         aria-pressed={bottomPanel === "bbs"}
       >
         BBS
+      </button>
+      <button
+        type="button"
+        className={bottomPanel === "project" ? "active" : ""}
+        onClick={() => setBottomPanel("project")}
+        aria-pressed={bottomPanel === "project"}
+      >
+        {s.project.title}
       </button>
       <button type="button" className={showSection ? "active" : ""} onClick={toggleSection}>
         {s.sectionCut}
