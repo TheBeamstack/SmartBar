@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { schemeManifest, supplementManifest } from "../engine/manifests";
-import { isColumnDoc } from "../engine/document";
+import { isColumnDoc, isBeamDoc } from "../engine/document";
 
 let instanceCounter = 0;
 const nextInstanceId = () => `S${++instanceCounter}`;
@@ -25,7 +25,11 @@ export function SupplementsPanel() {
   const s = t(lang);
 
   const catalog = schemeManifest(doc.scheme).supplementalCatalog ?? [];
-  const baseGroupId = isColumnDoc(doc) ? doc.longitudinal.groupId : doc.span.groupId;
+  const baseGroupId = isColumnDoc(doc)
+    ? doc.longitudinal.groupId
+    : isBeamDoc(doc)
+      ? doc.span.groupId
+      : (doc.zones[0]?.groupId ?? "");
   const barCount = result.bars.length;
 
   const [supId, setSupId] = useState(catalog[0] ?? "");

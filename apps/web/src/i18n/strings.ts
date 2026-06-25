@@ -39,6 +39,24 @@ export interface Strings {
     supportZone: string;
     continued: string;
     spanSteel: string;
+    montageTitle: string;
+    montageEnable: string;
+    montageBars: string;
+  };
+  generic: {
+    reinforcement: string;
+    count: string;
+    asReqPerM: string;
+    restrainedCorner: string;
+    cornerTorsion: string;
+    wrapCorner: string;
+  };
+  seismic: {
+    title: string;
+    none: string;
+    regime: string;
+    zone: string;
+    ductility: string;
   };
   groups: string;
   section: { b: string; h: string; height: string };
@@ -138,6 +156,24 @@ const FR: Strings = {
     supportZone: "Zone d'appui (mm)",
     continued: "Fraction ancrée sur appui",
     spanSteel: "Aciers de travée",
+    montageTitle: "Barres supérieures filantes",
+    montageEnable: "Ajouter des barres filantes en partie haute",
+    montageBars: "Barres filantes (haut)",
+  },
+  generic: {
+    reinforcement: "Armatures",
+    count: "Nombre de barres",
+    asReqPerM: "As,req (mm²/m)",
+    restrainedCorner: "Angle bloqué (continuité)",
+    cornerTorsion: "Aciers de torsion d'angle (mm²)",
+    wrapCorner: "Barre principale continue à l'angle rentrant",
+  },
+  seismic: {
+    title: "Sismique (RPS-2011)",
+    none: "Gravité seule (non sismique)",
+    regime: "Régime",
+    zone: "Zone sismique",
+    ductility: "Classe de ductilité",
   },
   groups: "Liste des armatures",
   section: { b: "Largeur b (mm)", h: "Hauteur h (mm)", height: "Hauteur H (mm)" },
@@ -237,6 +273,24 @@ const EN: Strings = {
     supportZone: "Support zone (mm)",
     continued: "Fraction anchored at support",
     spanSteel: "Span steel",
+    montageTitle: "Full-length top bars",
+    montageEnable: "Add full-length top (montage) bars",
+    montageBars: "Top bars (full length)",
+  },
+  generic: {
+    reinforcement: "Reinforcement",
+    count: "Bar count",
+    asReqPerM: "As,req (mm²/m)",
+    restrainedCorner: "Restrained corner (continuity)",
+    cornerTorsion: "Corner torsion steel (mm²)",
+    wrapCorner: "Main bar continuous around re-entrant corner",
+  },
+  seismic: {
+    title: "Seismic (RPS-2011)",
+    none: "Gravity only (non-seismic)",
+    regime: "Regime",
+    zone: "Seismic zone",
+    ductility: "Ductility class",
   },
   groups: "Reinforcement list",
   section: { b: "Width b (mm)", h: "Depth h (mm)", height: "Height H (mm)" },

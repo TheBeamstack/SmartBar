@@ -21,6 +21,7 @@ import {
   type ElementDoc,
   type ElementId,
   isColumnDoc,
+  isGenericDoc,
 } from "./document";
 
 /** The namespaced meta key carrying the verbatim ElementDoc for a lossless SPA reload. */
@@ -33,6 +34,11 @@ const CODE_PACK = "BAEL-FR"; // v1.0 = BAEL only (EC2 is wired engine-side; UI p
 function asReqOf(doc: ElementDoc): Record<string, number> {
   if (isColumnDoc(doc)) {
     return { As_total: doc.longitudinal.asReq, Asw_confinement: doc.tie.aswReqPerM };
+  }
+  if (isGenericDoc(doc)) {
+    const req: Record<string, number> = {};
+    for (const z of doc.zones) req[z.zone] = z.asReq ?? z.asReqPerM ?? 0;
+    return req;
   }
   const req: Record<string, number> = {
     As_span_bottom: doc.span.asReq,
@@ -87,7 +93,9 @@ export function docToRcfg(
   };
 }
 
-const ELEMENT_IDS: ReadonlySet<string> = new Set<ElementId>(["E-COL-01", "E-BEM-01"]);
+const ELEMENT_IDS: ReadonlySet<string> = new Set<ElementId>([
+  "E-COL-01", "E-BEM-01", "E-COL-02", "E-FND-01", "E-SLB-01", "E-SLB-02", "E-SLB-03", "E-STR-01",
+]);
 
 /**
  * Recover the editable `ElementDoc` from a parsed project. Reads the lossless `meta.app_document`

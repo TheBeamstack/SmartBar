@@ -9,22 +9,34 @@ import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useStore } from "../store/useStore";
-import { buildScene } from "./rebarProps";
+import { buildScene, type ConcreteEnvelope } from "./rebarProps";
 import { Rebar } from "./Rebar";
 
 const MM_TO_SCENE = 0.01; // mm → scene units (a 3 m column ≈ 30 units)
 
-function ConcreteVolume({ b, h, H }: { b: number; h: number; H: number }) {
+function ConcreteVolume({ concrete }: { concrete: ConcreteEnvelope }) {
+  const mat = (
+    <meshStandardMaterial
+      color="#c8ccd2"
+      transparent
+      opacity={0.3}
+      depthWrite={false}
+      side={THREE.DoubleSide}
+    />
+  );
+  if (concrete.envelope === "CIRCULAR") {
+    const r = (concrete.D ?? 600) / 2;
+    return (
+      <mesh>
+        <cylinderGeometry args={[r, r, concrete.length, 48]} />
+        {mat}
+      </mesh>
+    );
+  }
   return (
     <mesh>
-      <boxGeometry args={[b, H, h]} />
-      <meshStandardMaterial
-        color="#c8ccd2"
-        transparent
-        opacity={0.3}
-        depthWrite={false}
-        side={THREE.DoubleSide}
-      />
+      <boxGeometry args={[concrete.b ?? 300, concrete.length, concrete.h ?? 600]} />
+      {mat}
     </mesh>
   );
 }
@@ -58,16 +70,16 @@ function Scene() {
     [result, doc, dragMode, selectedGroupIds],
   );
 
-  const { b, h, H } = scene.concrete;
+  const length = scene.concrete.length;
 
   return (
     <>
       <ambientLight intensity={0.7} />
       <directionalLight position={[1, 2, 1.5]} intensity={1.2} />
       <SectionClip enabled={showSection} />
-      {/* center the column on the orbit target: shift down by H/2 */}
-      <group scale={MM_TO_SCENE} position={[0, (-H / 2) * MM_TO_SCENE, 0]}>
-        <ConcreteVolume b={b} h={h} H={H} />
+      {/* center the member on the orbit target: shift down by length/2 */}
+      <group scale={MM_TO_SCENE} position={[0, (-length / 2) * MM_TO_SCENE, 0]}>
+        <ConcreteVolume concrete={scene.concrete} />
         {scene.bars.map((bar, i) => (
           <Rebar key={`${bar.groupId}-${i}`} bar={bar} mode={scene.mode} />
         ))}

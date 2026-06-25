@@ -7,7 +7,7 @@
  * As_span_bottom; its provided-area rule and computed `d` drive the badges.
  */
 import { barArea, type SolveResult } from "@rebarconfig/core";
-import { type ElementDoc, isColumnDoc } from "../engine/document";
+import { type ElementDoc, isColumnDoc, isGenericDoc } from "../engine/document";
 
 export const MM2_TO_CM2 = 0.01;
 
@@ -19,6 +19,19 @@ function primaryZone(doc: ElementDoc): { rule: string; asReq: number; diameter: 
       asReq: doc.longitudinal.asReq,
       diameter: doc.longitudinal.diameter,
       groupId: doc.longitudinal.groupId,
+    };
+  }
+  if (isGenericDoc(doc)) {
+    const z =
+      doc.zones.find((x) => x.primary) ??
+      doc.zones.find((x) => x.slabRole === "MAIN") ??
+      doc.zones.find((x) => x.kind === "longitudinal") ??
+      doc.zones[0]!;
+    return {
+      rule: `provided_area:${z.zone}`,
+      asReq: z.asReq ?? z.asReqPerM ?? 0,
+      diameter: z.diameter,
+      groupId: z.groupId,
     };
   }
   return {

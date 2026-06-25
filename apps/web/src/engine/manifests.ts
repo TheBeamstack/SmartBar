@@ -24,14 +24,29 @@ import etrier from "../../manifests/shapes/etrier.json";
 import uBar from "../../manifests/shapes/u_bar.json";
 import crochetL from "../../manifests/shapes/crochet_l.json";
 import releve from "../../manifests/shapes/releve.json";
+import spiraleHelice from "../../manifests/shapes/spirale_helice.json";
+import treillisMesh from "../../manifests/shapes/treillis_mesh.json";
+import marchePalier from "../../manifests/shapes/marche_palier.json";
 
 import eCol01 from "../../manifests/elements/E-COL-01.json";
 import eBem01 from "../../manifests/elements/E-BEM-01.json";
+import eCol02 from "../../manifests/elements/E-COL-02.json";
+import eFnd01 from "../../manifests/elements/E-FND-01.json";
+import eSlb01 from "../../manifests/elements/E-SLB-01.json";
+import eSlb02 from "../../manifests/elements/E-SLB-02.json";
+import eSlb03 from "../../manifests/elements/E-SLB-03.json";
+import eStr01 from "../../manifests/elements/E-STR-01.json";
 
 import colTies from "../../manifests/schemes/E-COL-01/col-ties.json";
 import colTiesCross from "../../manifests/schemes/E-COL-01/col-ties-crosstie.json";
 import beamSimple from "../../manifests/schemes/E-BEM-01/beam-span-simple.json";
 import beamChapeaux from "../../manifests/schemes/E-BEM-01/beam-span-chapeaux-releves.json";
+import colSpiral from "../../manifests/schemes/E-COL-02/col-spiral.json";
+import pileCage from "../../manifests/schemes/E-FND-01/pile-cage.json";
+import slabOneway from "../../manifests/schemes/E-SLB-01/slab-oneway.json";
+import slabTwoway from "../../manifests/schemes/E-SLB-02/slab-twoway.json";
+import joistStd from "../../manifests/schemes/E-SLB-03/joist-std.json";
+import stairStd from "../../manifests/schemes/E-STR-01/stair-std.json";
 
 import suppEpingle from "../../manifests/supplements/SUPP_EPINGLE_CROSSTIE.json";
 import suppDiagonale from "../../manifests/supplements/SUPP_DIAGONALE_ANGLE.json";
@@ -52,11 +67,20 @@ export const SHAPES: Record<string, ShapeArchetype> = {
   U_BAR: uBar as ShapeArchetype,
   CROCHET_L: crochetL as ShapeArchetype,
   RELEVE: releve as ShapeArchetype,
+  SPIRALE_HELICE: spiraleHelice as ShapeArchetype,
+  TREILLIS_MESH: treillisMesh as ShapeArchetype,
+  MARCHE_PALIER: marchePalier as ShapeArchetype,
 };
 
 export const ELEMENTS: Record<string, ElementManifestView> = {
   "E-COL-01": eCol01 as ElementManifestView,
   "E-BEM-01": eBem01 as ElementManifestView,
+  "E-COL-02": eCol02 as ElementManifestView,
+  "E-FND-01": eFnd01 as ElementManifestView,
+  "E-SLB-01": eSlb01 as ElementManifestView,
+  "E-SLB-02": eSlb02 as ElementManifestView,
+  "E-SLB-03": eSlb03 as ElementManifestView,
+  "E-STR-01": eStr01 as ElementManifestView,
 };
 
 export const SCHEMES: Record<string, SchemeManifestView> = {
@@ -64,6 +88,12 @@ export const SCHEMES: Record<string, SchemeManifestView> = {
   COL_TIES_CROSSTIE: colTiesCross as SchemeManifestView,
   BEAM_SPAN_SIMPLE: beamSimple as SchemeManifestView,
   BEAM_SPAN_CHAPEAUX_RELEVES: beamChapeaux as SchemeManifestView,
+  COL_SPIRAL: colSpiral as SchemeManifestView,
+  PILE_CAGE: pileCage as SchemeManifestView,
+  SLAB_ONEWAY_STD: slabOneway as SchemeManifestView,
+  SLAB_TWOWAY_STD: slabTwoway as SchemeManifestView,
+  JOIST_STD: joistStd as SchemeManifestView,
+  STAIR_STD: stairStd as SchemeManifestView,
 };
 
 export const SUPPLEMENTS: Record<string, SupplementManifestView> = {

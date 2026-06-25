@@ -10,25 +10,52 @@
  */
 import {
   solveElement,
+  solveCircular,
+  solveSlab,
+  solveStair,
+  solveJoist,
   computeCurtailment,
   resolveSupplement,
   type SolveResult,
   type ElementSolveInput,
+  type SeismicElementInput,
   type ElementSupplementInput,
   type ValidationItem,
   type BarPosition,
+  type CircularSolveInput,
+  type SlabSolveInput,
+  type StairSolveInput,
+  type JoistSolveInput,
 } from "@rebarconfig/core";
-import { makeBaelPack, type BaelPack } from "@rebarconfig/codepacks";
+import { makeBaelPack, makeRpsOverlay, type BaelPack } from "@rebarconfig/codepacks";
 import {
   type ElementDoc,
   type ColumnDoc,
   type BeamDoc,
+  type GenericDoc,
+  type ZoneEdit,
+  type SeismicEdit,
   isColumnDoc,
+  isGenericDoc,
 } from "./document";
 import { loadShape, supplementManifest } from "./manifests";
 
 /** The active code pack. v1.0 = BAEL-FR only (EC2 is P4); built once, it is pure data+fns. */
 export const baelPack: BaelPack = makeBaelPack();
+
+// ---------------------------------------------------------------------------
+// seismic overlay (§7.10) — composed on top of the base profile when a regime is set
+// ---------------------------------------------------------------------------
+function seismicBlock(
+  edit: SeismicEdit | undefined,
+  member: SeismicElementInput["member"],
+  longBarsTotal: number,
+  longBarsEngaged: number,
+): { seismic?: SeismicElementInput } {
+  if (!edit) return {};
+  const overlay = makeRpsOverlay({ code: edit.code, zone: edit.zone, ductility: edit.ductility });
+  return { seismic: { overlay, member, longBarsTotal, longBarsEngaged } };
+}
 
 // ---------------------------------------------------------------------------
 // element-specific conventions → generic ElementSolveInput
@@ -86,6 +113,12 @@ function columnInput(
         aswReqPerM: doc.tie.aswReqPerM,
       },
     ],
+    ...seismicBlock(
+      doc.seismic,
+      { kind: "COLUMN", length: doc.geometry.H, bMin: Math.min(doc.geometry.b, doc.geometry.h), hSectionMax: Math.max(doc.geometry.b, doc.geometry.h) },
+      doc.longitudinal.nTop + doc.longitudinal.nBottom + doc.longitudinal.nLeft + doc.longitudinal.nRight,
+      4,
+    ),
     supplements,
     code,
   };
@@ -169,13 +202,19 @@ function beamInput(
         aswReqPerM: doc.stirrup.aswReqPerM,
       },
     ],
+    ...seismicBlock(
+      doc.seismic,
+      { kind: "BEAM", length: doc.geometry.L, bMin: doc.geometry.b, hSectionMax: doc.geometry.h },
+      doc.span.nBottom + nTop,
+      2,
+    ),
     supplements,
     code,
   };
 }
 
 function buildInput(
-  doc: ElementDoc,
+  doc: ColumnDoc | BeamDoc,
   supplements: ElementSupplementInput[],
   code: BaelPack,
 ): ElementSolveInput {
@@ -183,11 +222,218 @@ function buildInput(
 }
 
 // ---------------------------------------------------------------------------
+// generic (non-rect) elements — circular / slab / joist / stair
+// The editable doc (document.ts GenericDoc) is marshalled into the right section orchestrator's
+// input. Shape params are computed from the geometry (UI-edge convention; the engine stays generic).
+// ---------------------------------------------------------------------------
+function num(geo: Record<string, number>, key: string, fallback: number): number {
+  const v = geo[key];
+  return typeof v === "number" ? v : fallback;
+}
+
+/** Member length (along the bars' run) for a generic element. */
+function memberLength(doc: GenericDoc): number {
+  const geo = doc.geometry;
+  switch (doc.section) {
+    case "CIRCULAR": return num(geo, "H", num(geo, "L", 3000));
+    case "JOIST": return num(geo, "L", 4500);
+    case "STAIR": return num(geo, "n_steps", 14) * num(geo, "g", 280);
+    default: return num(geo, "Lx", 5000); // SLAB
+  }
+}
+
+/** Compute the shape params for one zone of a generic element from its geometry. */
+function genericShapeParams(doc: GenericDoc, z: ZoneEdit): Record<string, number> {
+  const geo = doc.geometry;
+  const len = memberLength(doc);
+  switch (z.shapeId) {
+    case "DROITE":
+      // circular long bars → member length; slab distribution runs across the width.
+      return { L: doc.section === "CIRCULAR" ? len : (z.slabRole === "SECONDARY" ? num(geo, "Ly", num(geo, "flight_width", num(geo, "joist_spacing", len))) : len) };
+    case "CHAPEAU":
+      return { L: Math.max(300, len * 0.25) };
+    case "ATTENTE":
+      return { foot: 300, h: Math.max(300, len * 0.05) };
+    case "SPIRALE_HELICE": {
+      const D = num(geo, "D", 600);
+      const pitch = z.spacing ?? 100;
+      const helix_diameter = Math.max(50, D - 2 * doc.cover - z.diameter);
+      const turns = Math.max(1, Math.ceil(len / Math.max(1, pitch)));
+      return { pitch, helix_diameter, turns, height: len };
+    }
+    case "TREILLIS_MESH": {
+      const pitch = z.spacing ?? 150;
+      const Lx = doc.section === "JOIST" ? num(geo, "L", 4500) : num(geo, "Lx", 5000);
+      const Ly = doc.section === "JOIST" ? num(geo, "joist_spacing", 600) : num(geo, "Ly", 5000);
+      return { pitch_x: pitch, pitch_y: pitch, Lx, Ly, overhang_x: 0, overhang_y: 0 };
+    }
+    case "MARCHE_PALIER":
+      return { flight: num(geo, "n_steps", 14) * num(geo, "g", 280), landing: num(geo, "landing_L", 0), bend: 30 };
+    default:
+      return {};
+  }
+}
+
+function circularInput(doc: GenericDoc, code: BaelPack): CircularSolveInput {
+  const geo = doc.geometry;
+  return {
+    element: doc.element,
+    profile: doc.profile,
+    geometry: { D: num(geo, "D", 600), ...(geo["H"] !== undefined ? { H: geo["H"] } : {}), ...(geo["L"] !== undefined ? { L: geo["L"] } : {}) },
+    material: doc.material,
+    cover: doc.cover,
+    exposure: doc.exposure,
+    ...(doc.fire !== undefined ? { fire: doc.fire } : {}),
+    dg: doc.dg,
+    longitudinal: doc.zones
+      .filter((z) => z.kind === "longitudinal")
+      .map((z) => ({
+        zone: z.zone,
+        groupId: z.groupId,
+        role: z.role,
+        shape: loadShape(z.shapeId),
+        params: genericShapeParams(doc, z),
+        diameter: z.diameter,
+        count: z.count ?? 0,
+        asReq: z.asReq ?? 0,
+        ...(z.primary ? { primary: true } : {}),
+      })),
+    transverse: doc.zones
+      .filter((z) => z.kind === "transverse")
+      .map((z) => ({
+        zone: z.zone,
+        groupId: z.groupId,
+        shape: loadShape(z.shapeId),
+        params: genericShapeParams(doc, z),
+        diameter: z.diameter,
+        spacing: z.spacing ?? 100,
+        nLegs: z.nLegs ?? 2,
+        aswReqPerM: z.asReqPerM ?? 0,
+      })),
+    code,
+  };
+}
+
+function slabZoneV(doc: GenericDoc, z: ZoneEdit): number {
+  const t = num(doc.geometry, "t", num(doc.geometry, "t_total", num(doc.geometry, "waist_t", 200)));
+  const inset = t / 2 - doc.cover;
+  return z.slabRole === "TOP" ? inset : -inset;
+}
+
+function slabInput(doc: GenericDoc, code: BaelPack): SlabSolveInput {
+  const geo = doc.geometry;
+  return {
+    element: doc.element,
+    profile: doc.profile,
+    geometry: { Lx: num(geo, "Lx", 5000), Ly: num(geo, "Ly", 5000), t: num(geo, "t", 200) },
+    material: doc.material,
+    cover: doc.cover,
+    exposure: doc.exposure,
+    ...(doc.fire !== undefined ? { fire: doc.fire } : {}),
+    dg: doc.dg,
+    zones: doc.zones.map((z) => ({
+      zone: z.zone,
+      groupId: z.groupId,
+      role: z.role,
+      slabRole: z.slabRole ?? "MAIN",
+      shape: loadShape(z.shapeId),
+      params: genericShapeParams(doc, z),
+      diameter: z.diameter,
+      spacing: z.spacing ?? 150,
+      asReqPerM: z.asReqPerM ?? 0,
+      v: slabZoneV(doc, z),
+    })),
+    ...(doc.restrainedCorner !== undefined ? { restrainedCorner: doc.restrainedCorner } : {}),
+    ...(doc.cornerTorsionProvided !== undefined ? { cornerTorsionProvided: doc.cornerTorsionProvided } : {}),
+    code,
+  };
+}
+
+function joistInput(doc: GenericDoc, code: BaelPack): JoistSolveInput {
+  const geo = doc.geometry;
+  return {
+    element: doc.element,
+    profile: doc.profile,
+    geometry: {
+      L: num(geo, "L", 4500),
+      t_total: num(geo, "t_total", 250),
+      t_topping: num(geo, "t_topping", 50),
+      b_joist: num(geo, "b_joist", 100),
+      block_w: num(geo, "block_w", 500),
+      block_h: num(geo, "block_h", 200),
+      joist_spacing: num(geo, "joist_spacing", 600),
+    },
+    material: doc.material,
+    cover: doc.cover,
+    exposure: doc.exposure,
+    ...(doc.fire !== undefined ? { fire: doc.fire } : {}),
+    dg: doc.dg,
+    zones: doc.zones.map((z) => ({
+      zone: z.zone,
+      groupId: z.groupId,
+      role: z.role,
+      slabRole: z.slabRole ?? "MAIN",
+      shape: loadShape(z.shapeId),
+      params: genericShapeParams(doc, z),
+      diameter: z.diameter,
+      spacing: z.spacing ?? 600,
+      asReqPerM: z.asReqPerM ?? 0,
+      v: slabZoneV(doc, z),
+    })),
+    code,
+  };
+}
+
+function stairInput(doc: GenericDoc, code: BaelPack): StairSolveInput {
+  const geo = doc.geometry;
+  return {
+    element: doc.element,
+    profile: doc.profile,
+    geometry: {
+      g: num(geo, "g", 280),
+      r: num(geo, "r", 170),
+      n_steps: num(geo, "n_steps", 14),
+      waist_t: num(geo, "waist_t", 180),
+      flight_width: num(geo, "flight_width", 1200),
+      landing_L: num(geo, "landing_L", 1000),
+    },
+    material: doc.material,
+    cover: doc.cover,
+    exposure: doc.exposure,
+    ...(doc.fire !== undefined ? { fire: doc.fire } : {}),
+    dg: doc.dg,
+    ...(doc.mainBarWrapsCorner !== undefined ? { mainBarWrapsCorner: doc.mainBarWrapsCorner } : {}),
+    zones: doc.zones.map((z) => ({
+      zone: z.zone,
+      groupId: z.groupId,
+      role: z.role,
+      slabRole: z.slabRole ?? "MAIN",
+      shape: loadShape(z.shapeId),
+      params: genericShapeParams(doc, z),
+      diameter: z.diameter,
+      spacing: z.spacing ?? 150,
+      asReqPerM: z.asReqPerM ?? 0,
+      v: slabZoneV(doc, z),
+    })),
+    code,
+  };
+}
+
+function solveGeneric(doc: GenericDoc, code: BaelPack): SolveResult {
+  switch (doc.section) {
+    case "CIRCULAR": return solveCircular(circularInput(doc, code));
+    case "SLAB": return solveSlab(slabInput(doc, code));
+    case "JOIST": return solveJoist(joistInput(doc, code));
+    case "STAIR": return solveStair(stairInput(doc, code));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // supplement shape params (UI-edge convention — the engine stays generic)
 // ---------------------------------------------------------------------------
 function supplementShapeParams(
   shapeId: string,
-  doc: ElementDoc,
+  doc: ColumnDoc | BeamDoc,
   span: number | undefined,
 ): Record<string, number> {
   const memberLen = isColumnDoc(doc) ? doc.geometry.H : doc.geometry.L;
@@ -228,7 +474,7 @@ function warnItem(instanceId: string, message_fr: string, message_en: string): V
 
 /** Resolve the doc's supplements against the base bars → engine inputs + rebind warnings (§5.5). */
 function resolveDocSupplements(
-  doc: ElementDoc,
+  doc: ColumnDoc | BeamDoc,
   baseBars: BarPosition[],
 ): { inputs: ElementSupplementInput[]; warnings: ValidationItem[] } {
   const inputs: ElementSupplementInput[] = [];
@@ -266,6 +512,7 @@ function resolveDocSupplements(
 }
 
 export function solveDoc(doc: ElementDoc, code: BaelPack = baelPack): SolveResult {
+  if (isGenericDoc(doc)) return solveGeneric(doc, code);
   const pass1 = solveElement(buildInput(doc, [], code));
   if (doc.supplements.length === 0) return pass1;
   const { inputs, warnings } = resolveDocSupplements(doc, pass1.bars);

@@ -12,7 +12,8 @@ import { t } from "../i18n/strings";
 import { NumberField } from "./NumberField";
 import { SupplementsPanel } from "./SupplementsPanel";
 import { asProvidedMm2, asReqMm2, cm2, effectiveDepthMm, meetsAsReq } from "./derived";
-import { isColumnDoc } from "../engine/document";
+import { isColumnDoc, isGenericDoc, isBeamDoc } from "../engine/document";
+import { GENERIC_SPECS, type GenericElementId } from "../engine/elementSpecs";
 
 type Tab = "scheme" | "geometry" | "project";
 
@@ -110,9 +111,10 @@ function BeamSchemeControls() {
   const setSpan = useStore((s) => s.setSpan);
   const setChapeau = useStore((s) => s.setChapeau);
   const setStirrup = useStore((s) => s.setStirrup);
+  const setTopBars = useStore((s) => s.setTopBars);
   const s = t(lang);
-  if (isColumnDoc(doc)) return null;
-  const { span, chapeau, stirrup } = doc;
+  if (!isBeamDoc(doc)) return null;
+  const { span, chapeau, stirrup, topBars } = doc;
 
   return (
     <>
@@ -121,6 +123,18 @@ function BeamSchemeControls() {
       <NumberField label={s.beam.bottomBars} value={span.nBottom} min={2} max={8} onChange={(v) => setSpan({ nBottom: v })} />
       <NumberField label={s.asRequired + " (mm²)"} value={span.asReq} min={0} max={20000} step={50} onChange={(v) => setSpan({ asReq: v })} />
       <NumberField label={s.beam.continued} value={span.continuedToSupport} min={0} max={1} step={0.05} onChange={(v) => setSpan({ continuedToSupport: v })} />
+
+      <h3>{s.beam.montageTitle}</h3>
+      <label className="field field-check">
+        <input type="checkbox" checked={topBars.enabled} onChange={(e) => setTopBars({ enabled: e.target.checked })} />
+        <span className="field-label">{s.beam.montageEnable}</span>
+      </label>
+      {topBars.enabled && (
+        <>
+          <DiameterSelect value={topBars.diameter} onChange={(v) => setTopBars({ diameter: v })} />
+          <NumberField label={s.beam.montageBars} value={topBars.nTop} min={2} max={8} onChange={(v) => setTopBars({ nTop: v })} />
+        </>
+      )}
 
       {chapeau.enabled && (
         <>
@@ -141,12 +155,97 @@ function BeamSchemeControls() {
   );
 }
 
+/** Full per-zone reinforcement controls for the six non-rect elements (data-driven from the doc). */
+function GenericSchemeControls() {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const setZone = useStore((s) => s.setZone);
+  const setGenericFlag = useStore((s) => s.setGenericFlag);
+  const s = t(lang);
+  if (!isGenericDoc(doc)) return null;
+
+  return (
+    <>
+      {doc.zones.map((z) => (
+        <div key={z.groupId} className="zone-block">
+          <h3>{lang === "fr" ? z.label_fr : z.label_en}</h3>
+          <DiameterSelect value={z.diameter} onChange={(v) => setZone(z.groupId, { diameter: v })} />
+          {z.control === "count" ? (
+            <NumberField label={s.generic.count} value={z.count ?? 0} min={0} max={40} onChange={(v) => setZone(z.groupId, { count: v })} />
+          ) : (
+            <NumberField label={s.spacing} value={z.spacing ?? 150} min={50} max={400} step={5} onChange={(v) => setZone(z.groupId, { spacing: v })} />
+          )}
+          {z.kind === "transverse" ? (
+            <NumberField label="Asw,req (mm²/m)" value={z.asReqPerM ?? 0} min={0} max={2000} step={10} onChange={(v) => setZone(z.groupId, { asReqPerM: v })} />
+          ) : z.control === "count" ? (
+            <NumberField label={s.asRequired + " (mm²)"} value={z.asReq ?? 0} min={0} max={40000} step={50} onChange={(v) => setZone(z.groupId, { asReq: v })} />
+          ) : (
+            <NumberField label={s.generic.asReqPerM} value={z.asReqPerM ?? 0} min={0} max={4000} step={10} onChange={(v) => setZone(z.groupId, { asReqPerM: v })} />
+          )}
+        </div>
+      ))}
+
+      {doc.element === "E-SLB-02" && (
+        <div className="zone-block">
+          <h3>{s.generic.cornerTorsion}</h3>
+          <label className="field field-check">
+            <input type="checkbox" checked={doc.restrainedCorner ?? false} onChange={(e) => setGenericFlag({ restrainedCorner: e.target.checked })} />
+            <span className="field-label">{s.generic.restrainedCorner}</span>
+          </label>
+          <NumberField label={s.generic.cornerTorsion} value={doc.cornerTorsionProvided ?? 0} min={0} max={2000} step={10} onChange={(v) => setGenericFlag({ cornerTorsionProvided: v })} />
+        </div>
+      )}
+      {doc.element === "E-STR-01" && (
+        <label className="field field-check">
+          <input type="checkbox" checked={doc.mainBarWrapsCorner ?? false} onChange={(e) => setGenericFlag({ mainBarWrapsCorner: e.target.checked })} />
+          <span className="field-label">{s.generic.wrapCorner}</span>
+        </label>
+      )}
+    </>
+  );
+}
+
+function SchemeControls() {
+  const doc = useStore((s) => s.doc);
+  if (isColumnDoc(doc)) return <ColumnSchemeControls />;
+  if (isBeamDoc(doc)) return <BeamSchemeControls />;
+  return <GenericSchemeControls />;
+}
+
 function SchemeTab() {
   const doc = useStore((s) => s.doc);
   return (
     <div className="tab-body">
-      {isColumnDoc(doc) ? <ColumnSchemeControls /> : <BeamSchemeControls />}
-      <SupplementsPanel />
+      <SchemeControls />
+      {!isGenericDoc(doc) && <SupplementsPanel />}
+    </div>
+  );
+}
+
+/** Geometry controls for the six non-rect elements — fields declared in the element spec. */
+function GenericGeometryControls() {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const setGenericGeometry = useStore((s) => s.setGenericGeometry);
+  const setCover = useStore((s) => s.setCover);
+  const s = t(lang);
+  if (!isGenericDoc(doc)) return null;
+  const spec = GENERIC_SPECS[doc.element as GenericElementId];
+
+  return (
+    <div className="tab-body">
+      {spec.geometry.map((f) => (
+        <NumberField
+          key={f.key}
+          label={lang === "fr" ? f.label_fr : f.label_en}
+          value={doc.geometry[f.key] ?? f.default}
+          min={f.min}
+          max={f.max}
+          step={f.step}
+          onChange={(v) => setGenericGeometry(f.key, v)}
+        />
+      ))}
+      <NumberField label={s.cover} value={doc.cover} min={15} max={75} onChange={setCover} />
     </div>
   );
 }
@@ -159,6 +258,8 @@ function GeometryTab() {
   const setCover = useStore((s) => s.setCover);
   const setLongitudinal = useStore((s) => s.setLongitudinal);
   const s = t(lang);
+
+  if (isGenericDoc(doc)) return <GenericGeometryControls />;
 
   return (
     <div className="tab-body">
@@ -189,6 +290,49 @@ function GeometryTab() {
 
 const EXPOSURES = ["INTERIOR", "EXTERIOR", "XS1", "CAST_AGAINST_EARTH"];
 
+/** Seismic regime picker (§7.10) — overlay applies to the column + beam (plastic-hinge members). */
+function SeismicControls() {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const setSeismic = useStore((s) => s.setSeismic);
+  const s = t(lang);
+  if (isGenericDoc(doc)) return null; // seismic overlay = column/beam only in v1.0
+  const cur = doc.seismic;
+  const value = cur ? cur.ductility : "NONE";
+
+  return (
+    <>
+      <h3>{s.seismic.title}</h3>
+      <label className="field">
+        <span className="field-label">{s.seismic.regime}</span>
+        <select
+          value={value}
+          aria-label={s.seismic.regime}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "NONE") setSeismic(null);
+            else setSeismic({ code: "RPS-2011", zone: cur?.zone ?? 2, ductility: v as "ND1" | "ND2" | "ND3" });
+          }}
+        >
+          <option value="NONE">{s.seismic.none}</option>
+          <option value="ND1">RPS-2011 — ND1</option>
+          <option value="ND2">RPS-2011 — ND2</option>
+          <option value="ND3">RPS-2011 — ND3</option>
+        </select>
+      </label>
+      {cur && (
+        <NumberField
+          label={s.seismic.zone}
+          value={cur.zone}
+          min={1}
+          max={4}
+          onChange={(v) => setSeismic({ ...cur, zone: v })}
+        />
+      )}
+    </>
+  );
+}
+
 function ProjectTab() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
@@ -211,6 +355,7 @@ function ProjectTab() {
           ))}
         </select>
       </label>
+      <SeismicControls />
     </div>
   );
 }

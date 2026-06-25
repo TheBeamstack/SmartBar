@@ -17,12 +17,16 @@ import {
   type ElementDoc,
   type ColumnDoc,
   type BeamDoc,
+  type GenericDoc,
+  type ZoneEdit,
+  type SeismicEdit,
   type ElementId,
   type SupplementEdit,
   defaultColumnDoc,
   defaultDocFor,
   isColumnDoc,
   isBeamDoc,
+  isGenericDoc,
 } from "../engine/document";
 import { rcfgToDoc } from "../engine/rcfgDoc";
 import { solveDoc, type SolveResult } from "../engine/solveDoc";
@@ -68,6 +72,15 @@ export interface AppState {
   setSpan: (patch: Partial<BeamDoc["span"]>) => void;
   setChapeau: (patch: Partial<BeamDoc["chapeau"]>) => void;
   setStirrup: (patch: Partial<BeamDoc["stirrup"]>) => void;
+  setTopBars: (patch: Partial<BeamDoc["topBars"]>) => void;
+
+  // generic-element edits (circular / slab / joist / stair)
+  setGenericGeometry: (key: string, value: number) => void;
+  setZone: (groupId: string, patch: Partial<ZoneEdit>) => void;
+  setGenericFlag: (patch: Pick<Partial<GenericDoc>, "restrainedCorner" | "cornerTorsionProvided" | "mainBarWrapsCorner">) => void;
+
+  // seismic regime (§7.10) — applies to the column + beam (plastic-hinge members)
+  setSeismic: (seismic: SeismicEdit | null) => void;
 
   // supplements (§5.5)
   addSupplement: (edit: SupplementEdit) => void;
@@ -118,6 +131,8 @@ const asColumn = (doc: ElementDoc, fn: (d: ColumnDoc) => ColumnDoc): ElementDoc 
   isColumnDoc(doc) ? fn(doc) : doc;
 const asBeam = (doc: ElementDoc, fn: (d: BeamDoc) => BeamDoc): ElementDoc =>
   isBeamDoc(doc) ? fn(doc) : doc;
+const asGeneric = (doc: ElementDoc, fn: (d: GenericDoc) => GenericDoc): ElementDoc =>
+  isGenericDoc(doc) ? fn(doc) : doc;
 
 export const useStore = create<AppState>((set, get) => {
   const initial = withDoc(defaultColumnDoc());
@@ -180,6 +195,27 @@ export const useStore = create<AppState>((set, get) => {
       set(edit(asBeam(get().doc, (d) => ({ ...d, chapeau: { ...d.chapeau, ...patch } })))),
     setStirrup: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, stirrup: { ...d.stirrup, ...patch } })))),
+    setTopBars: (patch) =>
+      set(edit(asBeam(get().doc, (d) => ({ ...d, topBars: { ...d.topBars, ...patch } })))),
+
+    setGenericGeometry: (key, value) =>
+      set(edit(asGeneric(get().doc, (d) => ({ ...d, geometry: { ...d.geometry, [key]: value } })))),
+    setZone: (groupId, patch) =>
+      set(edit(asGeneric(get().doc, (d) => ({
+        ...d,
+        zones: d.zones.map((z) => (z.groupId === groupId ? { ...z, ...patch } : z)),
+      })))),
+    setGenericFlag: (patch) =>
+      set(edit(asGeneric(get().doc, (d) => ({ ...d, ...patch })))),
+
+    setSeismic: (seismic) => {
+      const doc = get().doc;
+      if (isGenericDoc(doc)) return; // seismic overlay applies to column/beam only (v1.0)
+      const next = seismic === null
+        ? { ...doc, seismic: undefined }
+        : { ...doc, seismic };
+      set(edit(next as ElementDoc));
+    },
 
     addSupplement: (edit2) =>
       set(edit({ ...get().doc, supplements: [...get().doc.supplements, edit2] })),
