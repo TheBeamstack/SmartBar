@@ -57,6 +57,37 @@ function seismicBlock(
   return { seismic: { overlay, member, longBarsTotal, longBarsEngaged } };
 }
 
+/**
+ * 8c (D-P6-1): a multi-leg tie/stirrup is physically a perimeter cadre PLUS (nLegs−2)/2 interior
+ * cross-ties (épingles). `nLegs` already feeds the leg-counted Asw correctly; this materialises the
+ * EXTRA legs as real transverse groups so they also RENDER in 3D and get BBS marks (number, model and
+ * schedule finally agree). Asw is untouched — the cross-ties carry aswReqPerM 0 (the perimeter cadre's
+ * zone already owns the Asw check). Returns [] for the standard 2-leg tie.
+ */
+function crossTieZones(
+  baseGroupId: string,
+  nLegs: number,
+  diameter: number,
+  spacing: number,
+  span: number,
+): ElementSolveInput["transverse"] {
+  const n = Math.floor((nLegs - 2) / 2);
+  const out: ElementSolveInput["transverse"] = [];
+  for (let k = 0; k < n; k++) {
+    out.push({
+      zone: `${baseGroupId}_xtie`,
+      groupId: `${baseGroupId}_X${k + 1}`,
+      shape: loadShape("EPINGLE"),
+      params: { span },
+      diameter,
+      spacing,
+      nLegs: 2,
+      aswReqPerM: 0,
+    });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // element-specific conventions → generic ElementSolveInput
 // ---------------------------------------------------------------------------
@@ -112,6 +143,7 @@ function columnInput(
         nLegs: doc.tie.nLegs,
         aswReqPerM: doc.tie.aswReqPerM,
       },
+      ...crossTieZones(doc.tie.groupId, doc.tie.nLegs, phiT, doc.tie.spacing, hTie),
     ],
     ...seismicBlock(
       doc.seismic,
@@ -220,6 +252,7 @@ function beamInput(
         nLegs: doc.stirrup.nLegs,
         aswReqPerM: doc.stirrup.aswReqPerM,
       },
+      ...crossTieZones(doc.stirrup.groupId, doc.stirrup.nLegs, phiT, doc.stirrup.spacing, hStir),
     ],
     ...seismicBlock(
       doc.seismic,
