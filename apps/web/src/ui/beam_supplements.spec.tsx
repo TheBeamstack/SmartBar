@@ -22,8 +22,8 @@ describe("P3 catalog + supplements UI", () => {
 
   it("switching the element to the beam reveals beam-specific controls", () => {
     renderApp();
-    // column shows the per-face counts
-    expect(screen.getByText(/Barres haut/)).toBeInTheDocument();
+    // column (SYMMETRIC default) shows the two merged-face counts (§6.1/§8 [REF-UI-815])
+    expect(screen.getByText(/faces verticales/)).toBeInTheDocument();
 
     const elementSelect = screen.getByLabelText("Élément");
     fireEvent.change(elementSelect, { target: { value: "E-BEM-01" } });

@@ -54,3 +54,28 @@ export interface LayoutResult {
   bars: BarPosition[];
   zones: ZoneGeometry[];
 }
+
+/**
+ * 3D placement descriptor for a solved element (spec §9.5, [REF-SYS-950]).
+ *
+ * Every v1.0 element is a prismatic member along the world axis `+Y` (length 0..`length`),
+ * with its cross-section in the world `X–Z` plane (engine `u → X`, `v → Z`). This descriptor
+ * carries exactly what the pure Section/Coupe engine (`sectionAt`) and the 3D viewport need to
+ * reconstruct world-space bar geometry from a `SolveResult` — so the placement convention lives
+ * in core (D-P2-3), not the UI. Slab-family sections map to a `RECT` envelope (width × thickness,
+ * bars running along the span). Pure data; no DOM/three.
+ */
+export interface MemberPlacement {
+  /** concrete cross-section shape in the section (u–v) frame. */
+  envelope: "RECT" | "CIRCULAR";
+  /** member length along the world axis (+Y), mm (bars run 0..length). */
+  length: number;
+  /** RECT width (u/X extent), mm — section is centred at the origin. */
+  b?: number;
+  /** RECT depth (v/Z extent), mm. */
+  h?: number;
+  /** CIRCULAR overall diameter (mm). */
+  D?: number;
+  /** transverse-set spacing per group (mm) — drives station expansion + look-behind. */
+  transverse: { groupId: string; spacing: number }[];
+}

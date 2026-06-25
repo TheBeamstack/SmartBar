@@ -14,7 +14,7 @@
  */
 import type { ShapeArchetype } from "../types/shape";
 import type { BarRole } from "../types/reinforcing-element";
-import type { BarPosition, ZoneGeometry, LayoutDescriptor } from "../types/layout";
+import type { BarPosition, ZoneGeometry, LayoutDescriptor, MemberPlacement } from "../types/layout";
 import type { RectLayout } from "../types/placement";
 import type { MaterialContext, ValidationStatus } from "../types/codepack";
 import type { SeismicOverlay, CritZoneSegment, LapExtent } from "../types/seismic";
@@ -59,6 +59,8 @@ export interface SolveResult {
   provisional: boolean;
   /** present when a seismic overlay (RPS, §7.10) was applied: l_c + injected segments. */
   seismic?: { l_c: number; segments: CritZoneSegment[] };
+  /** 3D placement descriptor (spec §9.5) — the Section/Coupe engine + viewport read this. */
+  member: MemberPlacement;
 }
 
 /** One longitudinal group as fed to the generic pipeline (shape + section binding). */
@@ -292,6 +294,14 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     seismic = { l_c: res.l_c, segments: res.segments };
   }
 
+  const member: MemberPlacement = {
+    envelope: "RECT",
+    length: geometry.H ?? geometry.L ?? geometry.h,
+    b: geometry.b,
+    h: geometry.h,
+    transverse: input.transverse.map((tz) => ({ groupId: tz.groupId, spacing: tz.spacing })),
+  };
+
   return {
     element: input.element,
     bars: layout.bars,
@@ -301,6 +311,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     status: rollupStatus(validation),
     provisional: (code as { _provisional?: boolean })._provisional === true,
     ...(seismic !== undefined ? { seismic } : {}),
+    member,
   };
 }
 

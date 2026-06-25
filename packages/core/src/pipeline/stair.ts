@@ -135,5 +135,13 @@ export function solveStair(input: StairSolveInput): SolveResult {
     validation,
     status: rollupStatus(validation),
     provisional: (code as { _provisional?: boolean })._provisional === true,
+    // stair waist → RECT envelope: flight width × waist t, bars run along the going (§9.5).
+    member: {
+      envelope: "RECT",
+      length: geometry.n_steps * geometry.g,
+      b: geometry.flight_width,
+      h: t,
+      transverse: [],
+    },
   };
 }

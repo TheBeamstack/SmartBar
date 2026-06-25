@@ -19,6 +19,8 @@ export * from "./validation/predicates";
 export * from "./validation/seismic";
 export * from "./scheme/index";
 export * from "./pipeline/index";
+// P5 — Section/Coupe engine (§9.5): pure sectionAt → CoupeView (feeds 3D preview + DXF + PDF)
+export * from "./section/index";
 
 // NOTE: the manifest-integrity gate (validateManifest / checkManifestDir / crossReferenceCheck)
 // is a Node-only build/CI tool — it imports node:fs/path/url + ajv. It is intentionally NOT in

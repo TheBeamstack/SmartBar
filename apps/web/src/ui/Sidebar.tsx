@@ -72,14 +72,27 @@ function ColumnSchemeControls() {
   const L = doc.longitudinal;
   const T = doc.tie;
 
+  // Under SYMMETRIC the engine ties opposite faces (nTop=nBottom, nLeft=nRight), so we expose only
+  // the two DISTINCT counts; FREE exposes all four independently ([REF-UI-815], §6.1/§8).
+  const symmetric = L.principle === "SYMMETRIC";
+
   return (
     <>
       <h3>{s.primaryBars}</h3>
       <DiameterSelect value={L.diameter} onChange={(v) => setLongitudinal({ diameter: v })} />
-      <NumberField label={s.countsTop} value={L.nTop} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v })} />
-      <NumberField label={s.countsBottom} value={L.nBottom} min={0} max={8} onChange={(v) => setLongitudinal({ nBottom: v })} />
-      <NumberField label={s.countsLeft} value={L.nLeft} min={0} max={8} onChange={(v) => setLongitudinal({ nLeft: v })} />
-      <NumberField label={s.countsRight} value={L.nRight} min={0} max={8} onChange={(v) => setLongitudinal({ nRight: v })} />
+      {symmetric ? (
+        <>
+          <NumberField label={s.layout.verticalFaces} value={Math.max(L.nTop, L.nBottom)} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v, nBottom: v })} />
+          <NumberField label={s.layout.horizontalFaces} value={Math.max(L.nLeft, L.nRight)} min={0} max={8} onChange={(v) => setLongitudinal({ nLeft: v, nRight: v })} />
+        </>
+      ) : (
+        <>
+          <NumberField label={s.countsTop} value={L.nTop} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v })} />
+          <NumberField label={s.countsBottom} value={L.nBottom} min={0} max={8} onChange={(v) => setLongitudinal({ nBottom: v })} />
+          <NumberField label={s.countsLeft} value={L.nLeft} min={0} max={8} onChange={(v) => setLongitudinal({ nLeft: v })} />
+          <NumberField label={s.countsRight} value={L.nRight} min={0} max={8} onChange={(v) => setLongitudinal({ nRight: v })} />
+        </>
+      )}
       <NumberField label={s.asRequired + " (mm²)"} value={L.asReq} min={0} max={20000} step={50} onChange={(v) => setLongitudinal({ asReq: v })} />
 
       <h3>{s.ties}</h3>
@@ -144,6 +157,7 @@ function GeometryTab() {
   const setGeometry = useStore((s) => s.setGeometry);
   const setBeamGeometry = useStore((s) => s.setBeamGeometry);
   const setCover = useStore((s) => s.setCover);
+  const setLongitudinal = useStore((s) => s.setLongitudinal);
   const s = t(lang);
 
   return (
@@ -156,6 +170,19 @@ function GeometryTab() {
         <NumberField label={s.beam.span} value={doc.geometry.L} min={1000} max={12000} step={100} onChange={(v) => setBeamGeometry({ L: v })} />
       )}
       <NumberField label={s.cover} value={doc.cover} min={15} max={60} onChange={setCover} />
+      {isColumnDoc(doc) && (
+        <label className="field">
+          <span className="field-label">{s.layout.principle}</span>
+          <select
+            value={doc.longitudinal.principle}
+            aria-label={s.layout.principle}
+            onChange={(e) => setLongitudinal({ principle: e.target.value as "SYMMETRIC" | "FREE" })}
+          >
+            <option value="SYMMETRIC">{s.layout.symmetric}</option>
+            <option value="FREE">{s.layout.free}</option>
+          </select>
+        </label>
+      )}
     </div>
   );
 }

@@ -52,6 +52,13 @@ export interface Strings {
   countsBottom: string;
   countsLeft: string;
   countsRight: string;
+  layout: {
+    principle: string;
+    symmetric: string;
+    free: string;
+    verticalFaces: string;
+    horizontalFaces: string;
+  };
   asProvided: string;
   asRequired: string;
   effectiveDepth: string;
@@ -62,6 +69,40 @@ export interface Strings {
   resetView: string;
   status: { pass: string; warn: string; fail: string };
   exportLocked: string;
+  exports: {
+    menu: string;
+    pdf: string;
+    dxf: string;
+    bbs: string;
+    rcfg: string;
+  };
+  bbs: {
+    title: string;
+    mark: string;
+    diameter: string;
+    shape: string;
+    count: string;
+    cutLength: string;
+    totalLength: string;
+    weight: string;
+    totalWeight: string;
+    ratio: string;
+    concreteVolume: string;
+    reviewRequired: string;
+    empty: string;
+  };
+  coupes: {
+    title: string;
+    add: string;
+    remove: string;
+    label: string;
+    station: string;
+    lookBehind: string;
+    defaultTag: string;
+    preview: string;
+    noBars: string;
+    panelHint: string;
+  };
 }
 
 const FR: Strings = {
@@ -110,6 +151,13 @@ const FR: Strings = {
   countsBottom: "Barres bas",
   countsLeft: "Barres gauche",
   countsRight: "Barres droite",
+  layout: {
+    principle: "Disposition des barres",
+    symmetric: "Symétrique",
+    free: "Libre (4 faces)",
+    verticalFaces: "Barres faces verticales (haut+bas)",
+    horizontalFaces: "Barres faces horizontales (gauche+droite)",
+  },
   asProvided: "As,prév",
   asRequired: "As,req",
   effectiveDepth: "Hauteur utile d",
@@ -120,6 +168,40 @@ const FR: Strings = {
   resetView: "Recentrer",
   status: { pass: "Conforme", warn: "À vérifier", fail: "Non conforme" },
   exportLocked: "Export bloqué (non conforme)",
+  exports: {
+    menu: "Exporter",
+    pdf: "Plan PDF",
+    dxf: "Dessin DXF",
+    bbs: "Nomenclature (JSON)",
+    rcfg: "Projet (.rcfg)",
+  },
+  bbs: {
+    title: "Nomenclature des aciers (BBS)",
+    mark: "Rep.",
+    diameter: "Ø",
+    shape: "Forme",
+    count: "Nb",
+    cutLength: "Long. (mm)",
+    totalLength: "Total (m)",
+    weight: "Poids (kg)",
+    totalWeight: "Total acier",
+    ratio: "Ratio",
+    concreteVolume: "Béton",
+    reviewRequired: "À vérifier — Review required",
+    empty: "Aucune barre",
+  },
+  coupes: {
+    title: "Coupes",
+    add: "Ajouter une coupe",
+    remove: "Supprimer",
+    label: "Libellé",
+    station: "Position le long de l'axe (mm)",
+    lookBehind: "Profondeur vue (mm)",
+    defaultTag: "par défaut",
+    preview: "Aperçu de la coupe",
+    noBars: "Aucune barre coupée",
+    panelHint: "Coupe perpendiculaire à l'axe à la position choisie (orientation oblique : .rcfg/P6).",
+  },
 };
 
 const EN: Strings = {
@@ -168,6 +250,13 @@ const EN: Strings = {
   countsBottom: "Bottom bars",
   countsLeft: "Left bars",
   countsRight: "Right bars",
+  layout: {
+    principle: "Bar layout",
+    symmetric: "Symmetric",
+    free: "Free (4 faces)",
+    verticalFaces: "Bars on vertical faces (top+bottom)",
+    horizontalFaces: "Bars on horizontal faces (left+right)",
+  },
   asProvided: "As,prov",
   asRequired: "As,req",
   effectiveDepth: "Effective depth d",
@@ -178,6 +267,40 @@ const EN: Strings = {
   resetView: "Reset view",
   status: { pass: "Pass", warn: "Review required", fail: "Fail" },
   exportLocked: "Export locked (fail state)",
+  exports: {
+    menu: "Export",
+    pdf: "PDF sheet",
+    dxf: "DXF drawing",
+    bbs: "Schedule (JSON)",
+    rcfg: "Project (.rcfg)",
+  },
+  bbs: {
+    title: "Bar-bending schedule (BBS)",
+    mark: "Mark",
+    diameter: "Ø",
+    shape: "Shape",
+    count: "Qty",
+    cutLength: "Cut (mm)",
+    totalLength: "Total (m)",
+    weight: "Weight (kg)",
+    totalWeight: "Total steel",
+    ratio: "Ratio",
+    concreteVolume: "Concrete",
+    reviewRequired: "Review required",
+    empty: "No bars",
+  },
+  coupes: {
+    title: "Sections",
+    add: "Add a section",
+    remove: "Remove",
+    label: "Label",
+    station: "Position along axis (mm)",
+    lookBehind: "Look-behind depth (mm)",
+    defaultTag: "default",
+    preview: "Section preview",
+    noBars: "No bars cut",
+    panelHint: "Perpendicular cut at the chosen station (oblique orientation: .rcfg/P6).",
+  },
 };
 
 export const BUNDLES: Record<Lang, Strings> = { fr: FR, en: EN };

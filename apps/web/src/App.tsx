@@ -7,9 +7,12 @@
 import { Navbar } from "./ui/Navbar";
 import { Sidebar } from "./ui/Sidebar";
 import { AlertsPanel } from "./ui/AlertsPanel";
+import { BottomPanel } from "./ui/BottomPanel";
 import { Viewport } from "./viewport/Viewport";
+import { useAutosave } from "./ui/useAutosave";
 
 export function App() {
+  useAutosave();
   return (
     <div className="app">
       <Navbar />
@@ -17,6 +20,7 @@ export function App() {
         <Sidebar />
         <main className="viewport-pane">
           <Viewport />
+          <BottomPanel />
         </main>
         <AlertsPanel />
       </div>

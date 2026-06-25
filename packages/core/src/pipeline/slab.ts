@@ -123,5 +123,7 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     validation,
     status: rollupStatus(validation),
     provisional: (code as { _provisional?: boolean })._provisional === true,
+    // slab-family → RECT envelope: width Ly × thickness t, bars run along the span Lx (§9.5).
+    member: { envelope: "RECT", length: geometry.Lx, b: geometry.Ly, h: geometry.t, transverse: [] },
   };
 }

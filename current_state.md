@@ -46,17 +46,29 @@ in the browser — no server, free hosting.**
 | **P3 / M3** — Scheme catalog + supplements + advanced builder + `E-BEM-01` | ✅ **DONE** (code) · ⏳ G-BAEL unsigned | Zayd, 2026-06-24 |
 | **P4a / M4a** — Circular/pile/slab geometries + helix/mesh generators + **EC2 pack** + slab predicates | ✅ **DONE** (code) · ⏳ G-EC2 unsigned | Zayd, 2026-06-24 |
 | **P4b / M4b** — Stair `E-STR-01` + joist slab `E-SLB-03` + **RPS-2011 seismic overlay** | ✅ **DONE** (code) · ⏳ G-RPS unsigned | Zayd, 2026-06-24 |
-| P5 / M5 — Exports (BBS, DXF, PDF) + `.rcfg` I/O | ⛔ not started | — |
-| P6 / M6 — Hardening, sign-off, release | ⛔ not started | — |
+| **P5 / M5** — Section/Coupe engine ✅ · BBS ✅ · DXF-1/DXF-2 ✅ · PDF + export-lock ✅ · `.rcfg` I/O + autosave ✅ · WARN stamp ✅ · **SPA wiring (Export/Import + BBS table + coupe manager + autosave) ✅** | ✅ **DONE** (code) · ⏳ G-COUPE unsigned · ⚠ 3D coupe drag-handle deferred to P6 (numeric+keyboard parity shipped) | Amer, 2026-06-25 |
+| P6 / M6 — Hardening: **coverage gate ✅ (95% core) · i18n ✅ · heavy-perf ✅ · code-split ✅** · **control-panel audit ✅; fix 8a (column symmetry selector) ✅ code+test** · **ViewCube specced** · (fixes 8b beam-top-bars + 8c brins-auto-draw · ViewCube code · a11y · docs · 3D coupe handle + remaining-elements UI · engineer sign-off — pending) | 🟡 **IN PROGRESS** | Amer, 2026-06-25 |
+| **P7 (post-r3) — Multi-element project model + elevation *fiche* + combined exports** | 📋 **SPEC+PLAN done, code not started** | Amer, 2026-06-25 |
 
-**Phase 4 is now COMPLETE (a+b). All 8 §3.1 elements solve + validate headlessly.**
+**Phase 4 is COMPLETE (a+b). All 8 §3.1 elements solve + validate headlessly. P5 is now FULLY CODE-
+COMPLETE — engine AND SPA.** The pure Section/Coupe engine (`sectionAt → CoupeView`, §9.5) + all four
+export engines + project I/O — BBS (§9.1), DXF-1/DXF-2 (§9.2), PDF + export-lock (§9.3/§7.9), `.rcfg`
+save/load + IndexedDB autosave (§10) — live in the pure package `@rebarconfig/exporters` (D-P5-4). **The
+SPA now consumes them (D-P5-7):** the Navbar **Export** menu downloads PDF/DXF/BBS-JSON/`.rcfg` (drawing
+deliverables export-locked on 🔴), **Import** loads a `.rcfg` back, an on-screen **BBS table** + a
+**coupe manager** (list/add/place/remove cuts by numeric field + keyboard parity, live 2D `sectionAt`
+preview) are wired, and **IndexedDB autosave/recovery** runs on every edit. Remaining P5 polish: the **3D
+coupe drag-handle + the elevation cutting-line overlay in the live 3D** (numeric+keyboard parity already
+ships; the 3D handle needs a GPU to verify → P6).
 
-**Test status (P4b):** `npm run check` green — purity ✓, manifest integrity ✓ (**13 shapes** / **8
-elements** / **10 schemes** / **7 supplements** — all 8 spec elements present), core typecheck ✓,
-**web typecheck ✓**, **200 tests passed** across 40 files. New P4b core suites: `rps_segment_injection`,
-`seismic_hooks`, `lap_in_critical_zone`, `confinement_required`, `stair_reentrant`, `joist_slab`,
-`rps_reference` (⚠ G-RPS provisional). `npm run build:web` succeeds (~1.72 MB bundle, code-split = P6);
-new engine code is browser-safe (no `node:*`). Headless box: WebGL still not visually verified.
+**Test status (P5 full):** `npm run check` green — purity ✓, manifest integrity ✓ (**13 shapes** / **8
+elements** / **10 schemes** / **7 supplements**), core typecheck ✓, **web typecheck ✓**, **267 tests
+passed** across 54 files (+20 / +4 vs the P5-engine handoff). New P5 *web* suites: `coupe_store`,
+`export_actions`, `coupe_manager`, `export_menu` (the BBS panel + export-lock UI). Earlier P5 *core* suites
+(in `tests/`): `section_geometry`, `bbs_golden`, `unit_mass`, `cut_nesting`, `dxf1_golden`,
+`dxf_coupe_golden`, `pdf_smoke`, `rcfg_roundtrip`, `coupe_persist`, `autosave_recovery`. `npm run build:web`
+succeeds (**~2.19 MB** bundle — pdf-lib pulled in by the SPA now; code-split = P6); all new code is
+browser-safe (no `node:*`). Headless box: WebGL still not visually verified.
 
 ---
 
@@ -150,12 +162,23 @@ packages/core/            # @rebarconfig/core — the PURE ENGINE (no DOM/React/
                           #   nearestBarIndex, computeCurtailment (§5.3–5.7, D-P3-4)
   src/pipeline/           # element.ts: generic solveElement (D-P3-1) + solve.ts: solveColumn shim
                           #   P4a: circular.ts (solveCircular) + slab.ts (solveSlab) — section pipelines
+                          #   P5: every result now carries member: MemberPlacement (D-P5-1, §9.5)
+  src/section/            # P5: Section/Coupe engine (§9.5) — place.ts (placeBars: world geometry),
+                          #   sectionAt.ts (sectionAt → CoupeView + defaultCoupeFor), types.ts,
+                          #   convention.ts (provisional coupe conventions → G-COUPE)
   src/index.ts            # public surface: types + geometry/layout/validation/profiles/scheme/pipeline
 packages/codepacks/       # @rebarconfig/codepacks — packs behind core's CodePack iface (P1, P4a)
   src/bael/bael-constants.json  # ⚠ PROVISIONAL BAEL constants, "_provisional": true (G-BAEL)
   src/bael/index.ts       # makeBaelPack(): BaelPack — code.* impls + PackExtras (bands, ls, slab, …)
   src/ec2/ec2-constants.json    # ⚠ PROVISIONAL EC2 constants, "_provisional": true (G-EC2) [P4a]
   src/ec2/index.ts        # makeEc2Pack(): Ec2Pack — same code.* names, EC2 forms (§7.1–7.8) [P4a]
+packages/exporters/       # @rebarconfig/exporters — P5 export engines + project I/O (depends on core)
+  src/bbs.ts              # computeBBS(result) → §9.1 schedule (unitMass, marks, merge, summary) + nestCuts
+  src/dxf.ts              # DxfBuilder (R12) + buildDxf1 (elevation+default coupe) / buildDxfCoupes (DXF-2)
+  src/pdf.ts              # buildPdf(result) → Uint8Array (cartouche + views + BBS + stamp); pdf-lib; 🔴-locked
+  src/export-lock.ts      # canExport/assertExportable/ExportLockedError + statusStamp (§7.9/§7.12)
+  src/rcfg.ts             # serializeRcfg/parseRcfg (+migrate), section_cuts, AutosaveManager + IndexedDB store
+  src/index.ts            # barrel (BBS/DXF/PDF/export-lock/.rcfg). PURE except pdf-lib + browser IndexedDB glue
 apps/web/                 # @rebarconfig/web — the SPA (P2): React 18 + Vite + Zustand + R3F
   index.html  vite.config.ts  tsconfig.json  vitest.setup.ts
   manifests/              # the real data (P3): shapes/ (10) elements/ (2) schemes/ (4) supplements/ (7)
@@ -196,6 +219,7 @@ keep moving, but a phase is not "accepted" until its gate is signed (spec §11, 
 | **G-TOL** | P1 / P4 | per-rule WARN-vs-PASS tolerance bands (§7.12, §14.8) |
 | **G-EC2** | P4a | EC2 reference cases |
 | **G-RPS** | P4b close | RPS-2011 ⚠ cells: `l_c`, critical-zone spacing per ND class, min tie ø, required confinement, zone enum + `a_g` map (§7.10b, §14.6) |
+| **G-COUPE** | P5 (coupe) | coupe drawing conventions (§9.5, [REF-EXT-GAP-7], §14 items 14–17): near-parallel angle threshold, default look-behind depth, cutting-line/tag style, default coupe station |
 | **Sign-off** | release | full BAEL/EC2/RPS reference-case suites signed by the nominated engineer (§14.9) |
 
 **Owner action pending:** §14 open items 1–13 (starter scheme list, default materials, diameter
@@ -424,7 +448,441 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 
 ---
 
+- **D-P5-1 — World placement is now a first-class CORE output (`SolveResult.member`).** The 3D
+  placement convention (member axis = world **+Y** over `length`, cross-section in **X–Z**: `u→X`,
+  `v→Z`) used to live ONLY in the SPA (`apps/web/src/viewport/rebarProps.ts`). The Section/Coupe
+  engine (§9.5) must reconstruct world bar geometry purely in core, so every pipeline now emits a
+  `MemberPlacement` (`types/layout.ts`): `{ envelope: "RECT"|"CIRCULAR", length, b?,h?,D?,
+  transverse[] }`. This *unifies all 8 elements as axial prisms*: slab-family sections map to a RECT
+  envelope (width × thickness, bars running along the span). `member` is a **required** field on
+  `SolveResult` (all 5 orchestrators populate it; column shim inherits it). New pure core module
+  `packages/core/src/section/place.ts` (`placeBars(result) → PlacedBar[]`) is the core-side twin of
+  `rebarProps.buildScene` — **the web mapper should be refactored to consume `placeBars` in a P6
+  polish pass** (today both exist; the engine one is the source of truth). No `.rcfg`/contract change.
+- **D-P5-2 — `sectionAt` is pure plane∩geometry; coupe conventions are provisional DATA.** `sectionAt
+  (result, cut, conv?) → CoupeView` (`packages/core/src/section/sectionAt.ts`) intersects the cut
+  plane with the concrete envelope (box-edge crossings for RECT → convex polygon; sampled lateral
+  surface for CIRCULAR → circle/ellipse) and classifies each bar segment by **crossing angle**: steep
+  → a nominal **circle** of Ø at the plane-crossing point; below the near-parallel threshold → a
+  **line** (elevation run, e.g. a tie outline). **Look-behind** shows the cut face + within
+  `lookBehind_mm` behind (viewing arrow = +normal), with a hard **"nearest transverse set"** guarantee
+  (§9.5.3) so a cut between two stirrups still shows the nearest one. The cutting-line/tag, near-parallel
+  threshold (≈25°), and default look-behind (≈ one spacing clamped 100–150 mm) live in
+  `section/convention.ts`, all flagged `_provisional` per **[REF-EXT-GAP-7]** + §14 items 14–17 — a new
+  **G-COUPE** convention gate (owner sign-off), same discipline as G-BAEL/EC2/RPS. `defaultCoupeFor
+  (result)` seeds the perpendicular mid-length representative coupe (§14 item 17).
+- **D-P5-3 — Coupe coverage is exact for axial members, representative for slab-family (honest).** Column/
+  beam/circular-column/pile produce exact coupes (true prismatic members). Slab/stair/joist reuse the
+  RECT-envelope axial model; their per-metre **distribution bars are placed along the span like the main
+  steel** (the D-P4a-5 representative model), so a slab coupe shows main bars exactly but distribution
+  bars indicatively — a P6 refinement, disclosed. Oblique CIRCULAR cuts are a **sampled** ellipse.
+- **D-P5-4 — The export engines live in a NEW package `@rebarconfig/exporters`, not in core.** BBS/DXF/PDF
+  /`.rcfg` I/O are pure transforms of a `SolveResult`/`CoupeView`; they depend on `@rebarconfig/core` and
+  mirror the `codepacks` pattern (separate workspace, raw-TS `src` entry, no `dist`). **Rationale:** keeps
+  the engine lean + framework-agnostic (the PDF needs `pdf-lib`; putting it in core would bloat the SPA
+  bundle and muddy the purity boundary). BBS + DXF + the `.rcfg` serialise/parse + `AutosaveManager` are
+  **dependency-free pure TS** (golden-tested headlessly); only `pdf.ts` pulls `pdf-lib` (pure JS, no DOM) and
+  `rcfg.ts`'s `indexedDbStore()` touches the browser `indexedDB` (injected behind a `KeyValueStore` so
+  autosave is unit-tested with `memoryStore()`). The package is NOT yet a web dependency — the SPA Export
+  button is still the P2 export-lock stub (D-P2-5); wiring it is the P5 UI follow-up. *(Convention default per
+  §0 — flagged, not a scope/product change.)*
+- **D-P5-5 — DXF is a hand-rolled deterministic R12 (AC1009) writer; no DXF library.** `DxfBuilder` emits
+  `LINE`/`CIRCLE`/`TEXT` on the **four strict layers** `COFFRAGE`/`ARMATURES`/`COTATION`/`TEXTE` (§9.2). Bytes
+  are stable (4-dp formatting, no `-0`) → golden-testable, and R12 LINE-runs read in any CAD. Source geometry
+  is written ONCE in core: the **elevation** is `placeBars` projected to `(axis=+Y, height=+Z)`; the **coupe**
+  is `sectionAt`'s `CoupeView`. `buildDxf1` = elevation + the default coupe (release bar); `buildDxfCoupes` =
+  DXF-2 (multiple/oblique coupes + per-coupe cutting-line/tag on the elevation). The §9.2 label-collision
+  solver stays templated (deferred per the plan). **Transverse BBS counts reuse `transverseStations`** (the
+  same source as the 3D placement) and a **continuous spiral counts as ONE bar** (detected via the helix
+  result's `coilLength`), never `floor(H/pitch)` discrete sets.
+- **D-P5-6 — `.rcfg` forward-compat rides the existing index signature; `section_cuts[]` needs NO core
+  contract change.** `parseRcfg`/`serializeRcfg` are JSON in/out that preserve unknown top-level fields,
+  unknown `kind`s (D-P0-2), AND unknown coupe fields — `section_cuts` is carried as additive data (typed via
+  `RcfgProject = RcfgDocument & { section_cuts?: SectionCut[] }`, but it survives even on a reader that doesn't
+  type it). `rcfg_version` gates a (currently empty) migration registry; a FUTURE/newer version loads as-is,
+  never dropped. **Export lock (§7.9):** `buildPdf` throws `ExportLockedError` on a 🔴 FAIL; WARN compiles but
+  is stamped "À vérifier / Review required" (the stamp also rides on the BBS record via `reviewRequired`).
+
+- **D-P5-7 — SPA `.rcfg` round-trip rides a namespaced `meta.app_document`; canonical §10 reinforcement[]
+  mapping is deferred.** The web app's editable state is the UI-convenience `ElementDoc` (column|beam); the
+  on-disk format is the canonical §10 `RcfgDocument`. The adapter `apps/web/src/engine/rcfgDoc.ts`
+  (`docToRcfg`/`rcfgToDoc`) bridges them: it **populates the canonical fields faithfully** (region/codePack/
+  seismic=null/units/element{type,geometry,material,cover,`As_req` per zone}/reinforcement{schemeId,mode}) AND
+  carries the **verbatim `ElementDoc` under `meta.app_document`** so save→load restores the exact editable
+  state without reverse-engineering the §10 `reinforcement.baseGroups[]` array back into a doc. The full
+  `ReinforcingElement[]` population of `baseGroups`/`supplementalGroups` is **deferred to P6** (the SPA reloads
+  from `app_document`; §10 forward-compat is preserved by the envelope index signature + the meta carry —
+  `coupe_store.spec` asserts unknown top-level + unknown cut fields survive). A future file from another tool
+  that wrote only canonical arrays (no `app_document`) loads as a no-op in the SPA today (`rcfgToDoc →
+  undefined`) — also P6. **Convention default (spec §0), flagged, not a product/scope change.** Export glue
+  (`apps/web/src/engine/exportActions.ts`): Blob/anchor download, jsdom-guarded (`downloadBlob` swallows
+  jsdom's throwing `URL.createObjectURL` and reports `false`); the Navbar Export menu locks PDF/DXF on 🔴 but
+  always allows BBS + `.rcfg` (a failing project must stay inspectable/persistable). **Coupe manager:** the
+  store holds `cuts[]` with index 0 = the **auto-managed default representative coupe** (re-seeded via
+  `defaultCoupeFor` on every solve, preserving user cuts; dropped on element/scheme switch — a cut's world
+  position is meaningless against a different member). Cuts are perpendicular at a chosen `origin.y` station;
+  **oblique/free orientation is engine-supported + persisted in `.rcfg` but the orientation control + the 3D
+  drag-handle are P6** (numeric + keyboard placement ship now with full a11y parity). **Autosave**
+  (`apps/web/src/ui/useAutosave.ts`) wires `AutosaveManager` over `indexedDbStore()` (falls back to in-memory
+  headlessly → tests/SSR are no-ops): recover-on-mount + debounced save on every doc/cuts change.
+
+- **D-P6-1 — Control-panel audit: 3 confirmed control defects + the owner-chosen fixes (specced, code pending).**
+  A deep trace of every Sidebar control → store → engine found that *most* controls are distinct + used, but **three**
+  are defective (the user's report "different parameters do the same thing / a param does nothing"):
+  - **(a) Column face counts are redundant under the hidden `SYMMETRIC` principle.** The column shows 4 fields
+    (`nTop/nBottom/nLeft/nRight`) but `longitudinal.principle` is hard-pinned `SYMMETRIC` (no UI), and `rect.ts`
+    `faceCountsOf` coerces `nTop=nBottom=max(...)`, `nLeft=nRight=max(...)` → "haut"≡"bas", "gauche"≡"droite"
+    (effective DOF = 2, not 4). **Owner decision: add a `SYMMETRIC`⇄`FREE` selector** (Géométrie tab) — Symmetric
+    shows 2 distinct counts, Free shows 4 independent. (Spec §6.1#5 [REF-UI-815], §8.)
+  - **(b) Beam top steel is scheme-gated + conflated.** Bottom (span) bars have a full control set; the top face count
+    is **hardcoded `nTop=2`** ([solveDoc.ts:123](apps/web/src/engine/solveDoc.ts:123)) and only editable via chapeaux,
+    and only when the scheme enables them. **Owner decision: a dedicated full-length top-bar control** (Ø+count) for
+    montage/compression steel, **separate from the chapeaux** (top *support* overlay). Engine needs the chapeau zone to
+    carry an **explicit provided-count** (not derived from the layout top face) so the two don't double-count. (§8 [REF-UI-720].)
+  - **(c) `Brins` (tie legs) is a paper number.** `nLegs` (2–6) feeds `Asw` correctly but the 3D draws only the base
+    2-leg tie and the BBS omits the extra legs — number, model, and schedule disagree. **Owner decision: auto-draw the
+    legs** — `n_legs>2` materializes `(n_legs−2)/2` evenly-spaced cross-ties that render in 3D + get BBS marks; `n_legs`
+    read back from resolved geometry. (Spec §7.5 [REF-UI-755].) *Spec §7.5 already INTENDED legs "derived from resolved
+    geometry"; the free numeric field was the as-built divergence.* **All other controls confirmed distinct + used**
+    (`continuedToSupport`→end-support anchorage, `supportZone`→curtailment, material `f_c28`/`f_e`, tie spacing/Ø/aswReq,
+    geometry b/h/H/L/cover, exposure). Minor nit: column `h` and `H` both labeled "Hauteur" (clarity, not redundancy).
+- **D-P6-2 — ViewCube view-orientation widget (new P6 feature; specced + planned, code pending).** Owner asked for an
+  **AutoCAD/Revit-style ViewCube** in a viewport corner controlling the **camera view direction** (view, not model):
+  **snap** by clicking a cube face/edge/corner + **free continuous rotation** by dragging the cube to any orientation
+  (Revit-style), locked to `OrbitControls`. **Element-aware default**: 3/4 isometric with **column upright, beam
+  horizontal** (supersedes the D-P3-6 "beam stands up" placeholder); a **home** resets to it. Separate **perspective ⇄
+  orthographic** projection toggle. **a11y**: named views via a keyboard/list control. View is **session state** (NOT
+  persisted in `.rcfg` v1.0). Camera-only — **no engine change**; the pure camera-state mapping (element→default
+  quaternion, cube-face→direction) is unit-testable headlessly, but the widget itself needs a **GPU/browser to verify**.
+  Defaults (iso angle, element→up-axis) are spec §14 item 18 (owner UX confirmation, no engineering sign-off). Spec
+  §2.1/§8 [REF-SYS-810]/[REF-UI-810]; plan P6 steps 8–9.
+
+- **D-P7-1 — Multi-element PROJECT model (owner-requested; spec+plan done, code not started).** Real projects have many
+  element *types*; exporting one at a time isn't useful. Owner chose a **full project model** (not just batch export): the
+  store will hold a **`Project` = ordered list of `ElementInstance`** (`{ mark, quantity, document }`), one **active** for
+  editing; an **element manager** UI adds/duplicates/renames/reorders/removes types. **The engine stays a per-element pure
+  function** — the project is a *container* of independent solves (no `if(elementType)`; no engine change). `quantity` scales
+  steel **totals** only (one solve per type). Project-level = region/codePack/seismic/units/materials; per-instance =
+  geometry/reinforcement/coupes. **`.rcfg` becomes a project envelope** (`rcfg_version "1.1"`, top-level `elements[]`); a
+  **legacy 1.0 single-element file migrates to a 1-instance project**; forward-compat preserves unknown fields/kinds/instances
+  (D-P0-2 extended). **Steel takeoff (owner-specified):** per type report **unit mass (kg)** + **steel density (kg/m³ =
+  unit/concrete-vol)** + **total mass = quantity×unit**; plus **project grand totals** (steel kg, concrete m³, overall ratio)
+  + per-Ø rollup. BBS marks **namespaced per type** (`P1-01`). **Exports:** PDF = **sheet per type + a project summary sheet**;
+  DXF = one file per type; **export-lock is per project** (any 🔴 type blocks the combined export). Spec §3.2 [REF-DATA-250],
+  §9.1 [REF-SYS-915], §9.3, §10; plan **Phase 7** (post-r3 addition). §14 items 19 (project conventions) + the file-version bump.
+- **D-P7-2 — Elevation *fiche* is a shop drawing, not a bare projection (owner-requested full-fiche).** Audit of the exported
+  PDF elevation (`drawElevation` in `packages/exporters/src/pdf.ts` ← `placeBars`): it projects to (length, height) dropping
+  width — a legitimate **side elevation** (longitudinal bars as horizontal lines collapsed by height; ties as correct vertical
+  lines at spacing) BUT **(1) always drawn horizontal** (a column should stand **upright**), **(2) zero annotations** (no bar
+  marks/counts, no length/section dims, no tie-spacing callout). **Owner decision: full shop-drawing fiche** — element-aware
+  orientation (column upright / beam horizontal, **shares the ViewCube up-axis map** D-P6-2), **bar marks + counts** (`3 Ø20`),
+  **tie-spacing callout** (`Ø8 e=200`), **overall-length + section-depth dimensions**. Geometry still computed **once** in core
+  (`placeBars`→2D projection) shared by DXF+PDF; marks/dims are an annotation layer. Applies to single-element export too. Spec
+  §9.2 [REF-SYS-925]; plan Phase 7 step 3; §14 item 20 (detailing depth).
+
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-06-25 — P7 specced: multi-element project model + elevation fiche (owner-requested) — by **Amer** (owner's Windows PC)
+
+**What I did.** Per the owner's direction (study the exported PDF elevation; add a multi-element/project export capability),
+**docs-first** again (no code): inspected the elevation render path and got the owner's design decisions (full-fiche
+elevation; **full project model**; per-type **quantity**; steel **density + unit mass + total mass per element & per type**;
+**sheet-per-type + project BBS** layout). Then updated:
+- **Spec** `v1.0-Spec.md`: §2.1 (store holds a Project); **new §3.2 project model** [REF-DATA-250]; §8 element-manager UI;
+  §9.1 **project BBS takeoff** [REF-SYS-915] (unit mass + density kg/m³ + total mass per type + project totals, namespaced
+  marks); §9.2 **elevation *fiche*** [REF-SYS-925] (orientation + marks + spacing callout + dims); §9.3 sheet-per-type +
+  summary + per-project export-lock; §10 **project envelope** (`rcfg_version 1.1`, `elements[]`, legacy migration); §14
+  items 19–20.
+- **Plan** `v1.0_imp_plan.md`: **new Phase 7** (project model + elevation fiche + combined exports) with 6 steps, 5 tests
+  (`project_model`, `project_bbs`, `elevation_fiche`, `project_pdf`, `project_rcfg_roundtrip`), DoD, risks; 4 §V matrix
+  rows; consistency-check note (Phase 7 = post-r3 addition, engine stays per-element pure).
+- **current_state**: D-P7-1/D-P7-2 (above), §1 P7 row, this entry.
+
+**State now: GREEN (docs only — no code touched).** `npm run check` / `coverage` / `build:web` remain green from the
+prior entry (**276 tests / 57 files**). **No git commit** (owner-gated).
+
+**→ Next.** Two tracks now queued, both code-not-started: **(A) finish the P6 control-panel fixes** 8b (beam top-bar
+control) + 8c (brins auto-draw), and the **ViewCube**; **(B) Phase 7** (project model → element manager → elevation fiche →
+project BBS → combined PDF/DXF → project `.rcfg` + migration). Suggested order: 8b/8c (small, headless-testable) →
+elevation fiche (needed by every export) → project model + combined exports → ViewCube (GPU-verified). *Before coding:
+`git log`/diff; `npm run check` + `coverage` + `build:web` GREEN; append a §9 entry.*
+
+**What I did (in detail).** Two owner-directed tasks, **docs-first** (the owner asked to update spec + plan +
+current_state *before* correcting code):
+
+1. **Deep control-panel audit (Task 1).** Traced every Sidebar control → store action → `solveDoc` input → engine
+   consumption. **Found 3 real defects** (column SYMMETRIC face-count redundancy; beam top steel hardcoded/scheme-gated;
+   `Brins` a paper number not drawn/scheduled) and confirmed **all other controls are distinct + genuinely used**. Full
+   detail + the owner's chosen fixes in **D-P6-1**. Got the owner's design decisions via 4 questions (symmetry selector;
+   dedicated beam top-bar control; auto-draw legs).
+2. **ViewCube feature (Task 2).** Captured the owner's design decisions (full clickable cube + Revit-style free rotate;
+   element-aware iso default; perspective/orthographic user toggle) — **D-P6-2**.
+3. **Docs updated (this entry's deliverable):**
+   - **Spec** `v1.0-Spec.md`: §2.1 + §8 ViewCube ([REF-SYS-810]/[REF-UI-810]); §6.1#5 + §8 layout-principle selector
+     ([REF-UI-815]); §7.5 + §8 leg-count⇄geometry consistency ([REF-UI-755]); §8 beam top-bar control ([REF-UI-720]);
+     §14 item 18 (ViewCube convention defaults).
+   - **Plan** `v1.0_imp_plan.md`: P6 objective + DoD + **steps 8 (control-panel correctness 8a/8b/8c) & 9 (ViewCube)**,
+     new tests (`layout_principle`, `beam_top_bars`, `tie_legs_geometry`, `viewcube_orientation`), and 2 §V matrix rows.
+   - **current_state**: this entry + D-P6-1/D-P6-2 + the §1 P6 row.
+
+**Then implemented fix 8a (column symmetry selector).** Géométrie tab now has a `Disposition des barres` selector
+(`Symétrique` ⇄ `Libre`); under SYMMETRIC the Schéma tab shows **two** merged-face counts (`verticalFaces` →
+`nTop=nBottom`, `horizontalFaces` → `nLeft=nRight`), under FREE the **four** independent counts. Wired via the existing
+`setLongitudinal` (carries `principle`); i18n `layout.*` keys added (FR/EN). New `apps/web/src/store/layout_principle.spec.tsx`
+(4 tests: default SYMMETRIC; SYMMETRIC ties opposite face; FREE independent; UI renders 2 vs 4 fields). Updated the one
+existing test that asserted the old "Barres haut" label (`beam_supplements.spec`). **No engine change** — the SYMMETRIC
+coercion already lived in `rect.ts`; this just stops the UI exposing the redundant raw fields.
+
+**State now: GREEN.** `npm run check` ✓ — **276 tests / 57 files** (+4) · `build:web` ✓ · `coverage` unaffected (UI-only).
+**No git commit** (owner-gated; the owner paused a push to add these two tasks).
+
+**→ Next (remaining Task-1 fixes + ViewCube):** **(8b) beam top-bar control** (add `beam.top` to the doc + an explicit
+chapeau provided-count override in `ElementLongInput` so montage-top + chapeaux don't double-count — `beam_top_bars.spec`);
+**(8c) brins auto-draw** (materialize `(n_legs−2)/2` cross-ties in `rebarProps.buildScene` + BBS + read back `n_legs` —
+`tie_legs_geometry.spec`); then **(9) ViewCube** (pure camera-state module + tests headlessly; the 3D widget + visual check
+on the owner's GPU via `vite dev`). Keep `npm run check` + `coverage` + `build:web` green; append a follow-up §9 entry.
+
+**What I did (in detail).** Began **Phase 6** (hardening/sign-off/release) on the owner's local Windows box,
+picking the slices that are **fully verifiable headlessly** (no GPU / no human signature needed), keeping the
+gate green throughout. Concretely:
+
+1. **Core coverage gate (§11 DoD).** Installed `@vitest/coverage-v8`; added a `coverage` config to
+   `vitest.config.ts` (provider v8, `include: packages/core/src`, **excludes the type-only modules**
+   `types/**` + `section/types.ts` so the % measures real solver/validation logic, not interfaces) with
+   **thresholds statements/functions/lines = 90**, and a `npm run coverage` script (`vitest run --project core
+   --coverage`). **Result: 95.14% statements · 99.05% functions · 95.14% lines** — comfortably over the bar
+   (validation 94.8% · pipeline 97.8% · layout 96.1% · scheme 98.6% · section 94.8%). Branches 70% (advisory,
+   ungated). Not folded into `npm run check` (instrumented run ~100 s) — it's a separate exit gate per the plan.
+2. **i18n completeness (§8 DoD).** New `apps/web/src/i18n/i18n_complete.spec.ts`: asserts the **FR and EN
+   bundles have identical key trees + zero empty leaves** (recursive key walk), and that **every UI-exposed
+   manifest** (shapes/elements/schemes/supplements) carries non-empty `label_fr` + `label_en`. All bilingual
+   today (verified: no manifest missing either label).
+3. **Heavy-element performance (§2.2 DoD).** New `tests/perf_heavy.spec.ts`: best-of-15 pure-solve timing on the
+   densest cases — a heavily-reinforced column with 50 mm ties (~80 transverse stations) and a joist slab with a
+   75 mm topping mesh — both **< 16 ms** headlessly. Guards against a pathological O(n²) regression in placement;
+   the web `perf_budget.spec` still guards the typical-element 16 ms target.
+4. **Bundle code-split (§2.2 risk note).** (a) `exportActions.exportPdf` now **dynamically imports** `buildPdf`,
+   so **pdf-lib (~0.5 MB) lands in a lazy chunk** loaded only when a PDF is actually exported — the exporters
+   package is `sideEffects:false`, so the static DXF/BBS/`.rcfg` imports tree-shake pdf-lib out of the main
+   chunk. (b) `vite.config` `manualChunks` puts **three + r3f + drei in their own long-cached vendor chunk**.
+   Build now emits `app/engine ≈ 745 kB` + `three ≈ 998 kB` + lazy `pdf-lib ≈ 434 kB` instead of one ~2.18 MB
+   blob.
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {13/8/10/7} · core typecheck ✓ ·
+web typecheck ✓ · **272 tests / 56 files** (+5 / +2). `npm run coverage` ✓ (95% core, thresholds enforced).
+`npm run build:web` ✓ (split chunks above). `vite dev` unaffected (port 5180).
+
+**Decisions:** no new load-bearing architecture decision — these are test/config/build hardening. The coverage
+exclude of type-only modules is the one convention call (flagged: it makes the % meaningful; types have no
+runtime to cover).
+
+**Open / deliberately deferred — the rest of P6 (be honest):**
+- **Engineer sign-off gates UNSIGNED — the release blocker.** G-BAEL / G-EC2 / G-RPS / G-COUPE / G-TOL all still
+  provisional (§6, §14). This is a *people* dependency on the critical path; **nominate the structural engineer**
+  and ratify the constants tables + reference cases. No amount of coding closes this.
+- **GPU / visual items not done** (this is a headless agent box — still no human has seen any 3D / PDF / coupe):
+  the **3D coupe drag-handle + elevation cutting-line overlay**, and **wiring the 6 remaining elements
+  (E-COL-02/E-FND-01/E-SLB-01/02/03/E-STR-01) + the seismic regime picker into the SPA** (engine already drives
+  them). These need a browser to verify — do them on the owner's GPU machine via `cd apps/web && npm run dev`.
+- **a11y audit** (axe pass + keyboard focus-order walkthrough) and **docs** (user guide FR/EN, manifest-authoring
+  guide, code-pack authoring guide) — not started (§11 DoD).
+- **Canonical §10 `reinforcement[]` mapping** (D-P5-7) + **dedupe `rebarProps.buildScene` ↔ core `placeBars`**
+  still open. Branch coverage (70%) could be lifted with targeted profile/pipeline branch tests if desired.
+- **No git commit** (owner-gated, §7.6) — all P5-SPA + P6 changes are in the working tree on `feat/p1-m1-engine`.
+
+**→ Next agent: continue P6.** Highest-value remaining, in order: (a) **on a GPU machine**, build the 3D coupe
+drag-handle + cutting-line overlay and wire the 6 remaining elements + seismic picker into the SPA (the engine
++ manifests already exist; this is UI forms + 3D + `rebarProps` generalisation); (b) **a11y audit** + the i18n is
+already gated; (c) **docs** (the three authoring/user guides); (d) lift **branch coverage** + the canonical §10
+`reinforcement[]` mapping + `buildScene`↔`placeBars` dedupe; (e) **chase the engineer signatures** (release-
+blocking). *Before starting: `git log`/diff to confirm nothing moved; `npm run check` + `npm run coverage` +
+`npm run build:web` GREEN; then append your own §9 entry.*
+
+### 2026-06-25 — P5 / M5 SPA WIRING complete → **Phase 5 FULLY DONE** (code; G-COUPE unsigned) — by **Amer** (owner's Windows PC)
+
+**What I did (in detail).** Picked up where the P5-engine handoff left off (confirmed baseline GREEN —
+`npm run check` 247/50 + `build:web` ✓ — before touching anything) and built **the SPA half of P5**: the
+`@rebarconfig/exporters` package is now consumed by `apps/web`, so the on-site deliverables + project I/O are
+driveable from the UI. Concretely:
+
+1. **Package wired (D-P5-7).** Added `@rebarconfig/exporters` to `apps/web/package.json` + to vite
+   `optimizeDeps.exclude` (raw-TS workspace, same as core/codepacks; pdf-lib pre-bundles normally). `npm
+   install` already had it linked from the engine session.
+2. **doc↔rcfg adapter + export actions** — `apps/web/src/engine/rcfgDoc.ts` (`docToRcfg`/`rcfgToDoc`,
+   lossless via `meta.app_document` + faithful canonical §10 fields — D-P5-7) and `exportActions.ts`
+   (`exportPdf`/`exportDxf`/`exportBbsJson`/`exportRcfg` + a jsdom-guarded `downloadBlob`).
+3. **Store: section cuts + project I/O** — `useStore` now holds `cuts[]` (default coupe auto-managed at
+   index 0) + `activeCutId` + `bottomPanel`; actions `addCut`/`removeCut`/`updateCut`/`selectCut`/
+   `setBottomPanel`/`loadProject`. Every solve re-seeds the default coupe and preserves user cuts; element/
+   scheme switches drop them.
+4. **Navbar Export menu + Import** — a `<details>` dropdown (Plan PDF / Dessin DXF / Nomenclature JSON /
+   Projet .rcfg), drawing items disabled on 🔴 (export-lock §7.9), BBS + `.rcfg` always enabled; a hidden
+   file input imports a `.rcfg` (`parseRcfg → loadProject`). Two navbar toggles open the bottom dock.
+5. **BBS table + Coupe manager panels** — `BbsPanel` renders `computeBBS(result)` (rows merged by shape+Ø+
+   dims, steel summary, WARN review stamp); `CoupePanel` lists cuts, adds/places/removes them by numeric
+   station + look-behind + label (keyboard parity), and shows a **live 2D SVG preview** of the selected
+   `sectionAt(result, cut) → CoupeView` (bars as circles at their (u,v), tie outline as lines, `n Ø d`
+   annotations). New `BottomPanel` docks them under the viewport; `App` mounts `useAutosave`.
+6. **IndexedDB autosave/recovery** — `useAutosave` recovers on mount + debounce-saves every doc/cuts change.
+7. **Tests (4 new web suites, +20 tests):** `coupe_store` (cuts CRUD + `.rcfg` round-trip + forward-compat),
+   `export_actions` (BBS/DXF/PDF bytes + export-lock on FAIL + rcfg round-trip + headless download no-op),
+   `coupe_manager` (default coupe preview + numeric placement + remove), `export_menu` (menu targets +
+   PDF/DXF locked on FAIL + BBS panel render).
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {13/8/10/7} · core typecheck ✓ ·
+web typecheck ✓ · **267 tests / 54 files** (+20 / +4). `npm run build:web` ✓ (**~2.19 MB** — pdf-lib now in the
+SPA bundle; code-split = P6). `vite dev` unaffected (port 5180).
+
+**Decisions:** D-P5-7 in §8. Load-bearing: SPA `.rcfg` round-trip via `meta.app_document` with the canonical
+§10 reinforcement mapping deferred (D-P5-7), and the auto-managed default coupe at `cuts[0]`.
+
+**Open / deliberately deferred (be honest):**
+- **3D coupe drag-handle + the elevation cutting-line overlay in the LIVE 3D viewport are NOT built.** Numeric
+  + keyboard placement (full a11y parity) + the 2D SVG preview ship; the 3D handle needs a GPU to verify, so
+  it is a P6 visual item. **Still no human has seen any 3D / a generated PDF/DXF/coupe rendered** (headless box).
+- **Canonical §10 `reinforcement.baseGroups[]` is empty** (the SPA reloads from `meta.app_document`) — a faithful
+  `ReinforcingElement[]` mapping (so other tools/a future server can read the rebar without `app_document`) is
+  P6 (D-P5-7).
+- **Coupe orientation is perpendicular-only in the UI** (`origin.y` station); oblique/free orientation is
+  engine-supported + persisted in `.rcfg`, just not exposed yet (P6).
+- **Bundle ~2.19 MB** (pdf-lib + three.js) — code-splitting / lazy-loading the exporters is a P6 perf item.
+- **G-COUPE UNSIGNED** (near-parallel threshold / look-behind / tag style, §14 items 14–17) — the coupe
+  previews inherit those provisional conventions; **G-BAEL / G-EC2 / G-RPS** also still unsigned.
+- **The SPA still exposes only E-COL-01 / E-BEM-01** (the 6 P4 elements + the seismic regime picker are still
+  engine-only — a separate P4-polish/P6 UI task). The `rebarProps.buildScene` still duplicates core `placeBars`
+  (dedupe = P6). **No git commit** (owner-gated, §7.6) — changes are in the working tree on `feat/p1-m1-engine`.
+
+**→ Next agent: P6 / M6 (hardening, sign-off, release).** Phase 5 is fully closed (engine + SPA). The
+highest-value P6 work, roughly in order: (a) the **3D coupe drag-handle + elevation cutting-line overlay** and
+**wire the 6 remaining elements + the seismic regime picker** into the SPA (the engine already drives them);
+(b) **≥90% core coverage** + the i18n missing-key + a11y audits (§11); (c) **code-split** the bundle (lazy
+pdf-lib/three); (d) the canonical §10 `reinforcement[]` mapping (D-P5-7) + dedupe `buildScene`↔`placeBars`;
+(e) chase the **G-BAEL / G-EC2 / G-RPS / G-COUPE / G-TOL** engineer signatures (the release-blocking people
+dependency). *Before starting: `git log`/diff to confirm nothing moved; `npm run check` GREEN + `npm run
+build:web`; then append your own §9 entry.*
+
+### 2026-06-25 — P5 / M5 CODE-COMPLETE: BBS + DXF + PDF + `.rcfg` I/O (steps 2–6) — by **Amer** (owner's Windows PC)
+
+**What I did (in detail).** Continued **Phase 5** on the owner's local Windows box (confirmed the P5-step-1
+baseline GREEN — `npm run check` 209/41 + `build:web` ✓ — before touching anything). Implemented **plan P5
+steps 2–6**: the three on-site export deliverables + project persistence, all consuming the step-1
+Section/Coupe engine. Everything lives in a **new pure workspace package `@rebarconfig/exporters`** (D-P5-4),
+golden-tested headlessly. Concretely:
+
+1. **BBS engine (step 2, §9.1)** — `packages/exporters/src/bbs.ts`: `computeBBS(result)` → the §9.1 record
+   (one line per *distinct* bar, identical shape+Ø+dims **merged**, stable Ø-ordered marks, `cutLength`/count/
+   length/weight), steel-quantity **summary** (weight per Ø + ratio kg/m³ over the member envelope), and
+   `unitMass(φ)=0.006165·φ²`. Optional **`nestCuts`** (FFD, default 12 m stock, waste %). Transverse counts
+   reuse `transverseStations`; a continuous spiral counts as 1 bar (D-P5-5).
+2. **DXF (step 3, §9.2)** — `dxf.ts`: a hand-rolled deterministic **R12 (AC1009)** writer (`DxfBuilder`) on the
+   four strict layers; `buildDxf1` (elevation + default coupe = the release bar) and `buildDxfCoupes` (DXF-2:
+   multiple/oblique coupes + per-coupe cutting-line/tag). Geometry written once in core (`placeBars` + `sectionAt`).
+3. **PDF (step 4, §9.3)** — `pdf.ts` (pdf-lib): `buildPdf(result, meta?)` → cartouche + vector elevation + coupe
+   view boxes + BBS table + **global status stamp**; **🔴 hard-locks export** (`export-lock.ts`:
+   `ExportLockedError`/`canExport`/`assertExportable`). Deterministic when a `date` is supplied.
+4. **`.rcfg` I/O (step 5, §10)** — `rcfg.ts`: `serializeRcfg`/`parseRcfg` (+`migrateRcfg`, `CURRENT_RCFG_VERSION
+   ="1.0"`) preserving unknown fields/kinds/cut-fields; **`section_cuts[]`** persisted (D-P5-6) with
+   `sectionCutsOrDefault` seeding the default coupe when absent; **IndexedDB autosave/recovery** via
+   `AutosaveManager` over an injectable `KeyValueStore` (`memoryStore()` for tests, `indexedDbStore()` for the
+   browser).
+5. **WARN review stamp (step 6, §7.9/§7.12)** — `statusStamp` ("Conforme" / "À vérifier") on the PDF cartouche
+   AND on the BBS fiche (`BarBendingSchedule.reviewRequired`/`status`).
+6. **Tests (10 new core suites, all in `tests/`):** `bbs_golden`, `unit_mass`, `cut_nesting`, `dxf1_golden`,
+   `dxf_coupe_golden`, `pdf_smoke`, `rcfg_roundtrip`, `coupe_persist`, `autosave_recovery` (+ the step-1
+   `section_geometry`). Shared fixture `tests/bbs-helpers.ts` (the reference beam, solved through the pipeline).
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {13/8/10/7} · core typecheck ✓ ·
+web typecheck ✓ · **247 tests / 50 files** (+38 / +9 vs P4b). `npm run build:web` ✓ (~1.72 MB; the SPA does NOT
+import the exporters yet, so the bundle is unchanged). `npm install` added `pdf-lib` + linked the new workspace.
+
+**Decisions:** D-P5-4…D-P5-6 in §8. Load-bearing: exporters as a separate pure package (D-P5-4), hand-rolled
+deterministic DXF (D-P5-5), `.rcfg` forward-compat + `section_cuts` with no core-contract change + export lock
+(D-P5-6).
+
+**Open / deliberately deferred (be honest):**
+- **SPA export buttons NOT wired.** The exporters are headless + fully tested, but `apps/web` does not yet
+  import `@rebarconfig/exporters`; the Navbar **Export** button is still the P2 export-lock stub (D-P2-5). Wiring
+  it (PDF/DXF/`.rcfg` download via a Blob/anchor, an on-screen BBS table, the **coupe-manager UI** — 3D drag
+  handle + numeric field + keyboard parity + live preview) is the **P5 UI half** and the top follow-up. No human
+  has seen a generated PDF/DXF/coupe rendered.
+- **G-COUPE UNSIGNED** (near-parallel threshold / look-behind / tag style, §14 items 14–17), alongside the still-
+  unsigned **G-BAEL / G-EC2 / G-RPS**. The export *visuals* inherit those provisional conventions.
+- **Honest export limits:** DXF-2 label-collision solver is templated (deferred, §9.2). Slab-family coupes show
+  distribution bars indicatively (D-P5-3). `nestCuts` assumes pieces ≤ stock (lapping out of v1.0 scope). The PDF
+  cartouche fields (project/engineer) are the §14 placeholders. The SPA `rebarProps.buildScene` still duplicates
+  the core `placeBars` (dedupe = P6).
+- **No git commit** (owner-gated, §7.6) — changes are in the working tree on `feat/p1-m1-engine`.
+
+**→ Next agent: P5 UI wiring → then P6.** P5 *engine* work is done (every export deliverable + `.rcfg` I/O is
+pure, deterministic, golden-tested). The highest-value next step is the **SPA half of P5**: add
+`@rebarconfig/exporters` to `apps/web` (+ `optimizeDeps.exclude`), wire the **Export** button to download the
+PDF/DXF/`.rcfg`, render the **BBS table**, and build the **coupe-manager UI** (the §9.5 UI: add/name/place
+multiple cuts via a 3D drag handle + numeric field + keyboard parity, seeded with `defaultCoupeFor`, live
+preview + cutting-line on the elevation). Then **P6** (hardening, ≥90% core coverage, i18n/a11y, and the
+**G-BAEL/G-EC2/G-RPS/G-COUPE** sign-offs). *Before starting: `git log`/diff to confirm nothing moved; `npm run
+check` GREEN + `npm run build:web`; then append your own §9 entry.*
+
+### 2026-06-24 — P5 / M5 STARTED: Section/Coupe engine (`sectionAt`) complete — by **Amer** (owner's Windows PC)
+
+**What I did (in detail).** Picked up **Phase 5** on the owner's local Windows box (pulled Zayd's
+`feat/p1-m1-engine` branch, confirmed the P4b baseline GREEN: `npm run check` 200/40 + `build:web` ✓
+before touching anything). Implemented **plan P5 step 1 — the Section/Coupe engine** (`v1.0_imp_plan.md`
+Phase 5; spec §9.5, [REF-SYS-950]), the explicitly **"build-first"** sub-project that the DXF and PDF
+exporters consume. It is **pure core, deterministic, browser-safe** — the same `CoupeView` feeds the 3D
+preview + DXF + PDF (written once). Concretely:
+
+1. **`MemberPlacement` on `SolveResult` (D-P5-1).** Added the 3D placement descriptor to
+   `types/layout.ts` and a **required** `member` field to `SolveResult`; populated it in all five
+   orchestrators (`element`/`circular`/`slab`/`stair`/`joist` — `solveColumn` inherits via the shim).
+   Unifies all 8 elements as axial prisms (slab-family → RECT envelope, bars along the span).
+2. **Pure world placement** `section/place.ts` (`placeBars`) — reconstructs each bar's world centreline
+   (longitudinal runs along +Y, transverse loops instanced at spacing, supplements centred) — the
+   core-side twin of the SPA's `rebarProps.buildScene` (to be deduped in P6).
+3. **`sectionAt` + types + conventions (D-P5-2).** `section/sectionAt.ts` (`sectionAt`, `defaultCoupeFor`),
+   `section/types.ts` (`SectionCut`, `CoupeView` + sub-types, forward-compat index signature on
+   `SectionCut`), `section/convention.ts` (provisional coupe conventions → **G-COUPE**). Concrete polygon
+   via plane∩box / sampled cylinder; circle-vs-line by crossing angle; look-behind with the "nearest
+   transverse set" guarantee; `n Ø d` annotations; templated dims; elevation cutting-line/tag. Exported
+   from the core barrel (`section/index.ts`).
+4. **Tests:** new `tests/section_geometry.spec.ts` (9 tests) — perpendicular column coupe (300×600 rect +
+   6 Ø20 circles at the exact (u,v) + tie outline + `n Ø d`), oblique cut (convex polygon + projected
+   centres), near-parallel → lines, look-behind nearest-set, determinism, circular-column coverage.
+
+**State now: GREEN.** `npm run check` end-to-end ✓ — purity ✓ · manifests ✓ {13/8/10/7} · core typecheck
+✓ · web typecheck ✓ (the new required `member` field didn't break the SPA) · **209 tests / 41 files**
+(+9). `npm run build:web` ✓ (~1.72 MB; the section engine is browser-safe — it has to be, it feeds the 3D
+preview). `vite dev` unaffected (port 5180).
+
+**Decisions:** D-P5-1…D-P5-3 in §8. Load-bearing: world placement moved into core as `SolveResult.member`
+(D-P5-1), `sectionAt` as pure plane∩geometry with provisional convention data (D-P5-2).
+
+**Open / deliberately deferred (be honest):**
+- **P5 steps 2–6 NOT started:** BBS (§9.1), DXF-1/DXF-2 (§9.2), PDF sheet + status stamp (§9.3), `.rcfg`
+  I/O + IndexedDB autosave (§10), WARN→"À vérifier" stamp (§7.9). The coupe engine (step 1) is the
+  prerequisite for DXF/PDF and is done.
+- **Coupe UI not built:** `sectionAt` is headless. The coupe manager (3D drag handle + numeric field +
+  keyboard/index parity, live preview, cutting-line on the elevation) is the UI half of §9.5 — not yet
+  wired. No human has seen a coupe rendered (headless + the SPA still only exposes E-COL-01/E-BEM-01).
+- **G-COUPE UNSIGNED** — near-parallel threshold, default look-behind, tag/cutting-line style are
+  provisional (§14 items 14–17), alongside the still-unsigned **G-BAEL / G-EC2 / G-RPS**.
+- **Slab-family coupes are representative** (distribution bars along the span; D-P5-3); oblique circular
+  cuts are sampled ellipses. The SPA `rebarProps.buildScene` still exists in parallel with the new core
+  `placeBars` (dedupe = P6).
+- **No git commit** (owner-gated, §7.6) — changes are in the working tree on `feat/p1-m1-engine`, ready
+  to push when the owner asks.
+
+**→ Next agent: P5 / M5 steps 2–6.** The coupe engine is ready to consume. Suggested order matching the
+plan: **BBS** first (§9.1 — from each group's `cutLength`/count/Ø, already emitted by the engine; add
+`unitMass(φ)=0.006165·φ²`, auto-marks, identical-bar merge, steel-quantity summary, optional 12 m
+cut-nesting) since it needs no new geometry; then **DXF-1** (elevation `fiche` 2D projection + the default
+`CoupeView`, four strict layers `COFFRAGE/ARMATURES/COTATION/TEXTE`) — the release bar; then **PDF** (cartouche
++ vector views + BBS + global status stamp, **🔴 hard-locks export** per §7.9); then **`.rcfg` I/O**
+(save/load + IndexedDB autosave; **persist `section_cuts[]`**; preserve unknown fields/kinds/cut-fields —
+D-P0-2 already tested). Golden tests per plan §11: `bbs_golden`, `unit_mass`, `cut_nesting`, `dxf1_golden`,
+`dxf_coupe_golden`, `pdf_smoke`, `coupe_persist`, `rcfg_roundtrip`, `autosave_recovery`. *Before starting:
+`git log`/diff to confirm nothing moved; `npm run check` GREEN + `npm run build:web`; then append your §9
+entry.* Highest-value non-P5 follow-ups: wire the **coupe manager UI** + the 6 unwired elements into the
+SPA, and chase the **G-BAEL/G-EC2/G-RPS/G-COUPE** signatures.
 
 ### 2026-06-24 — P4b / M4b complete → **Phase 4 DONE** (code; G-RPS unsigned) — by **Zayd** (dev box)
 

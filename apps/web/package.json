@@ -12,6 +12,7 @@
   "dependencies": {
     "@rebarconfig/core": "1.0.0-M0",
     "@rebarconfig/codepacks": "1.0.0-M1",
+    "@rebarconfig/exporters": "1.0.0-M5",
     "@react-three/drei": "^9.114.0",
     "@react-three/fiber": "^8.17.10",
     "react": "^18.3.1",

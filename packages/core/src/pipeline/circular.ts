@@ -163,5 +163,11 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
     validation,
     status: rollupStatus(validation),
     provisional: (code as { _provisional?: boolean })._provisional === true,
+    member: {
+      envelope: "CIRCULAR",
+      length: geometry.H ?? geometry.L ?? geometry.D,
+      D: geometry.D,
+      transverse: (input.transverse ?? []).map((tz) => ({ groupId: tz.groupId, spacing: tz.spacing })),
+    },
   };
 }

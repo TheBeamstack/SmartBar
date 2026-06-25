@@ -120,5 +120,7 @@ export function solveJoist(input: JoistSolveInput): SolveResult {
     validation,
     status: rollupStatus(validation),
     provisional: (code as { _provisional?: boolean })._provisional === true,
+    // joist rib → RECT envelope: tributary width × total depth, bars run along the span L (§9.5).
+    member: { envelope: "RECT", length: geometry.L, b: width, h: t, transverse: [] },
   };
 }

@@ -14,12 +14,14 @@
     "build:web": "npm run build --workspace @rebarconfig/web",
     "test": "vitest run",
     "test:watch": "vitest",
+    "coverage": "vitest run --project core --coverage",
     "check:purity": "node scripts/check-engine-purity.mjs",
     "check:manifests": "tsx scripts/check-manifests.ts",
     "check": "npm run check:purity && npm run check:manifests && npm run typecheck && npm run typecheck:web && npm run test"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "tsx": "^4.19.2",

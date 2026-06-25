@@ -1,0 +1,17 @@
+{
+  "name": "@rebarconfig/exporters",
+  "version": "1.0.0-M5",
+  "private": true,
+  "type": "module",
+  "description": "RebarConfig export engines (P5/M5): BBS (§9.1), DXF (§9.2), PDF (§9.3) + .rcfg I/O (§10). Pure transforms of a core SolveResult / CoupeView — BBS + DXF are dependency-free; PDF uses pdf-lib (pure JS, no DOM). Depends on @rebarconfig/core; NO React/three.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "@rebarconfig/core": "1.0.0-M0",
+    "pdf-lib": "^1.17.1"
+  }
+}

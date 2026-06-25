@@ -12,6 +12,20 @@ export default defineConfig({
   server: { port: 5180, strictPort: true, host: "127.0.0.1" },
   preview: { port: 5180, strictPort: true, host: "127.0.0.1" },
   optimizeDeps: {
-    exclude: ["@rebarconfig/core", "@rebarconfig/codepacks"],
+    // Workspace engine/exporter packages ship raw TS — exclude them from pre-bundling so Vite runs
+    // them through its own TS transform (same reasoning as core/codepacks, current_state.md §7.2).
+    // pdf-lib (a transitive dep of @rebarconfig/exporters) is normal JS and pre-bundles fine.
+    exclude: ["@rebarconfig/core", "@rebarconfig/codepacks", "@rebarconfig/exporters"],
+  },
+  build: {
+    // P6 code-split: keep the heavy 3D vendor (three + r3f/drei) in its own long-cached chunk,
+    // separate from the app + the engine. pdf-lib is already lazy (dynamic-imported in exportPdf).
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ["three", "@react-three/fiber", "@react-three/drei"],
+        },
+      },
+    },
   },
 });

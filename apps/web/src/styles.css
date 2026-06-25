@@ -158,6 +158,94 @@ html, body, #root {
 .alert-rule { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
 .alert-msg { font-size: 13px; }
 
+/* ---- export dropdown (navbar) ---- */
+.export-menu { position: relative; }
+.export-menu > summary {
+  list-style: none;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.export-menu > summary::-webkit-details-marker { display: none; }
+.export-menu[open] > summary { border-color: var(--accent); color: var(--accent); }
+.export-menu-items {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.export-menu-items button { width: 100%; text-align: left; }
+
+/* ---- bottom dock (coupes / BBS) ---- */
+.bottom-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 46%;
+  overflow: auto;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+  z-index: 10;
+}
+
+/* ---- BBS table ---- */
+.bbs-panel h3 { margin: 0 0 8px; font-size: 13px; }
+.review-stamp { color: var(--warn); margin: 0 0 8px; font-weight: 600; }
+.bbs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bbs-table th, .bbs-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+}
+.bbs-table th.num, .bbs-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bbs-summary { margin-top: 8px; color: var(--muted); font-size: 12px; }
+.bbs-summary strong { color: var(--text); }
+
+/* ---- coupe manager ---- */
+.coupe-panel { display: grid; grid-template-columns: 200px 1fr 280px; gap: 16px; align-items: start; }
+.coupe-list-head { display: flex; justify-content: space-between; align-items: center; }
+.coupe-list-head h3 { margin: 0; font-size: 13px; }
+.coupe-list ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.coupe-list li { display: flex; align-items: center; gap: 4px; }
+.coupe-list li > button[role="option"] {
+  flex: 1;
+  text-align: left;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+.coupe-list li > button[role="option"].active { border-color: var(--accent); color: var(--accent); }
+.coupe-remove { background: none; border: none; color: var(--muted); cursor: pointer; }
+.coupe-list-head button, .coupe-edit input {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.coupe-edit { display: flex; flex-direction: column; gap: 8px; }
+.coupe-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.coupe-preview h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.coupe-svg { width: 100%; height: auto; background: #0c0f14; border: 1px solid var(--border); border-radius: 6px; }
+.coupe-empty, .muted { color: var(--muted); font-size: 12px; }
+
 /* ---- perf HUD ---- */
 .perf-hud {
   position: absolute;
