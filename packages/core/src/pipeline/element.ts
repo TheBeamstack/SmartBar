@@ -78,6 +78,12 @@ export interface ElementLongInput {
   tensionFace: TensionFace;
   /** fraction of this zone's bars carried past the support (§7.7 end-support anchorage). */
   continuedToSupport?: number;
+  /**
+   * Explicit provided bar count for this zone, overriding the layout-face count. Lets two zones
+   * share a face without double-counting — e.g. a beam's full-length montage top bars vs the
+   * over-support chapeaux both on TOP (D-P6-1 fix 8b). Omitted → derived from the layout faces.
+   */
+  providedCount?: number;
 }
 
 export interface ElementTransInput {
@@ -178,7 +184,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
   for (const lz of input.longitudinal) {
     phiLMax = Math.max(phiLMax, lz.diameter);
     const faceSet = new Set(lz.faces);
-    const providedCount = layout.bars.filter((bp) =>
+    const providedCount = lz.providedCount ?? layout.bars.filter((bp) =>
       faceSet.has(bp.faceTag as TensionFace),
     ).length;
     const zoneGeom = computeZoneGeometry(

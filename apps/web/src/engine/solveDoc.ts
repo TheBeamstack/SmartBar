@@ -131,7 +131,7 @@ function beamInput(
 ): ElementSolveInput {
   const phiSpan = doc.span.diameter;
   const phiTop = doc.chapeau.enabled ? doc.chapeau.diameter : phiSpan;
-  const phiLInset = Math.max(phiSpan, phiTop);
+  const phiLInset = Math.max(phiSpan, phiTop, doc.topBars.enabled ? doc.topBars.diameter : 0);
   const phiT = doc.stirrup.diameter;
   const wStir = doc.geometry.b - 2 * doc.cover - phiT;
   const hStir = doc.geometry.h - 2 * doc.cover - phiT;
@@ -153,7 +153,26 @@ function beamInput(
     },
   ];
 
-  let nTop = 2;
+  // Top face physically carries (8b, D-P6-1): full-length montage bars + over-support chapeaux.
+  // Each top zone declares an EXPLICIT providedCount so the two never double-count on the TOP face.
+  const nMontage = doc.topBars.enabled ? doc.topBars.nTop : 0;
+  const nChapeau = doc.chapeau.enabled ? doc.chapeau.nTop : 0;
+  const nTop = Math.max(2, nMontage + nChapeau);
+
+  if (doc.topBars.enabled) {
+    longitudinal.push({
+      zone: "As_top_montage",
+      groupId: doc.topBars.groupId,
+      role: "PRIMARY_LONGITUDINAL",
+      shape: loadShape("DROITE"),
+      params: { L: doc.geometry.L },
+      diameter: doc.topBars.diameter,
+      faces: ["TOP"],
+      asReq: 0, // montage / compression steel — no flexural As,req of its own
+      tensionFace: "TOP",
+      providedCount: nMontage,
+    });
+  }
   if (doc.chapeau.enabled) {
     const cur = computeCurtailment(code, {
       diameter: phiTop,
@@ -172,8 +191,8 @@ function beamInput(
       faces: ["TOP"],
       asReq: doc.chapeau.asReq,
       tensionFace: "TOP",
+      providedCount: nChapeau, // explicit — does NOT absorb the montage bars on the same face
     });
-    nTop = doc.chapeau.nTop;
   }
 
   return {
