@@ -134,11 +134,12 @@ state cannot be exported.
 - **`.rcfg` project file** — the whole project saved to a file you can reopen later or share. It is
   **forward-compatible**: a file written by a newer version still opens, nothing is silently dropped.
 
-### Project-level takeoff [now: on-screen · next: in the exports]
-The project panel already shows, **per element type**: unit steel mass, **total mass = quantity ×
-unit**, and **steel density (kg/m³)**; plus **project grand totals** (steel, concrete, overall ratio).
-Folding this into a single combined PDF (one sheet per type + a project summary sheet) and a
-namespaced project-wide BBS is the immediate next export step (§9, v1.0.1).
+### Project-level takeoff [now]
+The project panel shows, **per element type**: unit steel mass, **total mass = quantity × unit**, and
+**steel density (kg/m³)**; plus **project grand totals** (steel, concrete, overall ratio). As of
+**v1.0.1** this also flows into the exports: a single **combined PDF** (one sheet per type + a project
+summary sheet), a **namespaced project-wide BBS** (`P1-01`, `B3-01`), a **per-type DXF batch**, and a
+**per-project export-lock** (any 🔴 type blocks the combined set).
 
 ---
 
@@ -163,14 +164,24 @@ flagged.
 The product is designed to scale **breadth-first, then depth** — and the architecture has the
 "seams" for both built in from day one (so neither requires a rewrite).
 
-### 9.1 **Horizontal — more breadth** (v1.0.1, 1.0.2, …) [next]
-Adding capability *without* a backend:
+### 9.1 **Horizontal — more breadth** (no backend) [some shipped · more next]
+Adding capability *without* a backend.
+
+**Already shipped in v1.0.1** (viewport/exporters only — no engine change): a true **shop-drawing
+elevation** (columns drawn upright, bar marks, tie-spacing callouts, dimensions); a **ViewCube** to
+rotate the 3D + a **perspective/orthographic** toggle; a **3D drag-handle** to place section cuts; and
+**combined multi-element exports** (project PDF + namespaced BBS).
+
+**Specced for v1.0.2 [next]:** in-plane **view roll**; a rebuilt **column cross-tie** model (cross-ties
+that engage *real* bars, configured on a clickable 2D section); a **sticky per-zone As,prov/As,req
+readout**; a focus-friendly **panel layout**; **user-defined cadre regions** (different stirrup spacing
+along the length); and a **façonnage editor** (choose each bar's shape — straight, hooked, cranked,
+bent-up — with a live sketch).
+
+**Further out [later]:**
 - **More elements:** shear walls, isolated/strap footings, waffle slabs, retaining walls, L- and
   spiral stairs — each a new data manifest.
-- **More codes & regions:** the full EC2 rule-set with a UI picker, then BS 8666 / ACI 315 conventions.
-- **Better drawings & views:** a true **shop-drawing elevation** (columns drawn upright, bar marks,
-  dimensions, stirrup-spacing callouts); a **ViewCube** to rotate the 3D to any orientation; a **3D
-  drag-handle** to place coupes by hand; **combined multi-element exports**.
+- **More codes:** the full EC2 rule-set with a UI picker, then BS 8666 / ACI 315 conventions.
 - **New reinforcement technology:** **prestressing / post-tensioning** (tendons) — the data model
   already reserves the slot for it.
 
