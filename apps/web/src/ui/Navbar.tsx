@@ -14,7 +14,17 @@ import { t } from "../i18n/strings";
 import { ELEMENTS, schemesForElement } from "../engine/manifests";
 import type { ElementId } from "../engine/document";
 import { projectToRcfg } from "../engine/projectRcfg";
-import { exportPdf, exportDxf, exportBbsJson, exportRcfg } from "../engine/exportActions";
+import { solveDoc } from "../engine/solveDoc";
+import {
+  exportPdf,
+  exportDxf,
+  exportBbsJson,
+  exportRcfg,
+  exportProjectPdf,
+  exportProjectDxf,
+  exportProjectBbsJson,
+  type ProjectExportType,
+} from "../engine/exportActions";
 import { parseRcfg } from "@rebarconfig/exporters";
 
 export function Navbar() {
@@ -35,6 +45,8 @@ export function Navbar() {
   const setBottomPanel = useStore((s) => s.setBottomPanel);
   const loadProject = useStore((s) => s.loadProject);
   const syncActiveInstance = useStore((s) => s.syncActiveInstance);
+  const instances = useStore((s) => s.instances);
+  const activeInstanceId = useStore((s) => s.activeInstanceId);
   const status = useStore((s) => s.result.status);
   const provisional = useStore((s) => s.result.provisional);
   const s = t(lang);
@@ -43,6 +55,14 @@ export function Navbar() {
   const menuRef = useRef<HTMLDetailsElement>(null);
 
   const exportLocked = status === "FAIL";
+  // Combined project export set: the active type uses the live result/cuts; others are re-solved.
+  const projectTypes: ProjectExportType[] = instances.map((i) =>
+    i.id === activeInstanceId
+      ? { result, mark: i.mark, quantity: i.quantity, cuts }
+      : { result: solveDoc(i.doc), mark: i.mark, quantity: i.quantity, cuts: i.cuts },
+  );
+  const isProject = projectTypes.length > 1;
+  const projectLocked = projectTypes.some((t) => t.result.status === "FAIL");
   const schemes = schemesForElement(doc.element);
   const label = (m: { label_fr?: string; label_en?: string; id: string }) =>
     (lang === "fr" ? m.label_fr : m.label_en) ?? m.id;
@@ -66,6 +86,18 @@ export function Navbar() {
     closeMenu();
     // save the WHOLE project (all element types), v1.1 envelope (§10 / D-P7-1).
     exportRcfg(projectToRcfg(syncActiveInstance()));
+  };
+  const onExportProjectPdf = () => {
+    closeMenu();
+    void exportProjectPdf(projectTypes).catch(() => undefined); // per-project lock throws on FAIL
+  };
+  const onExportProjectDxf = () => {
+    closeMenu();
+    exportProjectDxf(projectTypes);
+  };
+  const onExportProjectBbs = () => {
+    closeMenu();
+    exportProjectBbsJson(projectTypes);
   };
 
   const onImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -201,6 +233,34 @@ export function Navbar() {
           <button type="button" role="menuitem" onClick={onExportRcfg}>
             {s.exports.rcfg}
           </button>
+          {isProject && (
+            <>
+              <div className="export-menu-group" role="separator">
+                {s.exports.projectGroup}
+              </div>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={onExportProjectPdf}
+                disabled={projectLocked}
+                title={projectLocked ? s.exports.projectLocked : s.exports.projectPdf}
+              >
+                {s.exports.projectPdf}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={onExportProjectDxf}
+                disabled={projectLocked}
+                title={projectLocked ? s.exports.projectLocked : s.exports.projectDxf}
+              >
+                {s.exports.projectDxf}
+              </button>
+              <button type="button" role="menuitem" onClick={onExportProjectBbs}>
+                {s.exports.projectBbs}
+              </button>
+            </>
+          )}
         </div>
       </details>
     </header>

@@ -49,6 +49,8 @@ in the browser — no server, free hosting.**
 | **P5 / M5** — Section/Coupe engine ✅ · BBS ✅ · DXF-1/DXF-2 ✅ · PDF + export-lock ✅ · `.rcfg` I/O + autosave ✅ · WARN stamp ✅ · **SPA wiring (Export/Import + BBS table + coupe manager + autosave) ✅** | ✅ **DONE** (code) · ⏳ G-COUPE unsigned · ⚠ 3D coupe drag-handle deferred to P6 (numeric+keyboard parity shipped) | Amer, 2026-06-25 |
 | P6 / M6 — Hardening: **coverage 95% ✅ · i18n ✅ · heavy-perf ✅ · code-split ✅** · **control-panel fixes 8a ✅ + 8b beam-top-bars ✅ + 8c brins-auto-draw ✅ (all code+test)** · **all 8 elements + seismic picker wired into the SPA ✅ (D-P6-3)** · (**ViewCube + 3D coupe drag-handle → moved to `v1.0.1-Spec.md`**; a11y axe · authoring/user docs · engineer sign-off — pending) | 🟢 **CODE DONE (this session)** · ⏳ GPU/docs/sign-off pending | Zayd, 2026-06-25 |
 | **P7 — Multi-element project model** | 🟢 **CORE DONE (code): model + element manager + steel takeoff + `.rcfg` v1.1 envelope + migration (D-P7-3).** Remaining (combined exports · namespaced BBS · elevation *fiche* · reorder) **→ `v1.0.1-Spec.md` Feature C** | Zayd, 2026-06-25 |
+| **v1.0.1 — Feature C** (project completion: namespaced BBS · combined PDF + per-project lock · DXF batch · elevation *fiche* · reorder) | 🟢 **CODE DONE + tested (headless)** (D-V101-1) | Amer, 2026-06-25 |
+| **v1.0.1 — Feature A** (ViewCube: pure camera-state + widget + projection toggle + a11y named-views) · **Feature B** (3D coupe drag-handle + cutting-line overlay) | 🟢 **CODE DONE; pure modules tested** · ⏳ **GPU widgets need the owner's browser to verify** (D-V101-2) | Amer, 2026-06-25 |
 
 **The app is now testable end-to-end with the WHOLE element catalog + multi-element projects.** This
 session (Zayd, 2026-06-25 — see the newest §9 entry) closed the P6 control fixes (8a/8b/8c), **wired all 8
@@ -58,13 +60,16 @@ authored **`v1.0.1-Spec.md`** — which now holds the two deferred GPU/visual fe
 coupe drag-handle**) **plus** the remaining project work (**combined exports, namespaced BBS, elevation
 *fiche*, reorder** — Feature C). The single-element engine/exporters from P5 are unchanged underneath.
 
-**Test status (this session):** `npm run check` green — purity ✓, manifest integrity ✓ (**13 shapes** / **8
-elements** / **10 schemes** / **7 supplements**), core typecheck ✓, web typecheck ✓, **303 tests passed**
-across 61 files (+27 / +7 vs the prior P6 handoff). New web suites this session: `all_elements`,
-`beam_top_bars`, `tie_legs_geometry`, `project_model`. `npm run coverage` ✓ (95.14% core, thresholds
-enforced). `npm run build:web` ✓ (app/engine ≈ 784 kB + three ≈ 998 kB + lazy pdf-lib ≈ 434 kB). **Still a
-headless box — no human has visually verified WebGL/PDF**; the ViewCube + 3D coupe handle are specified for
-v1.0.1 precisely because they need a GPU (the owner will test the rest on a Windows PC).
+**Test status (latest — v1.0.1 session, Amer 2026-06-25):** `npm run check` green — purity ✓, manifest
+integrity ✓ (**13 shapes** / **8 elements** / **10 schemes** / **7 supplements**), core typecheck ✓, web
+typecheck ✓, **327 tests passed across 66 files** (+24 / +5 vs the P7 handoff). New suites this session:
+`elevation_fiche`, `project_pdf` (core/exporters), `viewcube_orientation`, `view_controls`, `coupe_handle`
+(web) + reorder/combined-menu cases folded into `project_model`/`export_menu`. `npm run build:web` ✓
+(app/engine ≈ 801 kB + three ≈ 1045 kB [+drei gizmo/cameras/Line/Html/DragControls] + lazy pdf-lib ≈ 436 kB).
+`npm run coverage` unaffected (95.14% core — v1.0.1 changes are exporter/UI, not core engine). **The
+headless gate cannot see WebGL: the ViewCube cube gizmo, the perspective⇄orthographic camera, and the 3D
+coupe drag-handle are CODE-COMPLETE but await a visual pass on the owner's Windows GPU via `cd apps/web && npm
+run dev`.** Their PURE logic (camera-state map, station↔world math, fiche orientation) IS headless-tested.
 
 ---
 
@@ -603,7 +608,76 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
   materials to project level (today they are per-instance). The single-element exports (PDF/DXF/BBS of the active type)
   work as before.
 
+- **D-V101-1 — Feature C (project completion) is pure exporter/UI; the engine + `.rcfg` v1.1 envelope are
+  unchanged.** (a) **Namespaced BBS** — `computeBBS(result, { markPrefix })` prefixes+zero-pads marks
+  (`P1-01`); default `""` keeps the bare ordinal so single-element schedules are byte-identical (golden tests
+  unchanged). (b) **Elevation *fiche*** — new `packages/exporters/src/fiche.ts` (`buildElevationFiche`,
+  `memberAttitude`, `cuttingLineFiche`) turns the bare side-projection into a shop drawing: element-aware
+  ORIENTATION (column/pile VERTICAL, beam/stair HORIZONTAL, slab/joist FLAT — a DATA lookup keyed by id
+  prefix, NOT branching, in the presentation layer, **shared with the ViewCube** §1.4), bar MARKS+counts,
+  tie-spacing callouts, dims. **Both `pdf.ts` `drawElevation` and `dxf.ts` `elevationToDxf` now consume it**
+  (one model, screen+paper agree). Geometry still computed once via core `placeBars`; the beam is HORIZONTAL =
+  the old projection, so the beam-based DXF/PDF goldens stayed green. (c) **Combined PDF** — `buildProjectPdf`
+  (sheet per type + a project SUMMARY sheet) via an extracted `drawElementSheet`; **per-project export-lock**:
+  `assertExportable` runs over every type up front so any 🔴 blocks the WHOLE set before a page is drawn. (d)
+  **Web glue** — `exportActions.exportProjectPdf` (lazy pdf-lib) / `exportProjectDxf` (**sequential downloads,
+  one per mark — no zip dep, §14 item 19 flagged**) / `exportProjectBbsJson` (namespaced); Navbar shows a
+  "Projet complet" group when >1 type, combined PDF/DXF disabled on `projectTakeoff().anyFail`, BBS always
+  available. (e) **Reorder** — store `moveInstance(id,±1)` + ProjectPanel ↑/↓ (list order = sheet/export
+  order). **Deliberately staged out (§C.4, flagged):** project-level shared settings (region/code/seismic/
+  units/materials) stay per-instance — lifting them touches the doc/instance split for zero engine gain.
+- **D-V101-2 — Features A/B are camera/interaction only — NO engine, NO `.rcfg`, NO validation change; the
+  GPU widgets need the owner's browser to verify.** (a) **ViewCube** — pure `apps/web/src/viewport/
+  cameraState.ts` (26 named views built deterministically from axis-sign combos; `memberGroupRotation` makes a
+  column stand upright / a beam lie horizontal via the **same `memberAttitude` map as the fiche**, fixing the
+  D-P3-6 "beam stands up" placeholder) is **headless-tested** (`viewcube_orientation.spec`). The widget
+  (`ViewCube.tsx`: drei `GizmoHelper`/`GizmoViewcube` + `ProjectionRig` perspective⇄orthographic + element-
+  aware Home + an a11y named-view `<select>`) drives `OrbitControls`; **view state is session-only, NOT in
+  `.rcfg`** (§1.7). a11y controls are DOM-tested (`view_controls.spec`). (b) **3D coupe handle** — pure
+  `coupeHandle.ts` (clamp-to-member, snap-to-stirrup-station, section extents) headless-tested
+  (`coupe_handle.spec`); the overlay (`CoupeOverlay.tsx`: translucent cut-plane + dashed cutting-line + auto
+  tag from `sectionAt().elevation.tag` [same source as DXF-2] + a drei `<DragControls axisLock="y">` handle on
+  the active non-default cut) writes the **same `updateCut(id,{origin})`** the numeric field writes (one
+  source of truth) — the numeric+keyboard path stays the a11y baseline. **Honest GPU gaps to verify on the
+  owner's machine:** the cube's free-drag feel, the ortho camera framing, and the drag-handle's
+  controlled/uncontrolled position sync (the visual plane is `cut.origin`-driven; the handle is DragControls-
+  owned — seeded from the station at mount). Filenames clash on case-insensitive Windows → the widget is
+  `CoupeOverlay.tsx`, the pure helpers `coupeHandle.ts` (NOT `CoupeHandle.tsx`).
+
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-06-25 — v1.0.1 IMPLEMENTED: Feature C (project completion) + A (ViewCube) + B (3D coupe handle) — by **Amer** (owner's Windows PC)
+
+**Context.** The owner asked to *finalize the app per `v1.0-Spec.md` + `v1.0.1-Spec.md`*. The P7 handoff said the
+next step was to implement `v1.0.1-Spec.md` — Feature C first (headless-testable exporter/UI work), then A+B (GPU).
+Did exactly that, in that order, gate green throughout.
+
+**What I did (all green: `npm run check` = 66 files / 327 tests; `build:web` ✓; core coverage unaffected at 95.14%):**
+1. **Feature C — project completion (D-V101-1).** Namespaced BBS (`computeBBS markPrefix`); the **elevation
+   *fiche*** as a shared `exporters/fiche.ts` consumed by BOTH PDF + DXF (element-aware orientation + marks +
+   tie callout + dims); **combined project PDF** (`buildProjectPdf`: sheet-per-type + summary) with a
+   **per-project export-lock**; web glue + Navbar "Projet complet" menu (combined PDF/DXF/BBS, DXF = sequential
+   per-mark downloads); **reorder** (`moveInstance` + ProjectPanel ↑/↓). New tests: `elevation_fiche`,
+   `project_pdf`, + reorder/menu cases.
+2. **Feature A — ViewCube (D-V101-2).** Pure `cameraState.ts` (26 named views + element→up-axis rotation,
+   headless-tested) + `ViewCube.tsx` widget (drei gizmo + perspective⇄orthographic toggle + Home + a11y
+   named-view list); the member group now rotates to its attitude (column upright / beam horizontal — fixes
+   the D-P3-6 placeholder). Tests: `viewcube_orientation`, `view_controls`.
+3. **Feature B — 3D coupe handle (D-V101-2).** Pure `coupeHandle.ts` (clamp/snap/extents, headless-tested) +
+   `CoupeOverlay.tsx` (cut-plane + cutting-line + tag + draggable handle writing `updateCut`), gated on the
+   existing Coupe toggle. Test: `coupe_handle`.
+
+**State now: GREEN.** All v1.0.1 code is in the working tree on `feat/p1-m1-engine` (**NOT committed — owner-
+gated per §7.6**; tell me to commit/push when ready). `v1.0.1-Spec.md` acceptance criteria are met in code; the
+only open items are the **GPU/visual confirmations** (cube gizmo, ortho camera, drag-handle feel — verify via
+`cd apps/web && npm run dev`, port 5180) and the unchanged release-blocking **engineer sign-offs**
+(G-BAEL/EC2/RPS/COUPE/TOL) + a11y axe pass + the three authoring/user docs.
+
+**→ Next:** (1) owner does a GPU pass on A/B and reports tweaks; (2) commit/push when the owner asks; (3) the
+still-open P6 tail — engineer sign-offs, axe audit, docs — and the spec §4 owner cosmetic confirmations
+(items 14–20: cutting-line/tag style, look-behind default, near-parallel threshold, ViewCube iso default, BBS
+mark format `P1-01`, summary-sheet position, DXF batch packaging, fiche detailing depth). *Before coding:
+`git log`/diff; `npm run check` + `build:web` GREEN; append a §9 entry.*
 
 ### 2026-06-25 — P6 control fixes + ALL 8 elements + P7 project core + v1.0.1 spec — by **Zayd** (dev box)
 

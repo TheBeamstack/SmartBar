@@ -25,6 +25,7 @@ export function ProjectPanel() {
   const renameInstance = useStore((s) => s.renameInstance);
   const setQuantity = useStore((s) => s.setInstanceQuantity);
   const selectInstance = useStore((s) => s.selectInstance);
+  const moveInstance = useStore((s) => s.moveInstance);
   const s = t(lang);
 
   // reconcile: the active instance's live (unsynced) doc/cuts drive its row + the takeoff.
@@ -70,10 +71,11 @@ export function ProjectPanel() {
             <th>{s.project.density}</th>
             <th />
             <th />
+            <th />
           </tr>
         </thead>
         <tbody>
-          {reconciled.map((inst) => {
+          {reconciled.map((inst, idx) => {
             const tk = byId.get(inst.id);
             const active = inst.id === activeId;
             return (
@@ -105,6 +107,24 @@ export function ProjectPanel() {
                 <td className="num">{(tk?.totalMass_kg ?? 0).toFixed(1)}</td>
                 <td className="num">{(tk?.steelDensity_kg_m3 ?? 0).toFixed(0)}</td>
                 <td>{!active && <button type="button" onClick={() => selectInstance(inst.id)}>✎</button>}</td>
+                <td className="reorder-cell">
+                  <button
+                    type="button"
+                    aria-label={`${s.project.moveUp} ${inst.mark}`}
+                    disabled={idx === 0}
+                    onClick={() => moveInstance(inst.id, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${s.project.moveDown} ${inst.mark}`}
+                    disabled={idx === reconciled.length - 1}
+                    onClick={() => moveInstance(inst.id, 1)}
+                  >
+                    ↓
+                  </button>
+                </td>
                 <td>
                   {reconciled.length > 1 && (
                     <button type="button" aria-label={`${s.project.remove} ${inst.mark}`} onClick={() => removeInstance(inst.id)}>
@@ -120,7 +140,7 @@ export function ProjectPanel() {
           <tr className="totals-row">
             <td colSpan={4}>{s.project.totals}</td>
             <td className="num">{takeoff.totalSteel_kg.toFixed(1)} kg</td>
-            <td className="num" colSpan={3}>
+            <td className="num" colSpan={4}>
               {takeoff.totalConcrete_m3.toFixed(2)} m³ · {takeoff.overallRatio_kg_m3.toFixed(0)} kg/m³
             </td>
           </tr>

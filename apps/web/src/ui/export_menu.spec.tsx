@@ -41,6 +41,35 @@ describe("navbar export menu (§7.9)", () => {
   });
 });
 
+describe("combined project export menu (v1.0.1 Feature C.1)", () => {
+  beforeEach(() => useStore.getState().reset());
+
+  it("hides the project export group for a single-element project", () => {
+    render(<Navbar />);
+    expect(screen.queryByRole("menuitem", { name: /Plan PDF combiné/ })).not.toBeInTheDocument();
+  });
+
+  it("shows combined PDF/DXF/BBS once the project has >1 type", () => {
+    useStore.getState().addInstance("E-BEM-01");
+    render(<Navbar />);
+    expect(screen.getByRole("menuitem", { name: /Plan PDF combiné/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Dessins DXF/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Nomenclature projet/ })).toBeInTheDocument();
+  });
+
+  it("per-project lock: a failing type disables combined PDF/DXF, keeps project BBS available", () => {
+    // make the active column FAIL, then add a (passing) beam → the project contains a 🔴 type
+    forceFail();
+    expect(useStore.getState().result.status).toBe("FAIL");
+    useStore.getState().addInstance("E-BEM-01");
+    // re-select the failing column so it is NOT the only consideration, but the lock is project-wide
+    render(<Navbar />);
+    expect(screen.getByRole("menuitem", { name: /Plan PDF combiné/ })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: /Dessins DXF/ })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: /Nomenclature projet/ })).not.toBeDisabled();
+  });
+});
+
 describe("BBS panel (§9.1)", () => {
   beforeEach(() => useStore.getState().reset());
 

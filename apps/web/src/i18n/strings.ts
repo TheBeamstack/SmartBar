@@ -93,6 +93,11 @@ export interface Strings {
     dxf: string;
     bbs: string;
     rcfg: string;
+    projectGroup: string;
+    projectPdf: string;
+    projectDxf: string;
+    projectBbs: string;
+    projectLocked: string;
   };
   bbs: {
     title: string;
@@ -137,6 +142,16 @@ export interface Strings {
     totalConcrete: string;
     overallRatio: string;
     failHint: string;
+    moveUp: string;
+    moveDown: string;
+  };
+  view: {
+    title: string;
+    namedView: string;
+    home: string;
+    projection: string;
+    perspective: string;
+    orthographic: string;
   };
 }
 
@@ -227,6 +242,11 @@ const FR: Strings = {
     dxf: "Dessin DXF",
     bbs: "Nomenclature (JSON)",
     rcfg: "Projet (.rcfg)",
+    projectGroup: "Projet complet",
+    projectPdf: "Plan PDF combiné (tous les éléments)",
+    projectDxf: "Dessins DXF (un par élément)",
+    projectBbs: "Nomenclature projet (JSON)",
+    projectLocked: "Export combiné bloqué — un élément est non conforme (🔴)",
   },
   bbs: {
     title: "Nomenclature des aciers (BBS)",
@@ -271,6 +291,16 @@ const FR: Strings = {
     totalConcrete: "Béton total",
     overallRatio: "Ratio global",
     failHint: "Un type non conforme (🔴) bloque l'export combiné.",
+    moveUp: "Monter",
+    moveDown: "Descendre",
+  },
+  view: {
+    title: "Vue 3D",
+    namedView: "Orientation",
+    home: "Vue par défaut",
+    projection: "Projection",
+    perspective: "Perspective",
+    orthographic: "Orthographique",
   },
 };
 
@@ -361,6 +391,11 @@ const EN: Strings = {
     dxf: "DXF drawing",
     bbs: "Schedule (JSON)",
     rcfg: "Project (.rcfg)",
+    projectGroup: "Whole project",
+    projectPdf: "Combined PDF (all elements)",
+    projectDxf: "DXF drawings (one per element)",
+    projectBbs: "Project schedule (JSON)",
+    projectLocked: "Combined export locked — an element fails (🔴)",
   },
   bbs: {
     title: "Bar-bending schedule (BBS)",
@@ -405,6 +440,16 @@ const EN: Strings = {
     totalConcrete: "Total concrete",
     overallRatio: "Overall ratio",
     failHint: "A failing type (🔴) blocks the combined export.",
+    moveUp: "Move up",
+    moveDown: "Move down",
+  },
+  view: {
+    title: "3D view",
+    namedView: "Orientation",
+    home: "Default view",
+    projection: "Projection",
+    perspective: "Perspective",
+    orthographic: "Orthographic",
   },
 };
 

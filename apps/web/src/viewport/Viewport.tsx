@@ -11,6 +11,9 @@ import { OrbitControls } from "@react-three/drei";
 import { useStore } from "../store/useStore";
 import { buildScene, type ConcreteEnvelope } from "./rebarProps";
 import { Rebar } from "./Rebar";
+import { memberGroupRotationFor } from "./cameraState";
+import { ProjectionRig, ViewController, ViewCubeGizmo, ViewControls } from "./ViewCube";
+import { CoupeHandles } from "./CoupeOverlay";
 
 const MM_TO_SCENE = 0.01; // mm → scene units (a 3 m column ≈ 30 units)
 
@@ -71,20 +74,28 @@ function Scene() {
   );
 
   const length = scene.concrete.length;
+  // element-aware attitude (column upright / beam horizontal / slab flat) — §1.4, shared with the fiche.
+  const rotation = memberGroupRotationFor(doc.element);
 
   return (
     <>
+      <ProjectionRig />
       <ambientLight intensity={0.7} />
       <directionalLight position={[1, 2, 1.5]} intensity={1.2} />
       <SectionClip enabled={showSection} />
-      {/* center the member on the orbit target: shift down by length/2 */}
-      <group scale={MM_TO_SCENE} position={[0, (-length / 2) * MM_TO_SCENE, 0]}>
-        <ConcreteVolume concrete={scene.concrete} />
-        {scene.bars.map((bar, i) => (
-          <Rebar key={`${bar.groupId}-${i}`} bar={bar} mode={scene.mode} />
-        ))}
+      {/* outer group rotates the member to its drawing attitude; inner group centers it on the target */}
+      <group rotation={rotation}>
+        <group scale={MM_TO_SCENE} position={[0, (-length / 2) * MM_TO_SCENE, 0]}>
+          <ConcreteVolume concrete={scene.concrete} />
+          {scene.bars.map((bar, i) => (
+            <Rebar key={`${bar.groupId}-${i}`} bar={bar} mode={scene.mode} />
+          ))}
+          <CoupeHandles />
+        </group>
       </group>
       <OrbitControls makeDefault enableDamping />
+      <ViewController />
+      <ViewCubeGizmo />
     </>
   );
 }
@@ -95,10 +106,11 @@ export function Viewport() {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      <Canvas camera={{ position: [40, 20, 50], fov: 45, near: 0.1, far: 2000 }}>
+      <Canvas>
         <color attach="background" args={["#11151c"]} />
         <Scene />
       </Canvas>
+      <ViewControls />
       {debugPerf && (
         <div className="perf-hud">solve: {lastSolveMs.toFixed(2)} ms</div>
       )}

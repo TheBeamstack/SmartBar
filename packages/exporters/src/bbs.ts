@@ -102,8 +102,24 @@ function concreteVolume(member: SolveResult["member"]): number {
   return 0;
 }
 
+export interface BbsOptions {
+  /**
+   * Prefix applied to every mark so a multi-element project's marks are globally unique on site
+   * (spec §9.1 [REF-SYS-915], v1.0.1 Feature C). `""` (default) keeps the bare ordinal marks
+   * (`"1"`, `"2"`, …) — single-element schedules stay byte-identical. A prefix `"P1"` yields the
+   * namespaced `"P1-01"`, `"P1-02"`, … form (owner convention §14 item 19).
+   */
+  markPrefix?: string;
+}
+
+/** Format a mark: bare ordinal when unprefixed (legacy), `PREFIX-01` when namespaced. */
+function formatMark(prefix: string, ordinal: number): string {
+  return prefix ? `${prefix}-${String(ordinal).padStart(2, "0")}` : String(ordinal);
+}
+
 /** Build the §9.1 bar-bending schedule from a solved element (pure, deterministic). */
-export function computeBBS(result: SolveResult): BarBendingSchedule {
+export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendingSchedule {
+  const markPrefix = opts.markPrefix ?? "";
   const transverseSpacing = new Map(result.member.transverse.map((t) => [t.groupId, t.spacing]));
 
   // 1. raw entries: every group → (count, cutLength, shape) ----------------------------------
@@ -162,7 +178,7 @@ export function computeBBS(result: SolveResult): BarBendingSchedule {
     const um = unitMass(r.diameter);
     const totalLength_m = (r.count * r.cutLength) / 1000;
     return {
-      mark: String(i + 1),
+      mark: formatMark(markPrefix, i + 1),
       groupIds: r.groupIds,
       shapeArchetypeId: r.shapeArchetypeId,
       role: r.role,

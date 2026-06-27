@@ -14,7 +14,6 @@
  * (dimensions), TEXTE (text/labels). No DOM/three.
  */
 import {
-  placeBars,
   sectionAt,
   defaultCoupeFor,
   type SolveResult,
@@ -22,6 +21,7 @@ import {
   type CoupeView,
   type Pt2,
 } from "@rebarconfig/core";
+import { buildElevationFiche, cuttingLineFiche } from "./fiche";
 
 /** The four strict DXF layers (§9.2) with their ACI colour numbers. */
 export const DXF_LAYERS = {
@@ -125,45 +125,37 @@ export function coupeToDxf(view: CoupeView, b: DxfBuilder, dx = 0, dy = 0): DxfB
 }
 
 /**
- * Emit the longitudinal elevation (the §5.2 `fiche` projection): concrete outline + bars projected
- * onto the (axis = +Y → X, height = +Z → Y) plane, plus the cutting-line/tag for each coupe.
+ * Emit the longitudinal elevation as the annotated shop-drawing *fiche* (spec §9.2 [REF-SYS-925]):
+ * element-aware orientation + bar marks/counts + tie-spacing callout + dimensions, plus the
+ * cutting-line/tag for each coupe. Geometry comes from the shared `buildElevationFiche` (the same
+ * model the PDF renders) so DXF and PDF agree by construction.
  */
 export function elevationToDxf(result: SolveResult, b: DxfBuilder, coupes: CoupeView[]): DxfBuilder {
+  const fiche = buildElevationFiche(result);
   const { member } = result;
-  const L = member.length;
   const halfH = member.envelope === "CIRCULAR" ? (member.D ?? 0) / 2 : (member.h ?? 0) / 2;
 
-  // concrete elevation rectangle (COFFRAGE): 0..L along X, ±halfH along Y
-  b.polyline(
-    "COFFRAGE",
-    [
-      { x: 0, y: -halfH },
-      { x: L, y: -halfH },
-      { x: L, y: halfH },
-      { x: 0, y: halfH },
-    ],
-    true,
-  );
+  // concrete outline (COFFRAGE)
+  b.polyline("COFFRAGE", fiche.concrete, true);
 
-  // bars projected to the elevation: world (x,y,z) → (y, z)
-  for (const bar of placeBars(result)) {
-    const pts: { x: number; y: number }[] = [];
-    for (let i = 0; i + 2 < bar.points.length; i += 3) {
-      pts.push({ x: bar.points[i + 1]!, y: bar.points[i + 2]! });
-    }
-    b.polyline("ARMATURES", pts, bar.closed);
+  // bars projected to the elevation (ARMATURES)
+  for (const bar of fiche.bars) b.polyline("ARMATURES", bar.points, bar.closed);
+
+  // dimensions (COTATION line + label) — overall length + section depth
+  for (const d of fiche.dims) {
+    b.line("COTATION", d.from.x, d.from.y, d.to.x, d.to.y);
+    b.text("COTATION", (d.from.x + d.to.x) / 2, (d.from.y + d.to.y) / 2 + TEXT_H * 0.2, TEXT_H, d.label);
   }
 
-  // overall length dimension (COTATION) below the member
-  const dimY = -halfH - TEXT_H * 2;
-  b.line("COTATION", 0, dimY, L, dimY);
-  b.text("COTATION", L / 2, dimY + TEXT_H * 0.2, TEXT_H, `${Math.round(L)}`);
+  // bar marks `n Ø d` (TEXTE) + tie-spacing callouts `Ø d e=s` (TEXTE)
+  for (const m of fiche.marks) b.text("TEXTE", m.at.x, m.at.y, TEXT_H, m.text);
+  for (const c of fiche.tieCallouts) b.text("TEXTE", c.at.x, c.at.y, TEXT_H, c.text);
 
-  // cutting line + tag per coupe (COTATION line + TEXTE tag), keyed to the elevation station
+  // cutting line + tag per coupe (COTATION line + TEXTE tag), oriented onto the fiche
   for (const view of coupes) {
-    const s = view.elevation.axisStation;
-    b.line("COTATION", s, -halfH - TEXT_H, s, halfH + TEXT_H);
-    b.text("TEXTE", s, halfH + TEXT_H * 1.5, TEXT_H, view.elevation.tag);
+    const cl = cuttingLineFiche(fiche.attitude, view.elevation.axisStation, halfH, TEXT_H);
+    b.line("COTATION", cl.from.x, cl.from.y, cl.to.x, cl.to.y);
+    b.text("TEXTE", cl.tagAt.x, cl.tagAt.y, TEXT_H, view.elevation.tag);
   }
   return b;
 }

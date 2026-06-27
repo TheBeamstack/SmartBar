@@ -13,6 +13,7 @@ import {
   serializeRcfg,
   type RcfgProject,
   type PdfMetadata,
+  type ProjectPdfType,
 } from "@rebarconfig/exporters";
 import type { SolveResult, SectionCut } from "@rebarconfig/core";
 
@@ -83,4 +84,54 @@ export function exportRcfg(project: RcfgProject, name = "projet.rcfg"): string {
   const text = serializeRcfg(project);
   downloadBlob(name, text, "application/json");
   return text;
+}
+
+// --- combined project exports (v1.0.1 Feature C) ---
+
+/** One element type in a combined export: its solved result + mark + quantity + its coupes. */
+export interface ProjectExportType {
+  result: SolveResult;
+  mark: string;
+  quantity: number;
+  cuts: SectionCut[];
+}
+
+/**
+ * Build + download the COMBINED project PDF (sheet per type + a project summary sheet, §C.1).
+ * Throws `ExportLockedError` if ANY type is 🔴 FAIL (per-project lock). `buildProjectPdf` (+ pdf-lib)
+ * is dynamically imported so it stays out of the initial bundle (P6 code-split).
+ */
+export async function exportProjectPdf(types: ProjectExportType[], meta: PdfMetadata = {}): Promise<Uint8Array> {
+  const { buildProjectPdf } = await import("@rebarconfig/exporters");
+  const pdfTypes: ProjectPdfType[] = types.map((t) => ({
+    result: t.result,
+    mark: t.mark,
+    quantity: t.quantity,
+    coupes: t.cuts.filter((c) => !c.isDefault),
+  }));
+  const bytes = await buildProjectPdf(pdfTypes, meta);
+  downloadBlob("projet.pdf", bytes, "application/pdf");
+  return bytes;
+}
+
+/**
+ * Build + download one DXF file per type (the DXF model is per-element, §C.1). v1.0.1 packages them
+ * as SEQUENTIAL downloads named by mark (no zip dependency — owner convention §14 item 19, flagged).
+ * Returns the number of files downloaded.
+ */
+export function exportProjectDxf(types: ProjectExportType[]): number {
+  let n = 0;
+  for (const t of types) {
+    const dxf = t.cuts.length > 1 ? buildDxfCoupes(t.result, t.cuts) : buildDxf1(t.result);
+    if (downloadBlob(`${t.mark}.dxf`, dxf, "application/dxf")) n += 1;
+  }
+  return n;
+}
+
+/** Build + download the project bar-bending schedule as JSON — every type, marks namespaced (§C.2). */
+export function exportProjectBbsJson(types: ProjectExportType[]): string {
+  const schedules = types.map((t) => computeBBS(t.result, { markPrefix: t.mark }));
+  const json = JSON.stringify(schedules, null, 2);
+  downloadBlob("projet.bbs.json", json, "application/json");
+  return json;
 }

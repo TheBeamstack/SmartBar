@@ -49,6 +49,20 @@ describe("project model — instances", () => {
     expect(to.types[0]!.totalMass_kg).toBeCloseTo(to.types[0]!.unitMass_kg * 5, 6);
   });
 
+  it("reorders instances up/down; the list order drives sheet/export order (§C.4)", () => {
+    useStore.getState().addInstance("E-BEM-01"); // [col, beam]
+    useStore.getState().addInstance("E-SLB-01"); // [col, beam, slab]
+    const ids = useStore.getState().instances.map((i) => i.id);
+    const order = () => useStore.getState().instances.map((i) => i.doc.element);
+
+    useStore.getState().moveInstance(ids[2]!, -1); // slab up
+    expect(order()).toEqual(["E-COL-01", "E-SLB-01", "E-BEM-01"]);
+    useStore.getState().moveInstance(ids[0]!, 1); // col down
+    expect(order()).toEqual(["E-SLB-01", "E-COL-01", "E-BEM-01"]);
+    useStore.getState().moveInstance(useStore.getState().instances[0]!.id, -1); // out of range → no-op
+    expect(order()).toEqual(["E-SLB-01", "E-COL-01", "E-BEM-01"]);
+  });
+
   it("removeInstance keeps at least one element and re-homes the active selection", () => {
     useStore.getState().addInstance("E-SLB-02");
     const toRemove = useStore.getState().activeInstanceId;

@@ -35,6 +35,7 @@ import {
   defaultMark,
 } from "../engine/project";
 import { rcfgToInstances } from "../engine/projectRcfg";
+import { DEFAULT_VIEW_ID } from "../viewport/cameraState";
 
 export interface AppState {
   doc: ElementDoc;
@@ -58,6 +59,17 @@ export interface AppState {
   /** which bottom panel is open (coupe manager / BBS table / project takeoff), or none. */
   bottomPanel: "coupes" | "bbs" | "project" | null;
 
+  // --- camera / ViewCube (Feature A, §1.7) — session state, NOT persisted in .rcfg ---
+  /** camera projection mode (perspective ⇄ orthographic, §1.5). */
+  projection: "perspective" | "orthographic";
+  /** a one-shot request to snap the camera to a named view; the viewport consumes the nonce. */
+  viewRequest: { id: string; nonce: number } | null;
+  toggleProjection: () => void;
+  /** snap to one of the 26 named views (§1.3); also the a11y/keyboard path (§1.6). */
+  requestView: (id: string) => void;
+  /** reset to the element-aware 3/4 iso default (§1.4). */
+  homeView: () => void;
+
   // --- project model (Phase 7, §3.2) ---
   /** every element TYPE in the project; the active one is checked out into doc/cuts. */
   instances: ElementInstance[];
@@ -70,6 +82,8 @@ export interface AppState {
   renameInstance: (id: string, mark: string) => void;
   setInstanceQuantity: (id: string, quantity: number) => void;
   selectInstance: (id: string) => void;
+  /** reorder an instance one slot up (dir −1) or down (dir +1) — sheet/export order follows the list. */
+  moveInstance: (id: string, dir: -1 | 1) => void;
 
   // catalog
   selectElement: (element: ElementId) => void;
@@ -174,6 +188,8 @@ export const useStore = create<AppState>((set, get) => {
     showSection: false,
     debugPerf: false,
     bottomPanel: null,
+    projection: "perspective",
+    viewRequest: null,
 
     // --- project model (Phase 7) ---
     syncActiveInstance: () => {
@@ -239,6 +255,16 @@ export const useStore = create<AppState>((set, get) => {
       if (!target || id === get().activeInstanceId) return;
       const slice = checkout(target);
       set({ instances: synced, activeInstanceId: id, ...slice, activeCutId: slice.cuts[0]!.id, selectedGroupIds: [] });
+    },
+
+    moveInstance: (id, dir) => {
+      const synced = get().syncActiveInstance();
+      const idx = synced.findIndex((i) => i.id === id);
+      const j = idx + dir;
+      if (idx < 0 || j < 0 || j >= synced.length) return; // out of range: no-op
+      const next = synced.slice();
+      [next[idx], next[j]] = [next[j]!, next[idx]!];
+      set({ instances: next }); // reorder only — the active checkout (doc/cuts) is untouched
     },
 
     selectElement: (element) => {
@@ -353,6 +379,12 @@ export const useStore = create<AppState>((set, get) => {
       });
     },
 
+    toggleProjection: () =>
+      set({ projection: get().projection === "perspective" ? "orthographic" : "perspective" }),
+    requestView: (id) => set({ viewRequest: { id, nonce: (get().viewRequest?.nonce ?? 0) + 1 } }),
+    homeView: () =>
+      set({ viewRequest: { id: DEFAULT_VIEW_ID, nonce: (get().viewRequest?.nonce ?? 0) + 1 } }),
+
     setDragMode: (on) => set({ dragMode: on }),
     selectGroups: (ids) => set({ selectedGroupIds: ids }),
     toggleExpert: () => set({ expert: !get().expert }),
@@ -369,6 +401,8 @@ export const useStore = create<AppState>((set, get) => {
         activeInstanceId: inst.id,
         selectedGroupIds: [],
         expert: false,
+        projection: "perspective",
+        viewRequest: null,
       });
     },
   };
