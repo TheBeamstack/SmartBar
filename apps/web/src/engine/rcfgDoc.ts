@@ -23,6 +23,7 @@ import {
   isColumnDoc,
   isGenericDoc,
 } from "./document";
+import { migrateDoc } from "./crossTies";
 
 /** The namespaced meta key carrying the verbatim ElementDoc for a lossless SPA reload. */
 export const APP_DOCUMENT_KEY = "app_document";
@@ -110,7 +111,8 @@ export function rcfgToDoc(project: RcfgProject): ElementDoc | undefined {
     typeof carried === "object" &&
     ELEMENT_IDS.has((carried as { element?: unknown }).element as string)
   ) {
-    return carried as ElementDoc;
+    // normalise legacy v1.0.1 docs (tie/stirrup `nLegs`) → v1.0.2 cross-tie model (F2 forward-compat).
+    return migrateDoc(carried as ElementDoc);
   }
   return undefined;
 }

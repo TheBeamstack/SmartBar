@@ -45,19 +45,39 @@ in the browser — no server, free hosting.**
 | **P6 / M6** — hardening (coverage 95% · i18n · perf · code-split) + control fixes 8a/8b/8c + all 8 elements + seismic picker in the SPA | ✅ **CODE DONE** · ⏳ a11y axe · docs · sign-off pending | Zayd, 2026-06-25 |
 | **P7** — multi-element project model (instances + takeoff + `.rcfg` v1.1 + migration) | ✅ **CORE DONE** (code) | Zayd, 2026-06-25 |
 | **v1.0.1** — Feature C (namespaced BBS · combined PDF + per-project lock · DXF batch · elevation *fiche* · reorder) + A (ViewCube + persp/ortho + a11y views) + B (3D coupe handle) | ✅ **CODE DONE + tested + PUSHED** (`d27a950`) · ⏳ A/B GPU widgets need the owner's browser to verify (D-V101-1/2) | Amer, 2026-06-25 |
-| **v1.0.2** — F1 roll · F2 cross-ties rebuilt · F3 sticky per-zone readout · F4 right-column layout · F5 user transverse regions · F6 façonnage editor · F7 2D section picker | 🟡 **SPEC + PLAN done, PUSHED (`d0c66f1`); NOT YET IMPLEMENTED** (D-V102) | Amer, 2026-06-27 |
+| **v1.0.2 P1 (F7)** — 2D section picker + face-relative bar labels + 3D bar pickability; Supplements rebound onto the picker | ✅ **CODE DONE + tested** (D-V102-1) · ⏳ owner GPU pass (3D click + picker feel) | Zayd, 2026-06-27 |
+| **v1.0.2 P2 (F2)** — column/beam cross-ties rebuilt on real bar engagement (anchored épingles, Auto/presets, element-level hook angle, real `longBarsEngaged`, legacy migration) | ✅ **CODE DONE + tested** (D-V102-2) · ⏳ owner GPU pass · G-RPS | Zayd, 2026-06-27 |
+| **v1.0.2 P3 (F3)** — sticky per-zone verification readout (pinned As,prov/As,req/d per zone + overall chip; pure `perZoneReadout` selector; all 8 elements) | ✅ **CODE DONE + tested** (D-V102-3) | Zayd, 2026-06-27 |
+| **v1.0.2 P4 (F4)** — workspace re-layout: Verif+Project+BBS as one collapsible/expandable right column; Coupes stays in the bottom dock | ✅ **CODE DONE + tested** (D-V102-4) | Zayd, 2026-06-27 |
+| **v1.0.2 P5 (F5)** — user transverse regions (per-region cadre spacing via the transverse-segment seam; 3D/coupe/BBS/fiche reflect them; seismic WARN-tightens end zones; legacy→1 region) | ✅ **CODE DONE + tested** (D-V102-5) · ⏳ owner GPU pass (region table feel) · G-RPS | Zayd, 2026-06-27 |
+| **v1.0.2 P6 (F6)** — façonnage editor + shape catalog (Z/double-crank/stepped manifests + per-group shape/params/end-hooks → 3D/coupe/BBS/DXF; cutLength invariant guarded; legacy default) | ✅ **CODE DONE + tested** (D-V102-6) · ⏳ owner GPU pass (sketch feel) | Zayd, 2026-06-28 |
+| **v1.0.2 P7 (F1)** — in-plane view roll (pure `rollUpVector`; session `rollRad` not in `.rcfg`; ↺/↻ buttons + roll slider; Home/named-view re-level) | ✅ **CODE DONE + tested** (D-V102-7) · ⏳ owner GPU pass (roll feel) | Zayd, 2026-06-28 |
 
-**Where things stand (2026-06-27).** The app is **feature-complete through v1.0.1 and pushed** to
-`origin/feat/p1-m1-engine`: the whole 8-element catalog, multi-element projects, combined/elevation exports,
-the ViewCube and the 3D coupe handle. **v1.0.2 is specced + planned but not coded** — seven targeted
-fixes/features in `v1.0.2-Spec.md` + `v1.0.2_impl_plan.md`. The single-element engine/exporters are unchanged
-under all of it. New agents: read `core_logic.md` (product) + `architecture_breakdown.md` (structure) first.
+**Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
+phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
+face-relative bar labels + 3D bar pickability), **P2/F2** (column **and** beam cross-ties rebuilt on real bar
+engagement — anchored épingles, Auto/presets, element-level hook angle, real seismic `longBarsEngaged`,
+legacy-`nLegs` migration), **P3/F3** (the sticky per-zone verification readout; pure `perZoneReadout`; UI-only),
+**P4/F4** (the workspace re-layout — Verification + Project + BBS as one collapsible/expandable **right column**;
+Coupes in the bottom dock; layout-only), **P5/F5** (user-defined **transverse spacing regions** via the
+transverse-segment seam — 3D/coupe/BBS/fiche reflect them; seismic WARN-tightens end zones; legacy → one uniform
+region), and **P6/F6** (the **façonnage editor + shape catalog** — three new multi-bend shape manifests
+(Z-bar/double-crank/stepped), and each longitudinal group can pick a shape + edit params + set start/end hooks
+with a live 2D sketch + cutLength, flowing to 3D/coupe/BBS/DXF; the `cutLength` invariant is guarded; legacy →
+DROITE default, byte-identical). The remaining one v1.0.2 feature (**F1 — in-plane view roll**) is specced +
+planned but not coded. New agents: read `core_logic.md` (product) + `architecture_breakdown.md` (structure)
+first, then `v1.0.2_impl_plan.md`. **All seven v1.0.2 features (F1–F7) are now code-complete.**
 
-**Last green gate (v1.0.1, 2026-06-25):** `npm run check` ✓ — purity ✓, manifests ✓ (13 shapes / 8 elements /
-10 schemes / 7 supplements), core+web typecheck ✓, **327 tests / 66 files**; `npm run build:web` ✓ (app ≈
-801 kB + three ≈ 1045 kB + lazy pdf-lib ≈ 436 kB); `npm run coverage` 95.14% core. **The headless gate can't
-see WebGL** — the ViewCube gizmo, persp⇄ortho camera, and 3D coupe handle are code-complete but await a visual
-pass on the owner's Windows GPU (`cd apps/web && npm run dev`, port 5180); their pure logic is headless-tested.
+**Last green gate (v1.0.2 P1–P7 — ALL FEATURES, 2026-06-28):** `npm run check` ✓ — purity ✓, manifests ✓
+(**16 shapes** / 8 elements / 10 schemes / 7 supplements), core+web typecheck ✓, **387 tests / 78 files**;
+`npm run build:web` ✓ (app ≈ 816 kB + three ≈ 1045 kB + lazy pdf-lib ≈ 436 kB); `npm run coverage` **95.05%
+core** (≥90% threshold). **v1.0.2 is feature-complete; the only remaining work is the owner's push + GPU/visual
+pass + the standing engineer sign-offs (G-BAEL/EC2/RPS/COUPE/TOL).**
+**The headless gate can't see WebGL** — the ViewCube/persp⇄ortho/coupe handle (v1.0.1) **and the new F7 3D bar
+click + the live 2D section-picker feel + the anchored cross-tie 3D render (F2)** are code-complete but await a
+visual pass on the owner's Windows GPU (`cd apps/web && npm run dev`, port 5180); their pure logic is
+headless-tested (`bar_labels`, `section_picker`, `tie_legs_geometry` [F2 anchored/Asw/seismic/migration],
+`epingle_hook_angle`).
 
 ---
 
@@ -268,11 +288,200 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 - **D-P7-1/2/3** multi-element project model: `Project` = ordered `ElementInstance[]` with a checkout model, `quantity` scales TOTALS only (one solve per type), quantity-aware steel takeoff, `.rcfg` v1.1 envelope + legacy-1.0→1-instance migration; elevation *fiche* specced → shipped.
 - **D-V101-1** v1.0.1 Feature C is pure exporter/UI: `computeBBS markPrefix` (namespaced); shared `exporters/fiche.ts` (orientation + marks + tie callout + dims) drives PDF **and** DXF; `buildProjectPdf` = sheet-per-type + summary + per-project export-lock; `exportProject{Pdf,Dxf,BbsJson}` + Navbar "Projet complet"; `moveInstance` reorder. Project-level shared settings deferred.
 - **D-V101-2** v1.0.1 Features A/B are camera/interaction only — NO engine/`.rcfg`/validation change. `viewport/cameraState.ts` (26 named views + element-aware member rotation), `ViewCube.tsx` (drei gizmo + persp⇄ortho + Home + a11y named-view list), `coupeHandle.ts` + `CoupeOverlay.tsx` (drei `DragControls` handle → `updateCut`). View/roll state is **session-only, not in `.rcfg`**. Filename note: widget is `CoupeOverlay.tsx`, pure helpers `coupeHandle.ts` (case clash on Windows). **GPU widgets need the owner's visual pass.**
-- **D-V102** v1.0.2 specced + planned (NOT coded): F1 in-plane view roll · F2 column cross-ties rebuilt on real bar engagement (+ Auto-code, real `longBarsEngaged`) · F3 sticky per-zone readout · F4 expandable right-column layout (Verif+Project+BBS) · F5 user transverse regions (per-region spacing) · F6 façonnage editor (catalog + params + end-hooks + Z/double-crank/stepped) · F7 2D section picker (replaces raw index binding). Build order **F7→F2→F3→F4→F5→F6→F1**. F2+F5 add core capability via existing seams (placement anchor; transverse segments) — no element branching. No new sign-off gate (F2-Auto/F5-seismic ride G-RPS). Owner decisions recorded in `v1.0.2-Spec.md`; phases/tests/DoD in `v1.0.2_impl_plan.md`.
+- **D-V102** v1.0.2 specced + planned: F1 in-plane view roll · F2 column cross-ties rebuilt on real bar engagement (+ Auto-code, real `longBarsEngaged`) · F3 sticky per-zone readout · F4 expandable right-column layout (Verif+Project+BBS) · F5 user transverse regions (per-region spacing) · F6 façonnage editor (catalog + params + end-hooks + Z/double-crank/stepped) · F7 2D section picker (replaces raw index binding). Build order **F7→F2→F3→F4→F5→F6→F1**. F2+F5 add core capability via existing seams (placement anchor; transverse segments) — no element branching. No new sign-off gate (F2-Auto/F5-seismic ride G-RPS). Owner decisions in `v1.0.2-Spec.md`; phases/tests/DoD in `v1.0.2_impl_plan.md`. **P1(F7)+P2(F2) now implemented — see D-V102-1/2.**
+- **D-V102-1** (P1/F7 — 2D section picker, implemented) Bindings are still **stable bar indices** (D-P3-4); F7 adds only the missing UI. Pure `engine/barLabels.ts` labels each bar **face-relative** `T1/B2/L1/R3` (owner choice: TOP/BOTTOM ranked left→right by `u`, LEFT/RIGHT bottom→top by `v`). `ui/SectionPicker.tsx` draws SVG dots (+ a keyboard/a11y button list — both call the same `onPick`); `ui/useBarLink.ts` keeps the pending first-pick **local** to each editor (so the supplement picker and the cross-tie picker never cross-fire) while mirroring it to the store's new `selectedBars` for the 3D highlight. `PlacedBar.barIndex` (new, core) + `buildScene(..., selectedBars)` give **per-bar** 3D highlight; `Rebar` longitudinal meshes take an `onPick` (pointer addition — GPU-verified). `SupplementsPanel` dropped the `bar1/bar2` number inputs for the picker (rebind now re-binds to the 2 selected bars). Tests: `bar_labels`, `section_picker`; `binding_keyboard`/`leg_count_asw` (core, unchanged) stay green.
+- **D-V102-2** (P2/F2 — cross-ties rebuilt, implemented) The broken `nLegs`/`crossTieZones` (épingles centred at the section centre) is **replaced**. A column tie / beam stirrup now carries `crossTies: {barA,barB,diameter?}[]` + an **element-level `crossTieHookAngle`** (owner choice: user types/picks one angle 90/135/180, applied to ALL the element's cross-ties). **Core seam, no element branching:** `MemberPlacement.transverse[]` + `ElementTransInput` gained an optional `anchor {u,v,angleDeg}`; `placeLoop`/`placeBars` rotate+translate an anchored loop to the bar-pair midpoint (non-anchored groups byte-identical → goldens safe). The adapter (`solveDoc`, web — `isColumnDoc?tie:stirrup` lives HERE not in core) builds one anchored épingle per cross-tie via `resolveBarPairPlacement` (now returns `angleDeg`), recomputes **Asw leg count = 2 + 2·nCrossTies**, and feeds the **real `longBarsEngaged`** (4 corners + distinct engaged bars; no-cross-tie case = 4). The épingle **hook angle is param-driven**: the generator applies an optional `params.hook_angle` override (additive; `epingle.json` gained a `hook_angle` param) keeping the `cutLength`/`totalLengthExpr` cross-check (D-P1-1). **Auto (code)** = engage **every intermediate bar** (owner choice) via pure `engine/crossTies.ts autoCrossTies`; per-direction presets filter by orientation. **Seismic engagement is WARN-only, never blocks export** (owner: "indicate but don't block" — `crosstieEngagement` ND3 changed FAIL→WARN; rides provisional **G-RPS**). **Legacy `nLegs` migrates** to `(nLegs−2)/2` auto-engaged cross-ties in `migrateDoc` (applied at the `rcfgToDoc` chokepoint → covers file-load + autosave-restore; idempotent; no data loss). Scope note: **supplement** épingles still render centred (presence-only) — anchoring them is a small D-P3-6 follow-up; F7 only changed how they're *bound*. Tests: `tie_legs_geometry` (anchored-not-centred + Asw + seismic-engaged + migration), `epingle_hook_angle`, updated `confinement_required`.
+- **D-V102-7** (P7/F1 — in-plane view roll, implemented) **Camera/interaction-only, no engine/`.rcfg` change** (spec §1.3, approach a). Pure headless helper `viewport/cameraState.ts rollUpVector(viewDir, rollRad) → Vec3`: the level up = world-up projected ⟂ the view axis (Z-fallback when near-vertical), rotated about the view axis by `rollRad` (Rodrigues). Store gained session `rollRad` + `setRoll`/`rollBy` (**NOT** in `.rcfg`, like `projection`/`viewRequest`); **`requestView`/`homeView` re-level it to 0** (roll is a temporary tweak on top of an orientation), and `reset()` clears it. `viewport/Viewport.tsx RollController` (a `useFrame` at priority 1, i.e. AFTER drei OrbitControls' update) post-multiplies the rolled `camera.up` + re-`lookAt(target)` when `rollRad≠0`, and restores world-up **once** when the roll clears — orbit (X/Y) + zoom untouched. UI (`ViewCube.tsx ViewControls`, the HTML overlay = a11y/keyboard path): **↺/↻ buttons (±90°, Shift = fine ±5°)** + a **roll slider** (−180..180°). The drei curved drag-ring around the gizmo is deferred GPU polish; the buttons+slider are the testable/keyboard equivalents. Tests: `view_roll.spec` (pure `rollUpVector` 0/90°/360°/near-vertical + RTL buttons→`rollRad`, Shift fine-step, Home/named-view re-level). GPU feel verified on the owner's machine.
+- **D-V102-6** (P6/F6 — façonnage editor + shape catalog, implemented) **Data-driven, minimal core change** (spec §6). Three new **shape manifests** (`zbar`/`double_crank`/`stepped`, registered in `SHAPES`) — pure segment-grammar, pass the integrity gate, 16 shapes total. Each **longitudinal group** gains an optional `faconnage {shapeParams?, hooks?}` (column `longitudinal` + beam `span` wired; chapeau/montage/generic are a follow-up); `solveDoc` passes the user `shapeParams` (else the computed default) + maps `hooks` to the generator → flows to 3D/coupe/BBS/DXF/PDF unchanged (the engine already accepts any shape+params). **Hooks independent of base shape:** `generateBarShape`/`generateShape` gained an optional `opts.hooks` (per-end `UserHook` = `"none" | {angle:90|135|180, extFactor?}`) that OVERRIDES the manifest `endHooks`; absent → byte-identical to pre-F6. To let any open shape accept user hooks, the open longitudinal manifests' `totalLengthExpr` were migrated to the hook-agnostic `… + hookAllowances − bendDeductions` form — **byte-identical** when no user hooks (verified: all BBS/DXF/fiche/unit-mass goldens green). **cutLength invariant (D-P1-1) guarded:** the generator's `totalLengthExpr` cross-check throws on an impossible shape; `ui/FaconnageEditor.tsx` catches it (and rejects a non-positive/non-finite cutLength), shows a clear error, and **never commits invalid params** (a local edit buffer keeps the field; the store/solve only ever sees a valid shape). The editor: a catalog `<select>` (DROITE/CROCHET_L/U_BAR/BAIONNETTE/RELEVE/ATTENTE/Z_BAR/DOUBLE_CRANK/STEPPED), param `NumberField`s seeded from geometry, start/end hook selects, a live SVG centreline sketch + cutLength. `.rcfg` round-trips for free (`faconnage` rides `meta.app_document`; legacy → DROITE default). **Deferred (spec §6.6):** lap-splice/coupler scheduling between elements. Tests: `tests/facade_shapes` (3 manifests valid + cutLength==totalLengthExpr + hook override), `apps/web/.../faconnage` (adapter + hooks + legacy byte-identical + rcfg), `ui/faconnage_editor` (RTL pick/edit/hook/sketch + invalid rejected).
+- **D-V102-5** (P5/F5 — user transverse regions, implemented) Added via the **transverse-segment seam, no element branching** (spec §5.3). New core type `TransverseRegion {from,to,spacing}`; `ElementTransInput`, `MemberPlacement.transverse[]` and `solveColumn`'s tie gained an optional `regions?`. Pure `regionStations(regions, length)` (place.ts) emits stations region-by-region with the global end margins, **de-duping shared boundaries**; a single full-length region **delegates to `transverseStations` → byte-identical** (goldens safe). `regionStationCounts` gives per-region totals. `placeBars` instances loops per region; **BBS** `groupCount` sums region stations; the **elevation fiche** emits one `Ø e=spacing` callout per region (uniform set unchanged); **coupe snap stations** (`coupeHandle`) are region-aware. **Seismic reconciliation is WARN-only** (`region_crit_spacing:{zone}` in `applySeismicOverlay`): a user region overlapping an end critical zone but looser than `s_crit` warns — it **tightens/indicates, never silently overrides**, never blocks export (rides provisional **G-RPS**, consistent with F2's "indicate but don't block"); absent regions → no item (existing seismic goldens untouched). Web: `document.ts` adds `regions?` to `tie`/`stirrup`/generic transverse `ZoneEdit`; `solveDoc` threads them onto the cadre **and the cross-tie épingles** (they densify together); pure `engine/regions.ts` (`normalizeRegions` contiguity auto-fill over 0..L, `symmetricEndsRegions` quick-fill, `uniformRegions`, `memberAxisLength`); `ui/RegionEditor.tsx` (a contiguous from→to+spacing table with add/remove, a uniform reset, and a symmetric-ends quick-fill seeded from the seismic `l_c`) wired under the column tie + beam stirrup controls. **`.rcfg` round-trips for free** (regions ride `meta.app_document`; legacy files have none → uniform). **Scope:** the Asw/clear-spacing checks still use the representative `tz.spacing` (per-region Asw verification deferred); boundary **drag** on the elevation is deferred — numeric table is the a11y baseline (owner GPU follow-up). Tests: `tests/transverse_regions` (stations/counts, placement, BBS totals, fiche callouts, seismic WARN), `apps/web/.../transverse_regions` (helpers + adapter + legacy byte-identical + rcfg round-trip), `ui/region_editor` (RTL). Kept `rps_segment_injection`, `bbs_golden`, `elevation_fiche` green.
+- **D-V102-4** (P4/F4 — workspace re-layout, implemented) **UI/layout-only, no engine/`.rcfg` change** (spec §4.3). The right strip (was a single always-on `AlertsPanel`) is replaced by `ui/RightColumn.tsx` — a flex column stacking **three collapsible, independently-scrollable sections**: **Verification** (`AlertsPanel`), **Project** (`ProjectPanel`), **BBS** (`BbsPanel`). Each section has a header button (caret, `aria-expanded`) toggling its body; the **same** open/collapse state is driven from the navbar (the BBS/Project/Vérifications buttons now call `toggleRightPanel`, not the old bottom-dock toggle). New store state: `rightPanels {verification,project,bbs}` (default `verification:true`, others collapsed — preserves "checks always visible") + `expandPanels` (an **Expand** toggle that widens the column to 60% over the 3D via the `.right-column.expanded` class; the 3D stays mounted, just narrower). **The bottom dock now hosts only Coupes** (`BottomPanel` → `CoupePanel`; `bottomPanel` narrowed `"coupes"|"bbs"|"project"|null` → `"coupes"|null`). `AlertsPanel` lost its own `.alerts-head` chrome (the section header supplies the title; the deferred "… recalcul" badge moved into the body). Layout prefs are **session-only** (not reset on element `reset()`, not in `.rcfg`). New i18n `workspace {expand,collapse,expandHint}` (note: `layout` was already taken by the layout-principle group). Tests: `workspace_layout` (3 sections render + collapse, expand sets flag/class, Coupes-only bottom dock); `export_menu`/`smoke` kept green (the latter renders `AlertsPanel` standalone — its header-less refactor is transparent to it).
+- **D-V102-3** (P3/F3 — sticky per-zone readout, implemented) **UI-only, no engine/`.rcfg`/validation change** (spec §3.3): the per-zone provided area + `ZoneGeometry.d` already exist on `SolveResult`. New pure selector `ui/derived.ts perZoneReadout(result, doc, lang) → ZoneReadoutRow[]` — **one row per flexural zone** (`As,prov` vs `As,req`, `ok`, `d`, `perMetre`), driven off the validation `provided_area[:zone]` items + `result.zones` (the column's lone un-suffixed `provided_area` maps onto `result.zones[0]`; slab zones flagged `perMetre` → cm²/m). **Generic over all 8 elements**, no `if(elementType)`. The old single-aggregate `Badges` is **replaced** by `ZoneReadout` (`position: sticky; top:0` inside the scrolling `.sidebar`, full-width via negative margins; `role="status" aria-live="polite"`; per-zone rows green/red + an overall 🟢/🟠/🔴 status chip from `result.status`). Zone labels: generic zones use the doc's own `label_fr/_en`; column/beam use a new `i18n readout.zones` map (`As_total`/`As_span_bottom`/`As_top_support`/`As_top_montage`). Old `derived.ts` helpers (`asProvidedMm2` etc.) kept (still used by `store_resolve.spec`). Tests: `per_zone_readout` (column/beam/slab rows + FAIL flip + per-metre); `smoke` updated (queries `.readout`, readout survives a tab switch).
 
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-06-28 — v1.0.2 Phase 7 (F1 — in-plane view roll) IMPLEMENTED — **v1.0.2 FEATURE-COMPLETE** — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented the **final phase, F1** (`v1.0.2_impl_plan.md` Phase 7). With it, **all seven v1.0.2
+features (F1–F7) are code-complete.** Full detail in **D-V102-7**.
+
+- **P7 / F1 — in-plane view roll** ([REF-SYS-811], spec §1). Camera/interaction-only. Pure
+  `rollUpVector(viewDir, rollRad)` (level up ⟂ the view axis, rotated about it — Rodrigues; headless-tested).
+  Session `rollRad` in the store (**not** in `.rcfg`); Home + every named-view snap re-level it to 0.
+  `RollController` (`useFrame` after OrbitControls) applies the rolled `camera.up` and restores world-up when the
+  roll clears — orbit + zoom untouched. UI: ↺/↻ buttons (±90°, Shift = ±5°) + a roll slider in the ViewControls
+  overlay (the a11y/keyboard path); the curved drag-ring on the gizmo is deferred GPU polish.
+
+**State now: GREEN, NOT pushed** (policy §10). `npm run check` ✓ (**387 tests / 78 files**, +7/+1 over P6),
+`build:web` ✓ (app ≈ 816 kB), `coverage` 95.05% core (≥90). New file: `apps/web/src/viewport/view_roll.spec.tsx`;
+touched `viewport/{cameraState,Viewport,ViewCube}.tsx/.ts`, `store/useStore.ts`, `i18n/strings.ts`, `styles.css`.
+
+**Open / not done (NONE block v1.0.2 code-completeness).** (a) **Owner's push** — the whole v1.0.2 stack
+(P1–P7) is unpushed on `feat/p1-m1-engine`, awaiting the owner's "push". (b) **Owner GPU/visual pass** on the new
+interactions: F7 picker, F2 cross-ties, F5 region table, F6 façonnage sketch, F1 roll feel — plus the still-open
+v1.0.1 ViewCube/persp⇄ortho/coupe-handle pass. (c) Deferred polish: F6 façonnage on chapeau/montage/generic
+groups + a PDF BBS façonnage sketch column; F5 per-region Asw verification + boundary drag; F1 curved gizmo
+drag-ring; supplement épingles still render centred (D-P3-6). (d) **Standing engineer sign-offs**
+(G-BAEL/EC2/RPS/COUPE/TOL) + a11y axe + authoring/user docs — these gate *acceptance/release*, not the code.
+**→ Next agent:** v1.0.2 is **feature-complete** — there is no Phase 8. If the owner says "push", commit the
+P1–P7 work + the doc updates and push `feat/p1-m1-engine`. Otherwise await the owner's GPU pass / next directive
+(likely a v1.0.3 spec or the engineer sign-off campaign). Before any new coding: `git log`/diff; keep the gate
+GREEN; append a §9 entry.
+
+### 2026-06-28 — v1.0.2 Phase 6 (F6 — façonnage editor + shape catalog) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented **Phase 6 (F6)** of `v1.0.2_impl_plan.md`. Full detail in **D-V102-6**.
+
+- **P6 / F6 — façonnage editor + shape catalog** ([REF-SYS-520], spec §6). Three new **shape manifests**
+  (Z-bar / double-crank / stepped — pure segment-grammar data, registered, integrity-clean → 16 shapes). Each
+  **longitudinal group** (column `longitudinal` + beam `span`) gains an optional `faconnage {shapeParams?,
+  hooks?}`; `solveDoc` passes the chosen shape's user params + maps hooks through to the generator → the choice
+  flows to 3D/coupe/BBS/DXF/PDF (the engine already accepts any shape+params — minimal core change). **Hooks work
+  on any shape:** `generateBarShape`/`generateShape` gained an optional `opts.hooks` per-end override (byte-
+  identical when absent); the open longitudinal manifests' `totalLengthExpr` were migrated to the hook-agnostic
+  `… + hookAllowances − bendDeductions` form (byte-identical with no user hooks — all goldens green). The
+  `cutLength` invariant (D-P1-1) is guarded: the generator throws on an impossible shape, `FaconnageEditor`
+  catches it + rejects non-positive cutLength, shows a clear error, and **never commits invalid params** (local
+  edit buffer → the solve only ever sees a valid shape). UI: catalog select + param fields seeded from geometry +
+  start/end hook selects + a live SVG sketch + cutLength. `.rcfg` round-trips for free; legacy → DROITE default.
+
+**State now: GREEN, NOT pushed** (policy §10). `npm run check` ✓ (**380 tests / 77 files**, +17/+3 over P5),
+`build:web` ✓ (app ≈ 815 kB), `coverage` **95.05% core** (≥90). New files: `apps/web/manifests/shapes/{zbar,
+double_crank,stepped}.json`, `apps/web/src/ui/{FaconnageEditor.tsx,faconnage_editor.spec.tsx}`,
+`apps/web/src/engine/faconnage.spec.ts`, `tests/facade_shapes.spec.ts`; touched core
+`geometry/{segment-grammar,registry}.ts`, `pipeline/element.ts`, the 7 open longitudinal shape manifests
+(totalLengthExpr migration), web `engine/{document,solveDoc,manifests}.ts`, `ui/Sidebar.tsx`, `i18n/strings.ts`,
+`styles.css`.
+
+**Open / not done.** (a) Façonnage is wired for the **column longitudinal + beam span** groups; chapeau/montage
+(curtailment-coupled) + generic longitudinal zones are a straightforward follow-up using the same `faconnage`
+plumbing. (b) BBS already carries the real `fiche` (legs/bends/hooks) per scheduled bar — a dedicated façonnage
+**sketch column** in the PDF BBS is optional polish (not built). (c) **Lap-splice/coupler scheduling between
+elements is deferred** (spec §6.6). (d) Owner GPU pass on the live sketch feel (+ the carried F7/F2/F4/F5/v1.0.1
+visual passes). (e) The last phase **P7 (F1 — in-plane view roll)** is unbuilt.
+**→ Next agent:** implement `v1.0.2_impl_plan.md` **Phase 7 (F1 — in-plane view roll)** — the FINAL v1.0.2 phase.
+Camera/interaction-only: a pure `rollUpVector(viewDir, rollRad)` helper, a session-only `rollRad` store field
+(**NOT** in `.rcfg`), a roll-ring + ↺/↻ buttons on the ViewCube, Home/named-views reset it. Mirror the v1.0.1
+ViewCube pattern (`viewport/cameraState.ts` + `ViewCube.tsx`). Before coding: `git log`/diff; `npm run check` +
+`build:web` GREEN; append a §9 entry. After F1, all seven v1.0.2 features are code-complete (awaiting the owner's
+push + GPU pass).
+
+### 2026-06-27 — v1.0.2 Phase 5 (F5 — user transverse regions) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented **Phase 5 (F5)** of `v1.0.2_impl_plan.md` — the first v1.0.2 phase that **adds core
+capability** (the others were UI). Full detail in **D-V102-5**.
+
+- **P5 / F5 — user-defined transverse regions** ([REF-SYS-757], spec §5). A column tie / beam stirrup now carries
+  an ordered, contiguous `{from,to,spacing}` region list (over 0..L) so cadre/stirrup spacing varies along the
+  member (dense ends, looser middle). Added **through the existing transverse-segment seam — no element
+  branching**: new core `TransverseRegion` + `regions?` on `ElementTransInput`/`MemberPlacement.transverse[]`/
+  `solveColumn.tie`; pure `regionStations`/`regionStationCounts` (a single full region delegates to
+  `transverseStations` → **byte-identical**, goldens safe); `placeBars`, **BBS** counts, the **elevation fiche**
+  callouts, and the **coupe snap stations** all region-aware. **Seismic is WARN-only** (`region_crit_spacing` —
+  an end region looser than `s_crit` warns; never silently overrides, never blocks; rides provisional G-RPS).
+  Web: doc fields on tie/stirrup/generic-transverse; `solveDoc` threads regions onto the cadre **and** the
+  cross-tie épingles; pure `engine/regions.ts` (contiguity + symmetric quick-fill); `ui/RegionEditor.tsx` (table +
+  symmetric-ends seeded from `l_c` + uniform reset) under the column/beam controls. `.rcfg` round-trips for free
+  (rides `meta.app_document`; legacy → one uniform region).
+
+**State now: GREEN, NOT pushed** (policy §10). `npm run check` ✓ (**363 tests / 74 files**, +17/+3 over P4),
+`build:web` ✓ (app ≈ 811 kB), `coverage` **95.03% core** (≥90; F5 added core lines, coverage held). New files:
+`tests/transverse_regions.spec.ts`, `apps/web/src/engine/{regions.ts,transverse_regions.spec.ts}`,
+`apps/web/src/ui/{RegionEditor.tsx,region_editor.spec.tsx}`; touched core `types/layout.ts`,
+`section/place.ts`, `pipeline/{element,solve}.ts`, `validation/seismic.ts`, exporters `bbs.ts`/`fiche.ts`, web
+`engine/{document,solveDoc}.ts`, `viewport/coupeHandle.ts`, `ui/Sidebar.tsx`, `i18n/strings.ts`, `styles.css`.
+
+**Open / not done.** (a) **Per-region Asw verification** is deferred — the Asw/clear-spacing checks still use the
+representative `tz.spacing`; F5 affects placement/BBS/fiche/seismic-WARN, not the Asw formula. (b) Boundary
+**drag** on the elevation is deferred — the numeric region table is the a11y baseline (owner GPU follow-up,
+alongside the still-pending F7 picker / F2 cross-ties / F4 expand feel / v1.0.1 ViewCube passes). (c) F5 seismic
+rides provisional **G-RPS**. (d) The remaining phases **P6 (F6 — façonnage editor) → P7 (F1 — in-plane roll)**
+are unbuilt.
+**→ Next agent:** implement `v1.0.2_impl_plan.md` **Phase 6 (F6 — façonnage editor + shape catalog)** next. It
+adds **new shape manifests** (Z-bar / double-crank / stepped — data, register in the shape registry) + lets each
+longitudinal group choose `shapeId`/`shapeParams`/`hooks`, flowing through `solveDoc` to 3D/coupe/BBS/DXF/PDF.
+**The trap is the `cutLength` invariant (D-P1-1)** — reuse the generator's existing `totalLengthExpr`
+cross-check, never "simplify" cutLength to the polyline sum. Before coding: `git log`/diff; `npm run check` +
+`build:web` GREEN; append a §9 entry.
+
+### 2026-06-27 — v1.0.2 Phase 4 (F4 — expandable right column) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented **Phase 4 (F4)** of `v1.0.2_impl_plan.md` (build-order P4, the next phase after
+P3/F3), continuing the same session. Full detail in **D-V102-4**.
+
+- **P4 / F4 — workspace re-layout** ([REF-UI-830], spec §4). **Layout-only, no engine change.** Replaced the
+  always-on right `AlertsPanel` strip with `ui/RightColumn.tsx`: **Verification + Project + BBS** as three
+  **collapsible, independently-scrollable** sections (each a header button + `overflow-y:auto` body), plus an
+  **Expand** toggle that widens the whole column to 60% leftward over the 3D (`.right-column.expanded`). The
+  **bottom dock now holds only Coupes** (`BottomPanel`→`CoupePanel`). Navbar BBS/Project/Vérifications buttons now
+  toggle their right-column section (`toggleRightPanel`); Coupes still toggles the bottom dock. New store state
+  `rightPanels` + `expandPanels` (session-only, **not** in `.rcfg`, not reset on element `reset()`). `AlertsPanel`
+  shed its own header (the section header supplies the title). New i18n group `workspace` (the obvious name
+  `layout` was already used by the layout-principle group — watch for that).
+
+**State now: GREEN, NOT pushed** (policy §10). `npm run check` ✓ (**346 tests / 71 files**, +4/+1 over P3),
+`build:web` ✓ (app ≈ 810 kB), `coverage` 94.93% core (≥90; F4 is layout-only so core coverage is unchanged). New
+files: `ui/RightColumn.tsx`, `ui/workspace_layout.spec.tsx`; touched `App.tsx`, `ui/{BottomPanel,Navbar,AlertsPanel}.tsx`,
+`store/useStore.ts`, `i18n/strings.ts`, `styles.css`. **F4 is fully jsdom-testable**; the *feel* of the
+expand-over-3D + the per-section scroll split want a quick owner GPU/eye pass (`npm run dev`, port 5180) but
+nothing is blocked.
+
+**Open / not done.** (a) Carried-over owner GPU passes: F7 picker + F2 cross-ties + the v1.0.1
+ViewCube/coupe-handle, and now the F4 expand/scroll feel. (b) Supplement épingles still render centred
+(D-P3-6 follow-up); F2 Auto/seismic ride provisional **G-RPS**. (c) The remaining v1.0.2 phases **P5 (F5) → P6
+(F6) → P7 (F1)** are unbuilt.
+**→ Next agent:** implement `v1.0.2_impl_plan.md` **Phase 5 (F5 — user-defined transverse regions: per-region
+cadre spacing)** next. This one **adds core capability** via the transverse-segment seam (regions on the
+transverse group; `transverseStations`/`placeBars`/BBS counts per region; seismic *tightens within* end regions,
+never replaces them) — keep `[{0,L,s}]` byte-identical to today to protect the goldens, and it depends on the
+P2/F2 cross-tie refactor that already landed. Before coding: `git log`/diff; `npm run check` + `build:web` GREEN;
+append a §9 entry.
+
+### 2026-06-27 — v1.0.2 Phase 3 (F3 — sticky per-zone readout) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented **Phase 3 (F3)** of `v1.0.2_impl_plan.md` (build-order P3, the next phase after the
+already-implemented P1/F7 + P2/F2), after re-reading `cross_projects_policy.md`, `current_state.md`, the v1.0.2
+spec §3 + plan Phase 3. Confirmed baseline GREEN first (`8af7b40`, 337/69). Full detail in **D-V102-3**.
+
+- **P3 / F3 — sticky per-zone verification readout** ([REF-UI-820], spec §3). **UI-only, no engine change** — the
+  per-zone provided area + `ZoneGeometry.d` already live on `SolveResult`. Added a pure selector
+  `ui/derived.ts perZoneReadout(result, doc, lang)` returning **one row per flexural zone** (As,prov vs As,req,
+  `ok`, `d`, `perMetre`), read off the validation `provided_area[:zone]` items + `result.zones` — **generic over
+  all 8 elements** (the column's bare `provided_area` rule maps onto `result.zones[0]`; slab zones are per-metre
+  → cm²/m). Replaced the old single-aggregate `Badges` with a sticky `ZoneReadout` (`position:sticky;top:0`
+  inside the scrolling `.sidebar`, `role="status" aria-live="polite"`, per-zone green/red rows + an overall
+  🟢/🟠/🔴 chip). New `i18n readout` block (fr/en) for the column/beam zone labels; generic zones reuse the doc's
+  own labels.
+
+**State now: GREEN, NOT pushed** (policy §10). `npm run check` ✓ (**342 tests / 70 files**, +5/+1 over baseline),
+`build:web` ✓ (app ≈ 810 kB), `coverage` 94.93% core (≥90; F3 is UI-only so core coverage is unchanged). New
+files: `ui/per_zone_readout.spec.ts`; touched `ui/derived.ts`, `ui/Sidebar.tsx`, `i18n/strings.ts`, `styles.css`,
+`ui/smoke.spec.tsx`. **F3 is fully jsdom-testable — no GPU pass needed** (unlike the still-pending F7/F2 visual
+pass).
+
+**Open / not done.** (a) The F4 layout phase will move the panels into a right-hand column — **F3's sticky bar
+should survive that** (verify it still pins after the re-layout). (b) Still pending from earlier phases: the owner
+GPU pass on F7 picker + F2 cross-ties + the v1.0.1 ViewCube/coupe-handle; supplement épingles still render centred
+(D-P3-6 follow-up); F2 Auto/seismic ride provisional **G-RPS**. (c) The remaining v1.0.2 phases **P4 (F4) → P5
+(F5) → P6 (F6) → P7 (F1)** are unbuilt.
+**→ Next agent:** implement `v1.0.2_impl_plan.md` **Phase 4 (F4 — expandable right column: Verif+Project+BBS)**
+next (layout-only). Before coding: `git log`/diff; `npm run check` + `build:web` GREEN; append a §9 entry. Keep
+F3's sticky readout pinned through the re-layout.
+
+### 2026-06-27 — v1.0.2 Phase 1 (F7) + Phase 2 (F2) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented the **first two phases** of `v1.0.2_impl_plan.md` (build-order P1=F7, P2=F2), after reading `cross_projects_policy.md`, `core_logic.md`, the v1.0/1.0.1/1.0.2 specs + plan, and this file; pulled latest (`8af7b40`). Confirmed **4 design decisions** with the owner via AskUserQuestion first (see below). Full detail in **D-V102-1** (F7) and **D-V102-2** (F2).
+
+- **P1 / F7 — 2D section picker + usable bar binding.** New pure `engine/barLabels.ts` (face-relative `T1/B2/L1/R3`), `ui/SectionPicker.tsx` (SVG dots + a11y button list), `ui/useBarLink.ts` (two-click link, pending-pick local per editor → no cross-fire, mirrored to store `selectedBars`). Core `PlacedBar.barIndex` + `buildScene(…, selectedBars)` + `Rebar onPick` give per-bar 3D highlight/click. `SupplementsPanel` rebuilt onto the picker (dropped the raw `bar1/bar2` inputs).
+- **P2 / F2 — cross-ties rebuilt on real bar engagement (columns AND beams).** Removed `nLegs`/`crossTieZones`; the tie/stirrup now carries `crossTies[]` + `crossTieHookAngle`. Core gained an optional `anchor {u,v,angleDeg}` on the transverse seam so `placeBars` puts each épingle BETWEEN its two bars (rotated to the A→B line) instead of centred — **no element branching in core** (the `tie`/`stirrup` choice is in the web adapter). Asw = 2+2·nTies; real `longBarsEngaged`; param-driven épingle hook angle (keeps the `cutLength` invariant); Auto = every intermediate bar + per-direction presets (`engine/crossTies.ts`); legacy `nLegs` migrates losslessly in `migrateDoc` (at the `rcfgToDoc` chokepoint). Seismic engagement is **WARN-only (never blocks)** per the owner — `crosstieEngagement` ND3 FAIL→WARN.
+
+**Owner design decisions (this session).** (1) Bar labels = **face-relative** (`T1/B2/L1/R3`). (2) Auto cross-ties = engage **every intermediate bar**, and an RPS/EC8 engagement shortfall **warns but does not block**. (3) Cross-ties apply to **both columns and beams** this phase. (4) Hook angle: the user **assigns one angle** (presets 90/135/180 or free entry) applied to **all** the element's cross-ties → modelled as an element-level `crossTieHookAngle`.
+
+**State now: GREEN, NOT pushed** (per policy §10, push only when the owner asks). `npm run check` ✓ (337 tests / 69 files), `build:web` ✓, `coverage` 94.93% core (≥90). Working tree on `feat/p1-m1-engine`; new files: `engine/{barLabels,crossTies}.ts`, `ui/{SectionPicker,CrossTieEditor,useBarLink}.tsx/.ts`, specs `bar_labels`/`section_picker`/`epingle_hook_angle`. **Headless box can't verify WebGL** — the 3D bar click, the live 2D picker feel, and the anchored cross-tie 3D/coupe render need the owner's GPU pass (`npm run dev`, port 5180).
+
+**Open / not done.** (a) Owner GPU/visual pass on F7 picker + F2 cross-ties (and the still-open v1.0.1 ViewCube/coupe-handle pass). (b) **Supplement épingles still render centred** (presence-only) — anchoring them like cross-ties is a small D-P3-6 follow-up. (c) F2 Auto/seismic ride the provisional **G-RPS** overlay (unsigned). (d) The other v1.0.2 phases **P3 (F3) → P4 (F4) → P5 (F5) → P6 (F6) → P7 (F1)** are unbuilt.
+**→ Next agent:** implement `v1.0.2_impl_plan.md` **Phase 3 (F3 — sticky per-zone readout)** next (UI-only). Before coding: `git log`/diff; `npm run check` + `build:web` GREEN; append a §9 entry. The F4 layout phase will move the panels — F3's sticky bar should survive it.
 
 ### 2026-06-27 — v1.0.2 specced + planned; v1.0.1 implemented + pushed — by **Amer** (owner's Windows PC)
 

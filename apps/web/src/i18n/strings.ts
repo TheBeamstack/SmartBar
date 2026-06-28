@@ -29,6 +29,42 @@ export interface Strings {
     bar2: string;
     rebind: string;
     boundTo: string;
+    pickHint: string;
+  };
+  crossTies: {
+    title: string;
+    hint: string;
+    none: string;
+    auto: string;
+    presetV: string;
+    presetH: string;
+    clear: string;
+    hookAngle: string;
+    hookAngleFree: string;
+  };
+  regions: {
+    title: string;
+    hint: string;
+    from: string;
+    to: string;
+    spacing: string;
+    add: string;
+    remove: string;
+    uniform: string;
+    symmetric: string;
+    endZone: string;
+    endSpacing: string;
+    midSpacing: string;
+    apply: string;
+  };
+  faconnage: {
+    title: string;
+    shape: string;
+    hookStart: string;
+    hookEnd: string;
+    hookNone: string;
+    cutLength: string;
+    invalid: string;
   };
   beam: {
     span: string;
@@ -80,6 +116,21 @@ export interface Strings {
   asProvided: string;
   asRequired: string;
   effectiveDepth: string;
+  readout: {
+    title: string;
+    overall: string;
+    zones: {
+      As_total: string;
+      As_span_bottom: string;
+      As_top_support: string;
+      As_top_montage: string;
+    };
+  };
+  workspace: {
+    expand: string;
+    collapse: string;
+    expandHint: string;
+  };
   alerts: string;
   noAlerts: string;
   provisionalWarning: string;
@@ -152,6 +203,9 @@ export interface Strings {
     projection: string;
     perspective: string;
     orthographic: string;
+    roll: string;
+    rollLeft: string;
+    rollRight: string;
   };
 }
 
@@ -178,6 +232,42 @@ const FR: Strings = {
     bar2: "Barre 2 (indice)",
     rebind: "Re-lier",
     boundTo: "Liée aux barres",
+    pickHint: "Cliquez deux barres sur la coupe pour les relier.",
+  },
+  crossTies: {
+    title: "Épingles (cross-ties)",
+    hint: "Cliquez deux barres opposées pour poser une épingle ; ou utilisez un préréglage / Auto.",
+    none: "Aucune épingle",
+    auto: "Auto (code)",
+    presetV: "Verticales (haut↔bas)",
+    presetH: "Horizontales (gauche↔droite)",
+    clear: "Tout effacer",
+    hookAngle: "Angle de crochet",
+    hookAngleFree: "Angle (°)",
+  },
+  regions: {
+    title: "Espacement par zones",
+    hint: "Définissez des zones le long de l'élément, chacune avec son espacement (ex. extrémités plus serrées).",
+    from: "De (mm)",
+    to: "À (mm)",
+    spacing: "Espacement e (mm)",
+    add: "Ajouter une zone",
+    remove: "Supprimer",
+    uniform: "Uniforme",
+    symmetric: "Extrémités symétriques",
+    endZone: "Longueur d'extrémité (mm)",
+    endSpacing: "e extrémité (mm)",
+    midSpacing: "e milieu (mm)",
+    apply: "Appliquer",
+  },
+  faconnage: {
+    title: "Façonnage",
+    shape: "Forme",
+    hookStart: "Crochet début",
+    hookEnd: "Crochet fin",
+    hookNone: "Aucun",
+    cutLength: "Longueur de coupe",
+    invalid: "Paramètres invalides : géométrie impossible (vérifiez les longueurs).",
   },
   beam: {
     span: "Portée L (mm)",
@@ -229,6 +319,21 @@ const FR: Strings = {
   asProvided: "As,prév",
   asRequired: "As,req",
   effectiveDepth: "Hauteur utile d",
+  readout: {
+    title: "Vérification par zone",
+    overall: "État global",
+    zones: {
+      As_total: "Longitudinal",
+      As_span_bottom: "Travée (bas)",
+      As_top_support: "Chapeaux (appui)",
+      As_top_montage: "Montage (haut)",
+    },
+  },
+  workspace: {
+    expand: "Élargir",
+    collapse: "Réduire",
+    expandHint: "Élargir la colonne sur la 3D",
+  },
   alerts: "Vérifications",
   noAlerts: "Aucune vérification",
   provisionalWarning: "Constantes BAEL PROVISOIRES — non validées (G-BAEL).",
@@ -301,6 +406,9 @@ const FR: Strings = {
     projection: "Projection",
     perspective: "Perspective",
     orthographic: "Orthographique",
+    roll: "Rotation dans le plan",
+    rollLeft: "Pivoter à gauche (Maj = 5°)",
+    rollRight: "Pivoter à droite (Maj = 5°)",
   },
 };
 
@@ -327,6 +435,42 @@ const EN: Strings = {
     bar2: "Bar 2 (index)",
     rebind: "Rebind",
     boundTo: "Bound to bars",
+    pickHint: "Click two bars on the section to link them.",
+  },
+  crossTies: {
+    title: "Cross-ties (épingles)",
+    hint: "Click two opposite bars to drop a cross-tie; or use a preset / Auto.",
+    none: "No cross-ties",
+    auto: "Auto (code)",
+    presetV: "Vertical (top↔bottom)",
+    presetH: "Horizontal (left↔right)",
+    clear: "Clear all",
+    hookAngle: "Hook angle",
+    hookAngleFree: "Angle (°)",
+  },
+  regions: {
+    title: "Spacing by region",
+    hint: "Define regions along the member, each with its own spacing (e.g. denser ends).",
+    from: "From (mm)",
+    to: "To (mm)",
+    spacing: "Spacing e (mm)",
+    add: "Add region",
+    remove: "Remove",
+    uniform: "Uniform",
+    symmetric: "Symmetric ends",
+    endZone: "End-zone length (mm)",
+    endSpacing: "End e (mm)",
+    midSpacing: "Mid e (mm)",
+    apply: "Apply",
+  },
+  faconnage: {
+    title: "Bar shaping",
+    shape: "Shape",
+    hookStart: "Start hook",
+    hookEnd: "End hook",
+    hookNone: "None",
+    cutLength: "Cut length",
+    invalid: "Invalid parameters: impossible geometry (check the lengths).",
   },
   beam: {
     span: "Span L (mm)",
@@ -378,6 +522,21 @@ const EN: Strings = {
   asProvided: "As,prov",
   asRequired: "As,req",
   effectiveDepth: "Effective depth d",
+  readout: {
+    title: "Per-zone check",
+    overall: "Overall",
+    zones: {
+      As_total: "Longitudinal",
+      As_span_bottom: "Span (bottom)",
+      As_top_support: "Top (support)",
+      As_top_montage: "Top (montage)",
+    },
+  },
+  workspace: {
+    expand: "Expand",
+    collapse: "Shrink",
+    expandHint: "Widen the column over the 3D",
+  },
   alerts: "Checks",
   noAlerts: "No checks",
   provisionalWarning: "PROVISIONAL BAEL constants — not ratified (G-BAEL).",
@@ -450,6 +609,9 @@ const EN: Strings = {
     projection: "Projection",
     perspective: "Perspective",
     orthographic: "Orthographic",
+    roll: "In-plane roll",
+    rollLeft: "Roll left (Shift = 5°)",
+    rollRight: "Roll right (Shift = 5°)",
   },
 };
 

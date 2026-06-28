@@ -102,3 +102,45 @@ export function memberGroupRotation(attitude: MemberAttitude): Vec3 {
 export function memberGroupRotationFor(element: string): Vec3 {
   return memberGroupRotation(memberAttitude(element));
 }
+
+// ---------------------------------------------------------------------------
+// F1 — in-plane view roll ([REF-SYS-811], spec §1). The pure, headless-testable core: given the
+// view direction (camera↔target axis) and a roll angle, return the camera up-vector. The R3F frame
+// loop (Viewport `RollController`) post-multiplies this onto `camera.up` after OrbitControls — orbit
+// (X/Y) + zoom are untouched; roll is the missing rotation about the view axis (Z). Session-only.
+// ---------------------------------------------------------------------------
+function dot(a: Vec3, b: Vec3): number {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+function cross(a: Vec3, b: Vec3): Vec3 {
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+}
+
+/**
+ * The camera up-vector for an in-plane roll. `viewDir` is the axis between the camera and the orbit
+ * target (either sense works — the roll axis is the same line); `rollRad` is the roll angle. With
+ * `rollRad = 0` it returns the **level** up (world-up projected perpendicular to the view axis), so
+ * the view is upright; a non-zero angle rotates that level up about the view axis (Rodrigues). When
+ * the view axis is near-vertical (looking straight up/down) world-Z seeds the level up instead.
+ */
+export function rollUpVector(viewDir: Vec3, rollRad: number): Vec3 {
+  const f = normalize(viewDir);
+  const worldUp: Vec3 = [0, 1, 0];
+  // level up = world up with its along-axis component removed (Gram–Schmidt)
+  let up: Vec3 = [worldUp[0] - f[0] * dot(worldUp, f), worldUp[1] - f[1] * dot(worldUp, f), worldUp[2] - f[2] * dot(worldUp, f)];
+  if (Math.hypot(up[0], up[1], up[2]) < 1e-6) {
+    const altZ: Vec3 = [0, 0, 1];
+    up = [altZ[0] - f[0] * dot(altZ, f), altZ[1] - f[1] * dot(altZ, f), altZ[2] - f[2] * dot(altZ, f)];
+  }
+  up = normalize(up);
+  // Rodrigues: rotate `up` about the unit view axis `f` by rollRad
+  const c = Math.cos(rollRad);
+  const s = Math.sin(rollRad);
+  const kxv = cross(f, up);
+  const kdv = dot(f, up); // ≈0 (up ⟂ f) — kept for correctness
+  return normalize([
+    up[0] * c + kxv[0] * s + f[0] * kdv * (1 - c),
+    up[1] * c + kxv[1] * s + f[1] * kdv * (1 - c),
+    up[2] * c + kxv[2] * s + f[2] * kdv * (1 - c),
+  ]);
+}

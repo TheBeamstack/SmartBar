@@ -27,7 +27,7 @@ function toVecs(points: number[]): THREE.Vector3[] {
   return out;
 }
 
-export function Rebar({ bar, mode }: { bar: BarInstance; mode: RenderMode }) {
+export function Rebar({ bar, mode, onPick }: { bar: BarInstance; mode: RenderMode; onPick?: () => void }) {
   const color = colorFor(bar);
   const pts = useMemo(() => toVecs(bar.points), [bar.points]);
 
@@ -38,14 +38,24 @@ export function Rebar({ bar, mode }: { bar: BarInstance; mode: RenderMode }) {
     return new THREE.TubeGeometry(curve, segments, bar.diameter / 2, 8, bar.closed);
   }, [pts, bar.closed, bar.diameter, mode]);
 
+  // F7: longitudinal bars carry an onPick → clicking the mesh selects that bar (raycast = the bar).
+  const pickProps = onPick
+    ? {
+        onPointerDown: (e: { stopPropagation: () => void }) => {
+          e.stopPropagation();
+          onPick();
+        },
+      }
+    : {};
+
   if (mode === "tubes" && tube) {
     return (
-      <mesh geometry={tube}>
+      <mesh geometry={tube} {...pickProps}>
         <meshStandardMaterial color={color} metalness={0.6} roughness={0.4} />
       </mesh>
     );
   }
 
   // degradation path: centreline only (LineSegments-equivalent)
-  return <Line points={pts.length >= 2 ? pts : [new THREE.Vector3(), new THREE.Vector3()]} color={color} lineWidth={1.5} />;
+  return <Line points={pts.length >= 2 ? pts : [new THREE.Vector3(), new THREE.Vector3()]} color={color} lineWidth={1.5} {...pickProps} />;
 }

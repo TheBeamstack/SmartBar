@@ -10,6 +10,7 @@
  */
 import type { ShapeArchetype } from "../types/shape";
 import type { RectLayout } from "../types/placement";
+import type { TransverseRegion } from "../types/layout";
 import type { MaterialContext } from "../types/codepack";
 import type { SeismicOverlay, LapExtent } from "../types/seismic";
 import type { ExtendedCodePack } from "../validation/index";
@@ -44,6 +45,8 @@ export interface ColumnSolveInput {
     hookAngle?: number;
     /** tie hook extension as a multiple of φ; seismic requires ≥10φ. Default 10. */
     hookExtFactor?: number;
+    /** optional F5 spacing regions along the height (absent → uniform `spacing`). */
+    regions?: TransverseRegion[];
   };
   /** pre-resolved confinement add-ons present (catalog ids satisfy seismic requirements). */
   confinementPresent?: string[];
@@ -110,6 +113,7 @@ export function solveColumn(input: ColumnSolveInput): SolveResult {
         ...(input.tie.userMandrel !== undefined ? { userMandrel: input.tie.userMandrel } : {}),
         ...(input.tie.hookAngle !== undefined ? { hookAngle: input.tie.hookAngle } : {}),
         ...(input.tie.hookExtFactor !== undefined ? { hookExtFactor: input.tie.hookExtFactor } : {}),
+        ...(input.tie.regions !== undefined ? { regions: input.tie.regions } : {}),
       },
     ],
     ...(input.seismic

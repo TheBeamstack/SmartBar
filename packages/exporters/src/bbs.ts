@@ -12,7 +12,10 @@
  * schedule matches what is drawn. No DOM/three; feeds the on-screen table, the PDF, and the DXF.
  */
 import type { SolveResult, SolvedGroup, ValidationStatus } from "@rebarconfig/core";
-import { transverseStations } from "@rebarconfig/core";
+import { transverseStations, regionStations } from "@rebarconfig/core";
+
+/** One transverse set descriptor off the member placement (spacing + optional F5 regions). */
+type MemberTransverse = SolveResult["member"]["transverse"][number];
 
 /** Steel unit mass (kg/m) for a round bar of Ø `phi` mm: 0.006165·φ² (spec §9.1). */
 export function unitMass(phi: number): number {
@@ -81,13 +84,16 @@ function isContinuousCoil(shape: SolvedGroup["shape"]): boolean {
 /** Total fabricated count for a solved group (transverse sets expand up the member axis). */
 function groupCount(
   g: SolvedGroup,
-  transverseSpacing: Map<string, number>,
+  transverseSets: Map<string, MemberTransverse>,
   memberLength: number,
 ): number {
-  const spacing = transverseSpacing.get(g.groupId);
-  if (spacing === undefined) return g.count; // longitudinal / supplement: section count
+  const tset = transverseSets.get(g.groupId);
+  if (tset === undefined) return g.count; // longitudinal / supplement: section count
   if (isContinuousCoil(g.shape)) return 1; // one continuous spiral
-  return transverseStations(memberLength, spacing).length; // discrete ties/stirrups
+  // F5: per-region stations summed (uniform sets reduce to transverseStations, byte-identical).
+  return tset.regions && tset.regions.length > 0
+    ? regionStations(tset.regions, memberLength).length
+    : transverseStations(memberLength, tset.spacing).length; // discrete ties/stirrups
 }
 
 /** Concrete volume of the member envelope (m³); 0 when unknown. */
@@ -120,7 +126,9 @@ function formatMark(prefix: string, ordinal: number): string {
 /** Build the §9.1 bar-bending schedule from a solved element (pure, deterministic). */
 export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendingSchedule {
   const markPrefix = opts.markPrefix ?? "";
-  const transverseSpacing = new Map(result.member.transverse.map((t) => [t.groupId, t.spacing]));
+  const transverseSets = new Map<string, MemberTransverse>(
+    result.member.transverse.map((t) => [t.groupId, t]),
+  );
 
   // 1. raw entries: every group → (count, cutLength, shape) ----------------------------------
   interface Raw {
@@ -135,7 +143,7 @@ export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendi
   }
   const raws: Raw[] = [];
   for (const g of result.groups) {
-    const count = groupCount(g, transverseSpacing, result.member.length);
+    const count = groupCount(g, transverseSets, result.member.length);
     if (count <= 0) continue;
     const cutLength = g.shape.cutLength;
     const legSig = g.shape.fiche.legs.map((l) => q(l.length)).join(",");

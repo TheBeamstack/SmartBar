@@ -43,6 +43,8 @@ export function Navbar() {
   const toggleDebugPerf = useStore((s) => s.toggleDebugPerf);
   const bottomPanel = useStore((s) => s.bottomPanel);
   const setBottomPanel = useStore((s) => s.setBottomPanel);
+  const rightPanels = useStore((s) => s.rightPanels);
+  const toggleRightPanel = useStore((s) => s.toggleRightPanel);
   const loadProject = useStore((s) => s.loadProject);
   const syncActiveInstance = useStore((s) => s.syncActiveInstance);
   const instances = useStore((s) => s.instances);
@@ -170,17 +172,25 @@ export function Navbar() {
       </button>
       <button
         type="button"
-        className={bottomPanel === "bbs" ? "active" : ""}
-        onClick={() => setBottomPanel("bbs")}
-        aria-pressed={bottomPanel === "bbs"}
+        className={rightPanels.verification ? "active" : ""}
+        onClick={() => toggleRightPanel("verification")}
+        aria-pressed={rightPanels.verification}
+      >
+        {s.alerts}
+      </button>
+      <button
+        type="button"
+        className={rightPanels.bbs ? "active" : ""}
+        onClick={() => toggleRightPanel("bbs")}
+        aria-pressed={rightPanels.bbs}
       >
         BBS
       </button>
       <button
         type="button"
-        className={bottomPanel === "project" ? "active" : ""}
-        onClick={() => setBottomPanel("project")}
-        aria-pressed={bottomPanel === "project"}
+        className={rightPanels.project ? "active" : ""}
+        onClick={() => toggleRightPanel("project")}
+        aria-pressed={rightPanels.project}
       >
         {s.project.title}
       </button>

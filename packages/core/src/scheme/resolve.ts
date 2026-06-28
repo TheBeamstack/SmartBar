@@ -152,6 +152,8 @@ export interface BarPairPlacement {
   position?: PointUV;
   /** centre-to-centre distance between the bound bars (mm) — the épingle `span` param. */
   span?: number;
+  /** orientation of the A→B line within the u–v plane (degrees) — the cross-tie anchor angle (F2). */
+  angleDeg?: number;
   /** which referenced index (if any) is out of range → needs rebind (§5.5). */
   brokenIndices?: number[];
 }
@@ -196,6 +198,7 @@ export function resolveBarPairPlacement(
     valid: true,
     position: { u: (a.u + b.u) / 2, v: (a.v + b.v) / 2 },
     span,
+    angleDeg: (Math.atan2(b.v - a.v, b.u - a.u) * 180) / Math.PI,
   };
 }
 

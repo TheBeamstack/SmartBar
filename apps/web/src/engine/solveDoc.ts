@@ -19,7 +19,9 @@ import {
   type SolveResult,
   type ElementSolveInput,
   type SeismicElementInput,
+  resolveBarPairPlacement,
   type ElementSupplementInput,
+  type ElementTransInput,
   type ValidationItem,
   type BarPosition,
   type CircularSolveInput,
@@ -35,9 +37,13 @@ import {
   type GenericDoc,
   type ZoneEdit,
   type SeismicEdit,
+  type CrossTie,
+  type TransverseRegion,
+  type BarFaconnage,
   isColumnDoc,
   isGenericDoc,
 } from "./document";
+import type { UserHook } from "@rebarconfig/core";
 import { loadShape, supplementManifest } from "./manifests";
 
 /** The active code pack. v1.0 = BAEL-FR only (EC2 is P4); built once, it is pure data+fns. */
@@ -58,34 +64,97 @@ function seismicBlock(
 }
 
 /**
- * 8c (D-P6-1): a multi-leg tie/stirrup is physically a perimeter cadre PLUS (nLegs−2)/2 interior
- * cross-ties (épingles). `nLegs` already feeds the leg-counted Asw correctly; this materialises the
- * EXTRA legs as real transverse groups so they also RENDER in 3D and get BBS marks (number, model and
- * schedule finally agree). Asw is untouched — the cross-ties carry aswReqPerM 0 (the perimeter cadre's
- * zone already owns the Asw check). Returns [] for the standard 2-leg tie.
+ * v1.0.2 F2 ([REF-SYS-756]): the transverse reinforcement of a column/beam is the perimeter cadre
+ * PLUS a user list of cross-ties (épingles), each engaging two real longitudinal bars. The shared
+ * config (group id / Ø / spacing / cross-ties / hook angle) is read polymorphically so columns
+ * (`tie`) and beams (`stirrup`) reuse the SAME model — no element branching in core.
  */
-function crossTieZones(
-  baseGroupId: string,
-  nLegs: number,
-  diameter: number,
-  spacing: number,
-  span: number,
-): ElementSolveInput["transverse"] {
-  const n = Math.floor((nLegs - 2) / 2);
-  const out: ElementSolveInput["transverse"] = [];
-  for (let k = 0; k < n; k++) {
+interface TransverseConfig {
+  groupId: string;
+  diameter: number;
+  spacing: number;
+  crossTies: CrossTie[];
+  hookAngle: number;
+  /** F5 per-region spacing along the member axis; undefined → uniform `spacing`. */
+  regions?: TransverseRegion[];
+}
+function transverseConfig(doc: ColumnDoc | BeamDoc): TransverseConfig {
+  const t = isColumnDoc(doc) ? doc.tie : doc.stirrup;
+  return {
+    groupId: t.groupId,
+    diameter: t.diameter,
+    spacing: t.spacing,
+    crossTies: t.crossTies ?? [],
+    hookAngle: t.crossTieHookAngle ?? 135,
+    ...(t.regions !== undefined ? { regions: t.regions } : {}),
+  };
+}
+
+/**
+ * Effective leg count for the Asw check = perimeter cadre (2) + 2 legs per cross-tie épingle —
+ * the inverse of the v1.0.1 `nLegs ↔ (nLegs−2)/2 épingles` convention, so Asw now equals what is
+ * drawn and scheduled (number = model = schedule, §2.2).
+ */
+function effectiveNLegs(cfg: TransverseConfig): number {
+  return 2 + 2 * cfg.crossTies.length;
+}
+
+/**
+ * Real seismic engaged-bar count (§2.4, replaces the hardcoded 4/2): the corner bars (always
+ * engaged by the cadre) plus every distinct longitudinal bar a cross-tie binds.
+ */
+function engagedCount(bars: BarPosition[], crossTies: CrossTie[], total: number): number {
+  const set = new Set<number>();
+  bars.forEach((b, i) => {
+    if (b.isCorner) set.add(i);
+  });
+  for (const ct of crossTies) {
+    if (ct.barA >= 0 && ct.barA < bars.length) set.add(ct.barA);
+    if (ct.barB >= 0 && ct.barB < bars.length) set.add(ct.barB);
+  }
+  return Math.min(total, set.size);
+}
+
+/**
+ * Build one ANCHORED épingle transverse group per cross-tie: the loop is placed ON the midpoint of
+ * the two engaged bars and rotated to their A→B line (D-P3-6 → anchored by F2), with `hook_angle`
+ * driving the end-hook geometry. Broken bindings (a deleted bar) are skipped (the rebind WARN flow
+ * is unchanged). Reuses `resolveBarPairPlacement` (D-P3-4 stable indices).
+ */
+function resolveCrossTies(cfg: TransverseConfig, bars: BarPosition[]): ElementTransInput[] {
+  const out: ElementTransInput[] = [];
+  cfg.crossTies.forEach((ct, k) => {
+    const placed = resolveBarPairPlacement(bars, ct.barA, ct.barB);
+    if (!placed.valid || !placed.position) return;
     out.push({
-      zone: `${baseGroupId}_xtie`,
-      groupId: `${baseGroupId}_X${k + 1}`,
+      zone: `${cfg.groupId}_xtie`,
+      groupId: `${cfg.groupId}_X${k + 1}`,
       shape: loadShape("EPINGLE"),
-      params: { span },
-      diameter,
-      spacing,
+      params: { span: placed.span ?? 0, hook_angle: cfg.hookAngle },
+      diameter: ct.diameter ?? cfg.diameter,
+      spacing: cfg.spacing,
       nLegs: 2,
       aswReqPerM: 0,
+      anchor: { u: placed.position.u, v: placed.position.v, angleDeg: placed.angleDeg ?? 0 },
+      // cross-ties densify WITH the cadre — share its F5 spacing regions (consistent placement/BBS).
+      ...(cfg.regions !== undefined ? { regions: cfg.regions } : {}),
     });
-  }
+  });
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// F6 façonnage ([REF-SYS-520]): a longitudinal group's user shape params + end hooks pass straight
+// through to the generic generator (the engine already accepts any shape+params). Absent → the
+// computed default params + the shape manifest's own hooks (legacy byte-identical).
+// ---------------------------------------------------------------------------
+function faconnageParams(f: BarFaconnage | undefined, fallback: Record<string, number>): Record<string, number> {
+  return f?.shapeParams && Object.keys(f.shapeParams).length > 0 ? f.shapeParams : fallback;
+}
+function faconnageHooks(f: BarFaconnage | undefined): { start?: UserHook; end?: UserHook } | undefined {
+  if (!f?.hooks) return undefined;
+  const toHook = (c: "none" | 90 | 135 | 180): UserHook => (c === "none" ? "none" : { angle: c });
+  return { start: toHook(f.hooks.start), end: toHook(f.hooks.end) };
 }
 
 // ---------------------------------------------------------------------------
@@ -94,12 +163,15 @@ function crossTieZones(
 function columnInput(
   doc: ColumnDoc,
   supplements: ElementSupplementInput[],
+  crossTieGroups: ElementTransInput[],
+  longBarsEngaged: number,
   code: BaelPack,
 ): ElementSolveInput {
   const phiL = doc.longitudinal.diameter;
   const phiT = doc.tie.diameter;
   const wTie = doc.geometry.b - 2 * doc.cover - phiT;
   const hTie = doc.geometry.h - 2 * doc.cover - phiT;
+  const cfg = transverseConfig(doc);
   return {
     element: "E-COL-01",
     profile: "BAEL_COLUMN",
@@ -125,11 +197,12 @@ function columnInput(
         groupId: doc.longitudinal.groupId,
         role: "PRIMARY_LONGITUDINAL",
         shape: loadShape(doc.longitudinal.shapeId),
-        params: { L: doc.geometry.H },
+        params: faconnageParams(doc.longitudinal.faconnage, { L: doc.geometry.H }),
         diameter: phiL,
         faces: ["TOP", "BOTTOM", "LEFT", "RIGHT"],
         asReq: doc.longitudinal.asReq,
         tensionFace: "BOTTOM",
+        ...(faconnageHooks(doc.longitudinal.faconnage) ? { hooks: faconnageHooks(doc.longitudinal.faconnage) } : {}),
       },
     ],
     transverse: [
@@ -140,16 +213,17 @@ function columnInput(
         params: { w: wTie, h: hTie },
         diameter: phiT,
         spacing: doc.tie.spacing,
-        nLegs: doc.tie.nLegs,
+        nLegs: effectiveNLegs(cfg),
         aswReqPerM: doc.tie.aswReqPerM,
+        ...(cfg.regions !== undefined ? { regions: cfg.regions } : {}),
       },
-      ...crossTieZones(doc.tie.groupId, doc.tie.nLegs, phiT, doc.tie.spacing, hTie),
+      ...crossTieGroups,
     ],
     ...seismicBlock(
       doc.seismic,
       { kind: "COLUMN", length: doc.geometry.H, bMin: Math.min(doc.geometry.b, doc.geometry.h), hSectionMax: Math.max(doc.geometry.b, doc.geometry.h) },
       doc.longitudinal.nTop + doc.longitudinal.nBottom + doc.longitudinal.nLeft + doc.longitudinal.nRight,
-      4,
+      longBarsEngaged,
     ),
     supplements,
     code,
@@ -159,8 +233,11 @@ function columnInput(
 function beamInput(
   doc: BeamDoc,
   supplements: ElementSupplementInput[],
+  crossTieGroups: ElementTransInput[],
+  longBarsEngaged: number,
   code: BaelPack,
 ): ElementSolveInput {
+  const cfg = transverseConfig(doc);
   const phiSpan = doc.span.diameter;
   const phiTop = doc.chapeau.enabled ? doc.chapeau.diameter : phiSpan;
   const phiLInset = Math.max(phiSpan, phiTop, doc.topBars.enabled ? doc.topBars.diameter : 0);
@@ -176,12 +253,13 @@ function beamInput(
       groupId: doc.span.groupId,
       role: "PRIMARY_LONGITUDINAL",
       shape: loadShape(doc.span.shapeId),
-      params: { L: doc.geometry.L },
+      params: faconnageParams(doc.span.faconnage, { L: doc.geometry.L }),
       diameter: phiSpan,
       faces: ["BOTTOM"],
       asReq: doc.span.asReq,
       tensionFace: "BOTTOM",
       continuedToSupport: doc.span.continuedToSupport,
+      ...(faconnageHooks(doc.span.faconnage) ? { hooks: faconnageHooks(doc.span.faconnage) } : {}),
     },
   ];
 
@@ -249,16 +327,17 @@ function beamInput(
         params: { w: wStir, h: hStir },
         diameter: phiT,
         spacing: doc.stirrup.spacing,
-        nLegs: doc.stirrup.nLegs,
+        nLegs: effectiveNLegs(cfg),
         aswReqPerM: doc.stirrup.aswReqPerM,
+        ...(cfg.regions !== undefined ? { regions: cfg.regions } : {}),
       },
-      ...crossTieZones(doc.stirrup.groupId, doc.stirrup.nLegs, phiT, doc.stirrup.spacing, hStir),
+      ...crossTieGroups,
     ],
     ...seismicBlock(
       doc.seismic,
       { kind: "BEAM", length: doc.geometry.L, bMin: doc.geometry.b, hSectionMax: doc.geometry.h },
       doc.span.nBottom + nTop,
-      2,
+      longBarsEngaged,
     ),
     supplements,
     code,
@@ -268,9 +347,24 @@ function beamInput(
 function buildInput(
   doc: ColumnDoc | BeamDoc,
   supplements: ElementSupplementInput[],
+  crossTieGroups: ElementTransInput[],
+  longBarsEngaged: number,
   code: BaelPack,
 ): ElementSolveInput {
-  return isColumnDoc(doc) ? columnInput(doc, supplements, code) : beamInput(doc, supplements, code);
+  return isColumnDoc(doc)
+    ? columnInput(doc, supplements, crossTieGroups, longBarsEngaged, code)
+    : beamInput(doc, supplements, crossTieGroups, longBarsEngaged, code);
+}
+
+/** Total longitudinal bars (the seismic engagement denominator). */
+function longBarsTotal(doc: ColumnDoc | BeamDoc): number {
+  if (isColumnDoc(doc)) {
+    const l = doc.longitudinal;
+    return l.nTop + l.nBottom + l.nLeft + l.nRight;
+  }
+  const nMontage = doc.topBars.enabled ? doc.topBars.nTop : 0;
+  const nChapeau = doc.chapeau.enabled ? doc.chapeau.nTop : 0;
+  return doc.span.nBottom + Math.max(2, nMontage + nChapeau);
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +455,7 @@ function circularInput(doc: GenericDoc, code: BaelPack): CircularSolveInput {
         spacing: z.spacing ?? 100,
         nLegs: z.nLegs ?? 2,
         aswReqPerM: z.asReqPerM ?? 0,
+        ...(z.regions !== undefined ? { regions: z.regions } : {}),
       })),
     code,
   };
@@ -565,10 +660,20 @@ function resolveDocSupplements(
 
 export function solveDoc(doc: ElementDoc, code: BaelPack = baelPack): SolveResult {
   if (isGenericDoc(doc)) return solveGeneric(doc, code);
-  const pass1 = solveElement(buildInput(doc, [], code));
-  if (doc.supplements.length === 0) return pass1;
-  const { inputs, warnings } = resolveDocSupplements(doc, pass1.bars);
-  const pass2 = solveElement(buildInput(doc, inputs, code));
+  const cfg = transverseConfig(doc);
+  // pass 1: base layout (no supplements, no anchored cross-ties) → stable bar positions to bind to.
+  // With no cross-ties the only laterally-engaged bars are the 4 section corners (held by the cadre).
+  const pass1 = solveElement(buildInput(doc, [], [], 4, code));
+  const hasWork = doc.supplements.length > 0 || cfg.crossTies.length > 0;
+  if (!hasWork) return pass1;
+  // pass 2: fold in the resolved supplements + anchored cross-ties + the real engaged-bar count.
+  const { inputs, warnings } =
+    doc.supplements.length > 0
+      ? resolveDocSupplements(doc, pass1.bars)
+      : { inputs: [] as ElementSupplementInput[], warnings: [] as ValidationItem[] };
+  const crossTieGroups = resolveCrossTies(cfg, pass1.bars);
+  const engaged = engagedCount(pass1.bars, cfg.crossTies, longBarsTotal(doc));
+  const pass2 = solveElement(buildInput(doc, inputs, crossTieGroups, engaged, code));
   return { ...pass2, validation: [...pass2.validation, ...warnings] };
 }
 

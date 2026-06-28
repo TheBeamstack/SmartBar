@@ -11,7 +11,7 @@
  */
 import type { ShapeArchetype } from "../types/shape";
 import type { CodePack } from "../types/codepack";
-import { generateBarShape, type BarShapeResult } from "./segment-grammar";
+import { generateBarShape, type BarShapeResult, type BarShapeOptions } from "./segment-grammar";
 import { generateHelix } from "./bespoke/helix";
 import { generateMesh } from "./bespoke/mesh";
 
@@ -38,7 +38,9 @@ export function generateShape(
   params: Record<string, number>,
   diameter: number,
   code: CodePack,
+  opts?: BarShapeOptions,
 ): BarShapeResult {
   const bespoke = BESPOKE_GENERATORS[archetype.id];
-  return (bespoke ?? generateBarShape)(archetype, params, diameter, code);
+  // bespoke (helix/mesh) generators have no hooks; the F6 opts apply to the polyline generator only.
+  return bespoke ? bespoke(archetype, params, diameter, code) : generateBarShape(archetype, params, diameter, code, opts);
 }

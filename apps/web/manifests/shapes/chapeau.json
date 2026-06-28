@@ -15,6 +15,6 @@
     "end": { "angle": 90, "ext_expr": "max(15*diameter, 120)", "mandrel": "code.mandrelMin(diameter)" }
   },
   "mandrelRule": "code.mandrelMin(diameter)",
-  "totalLengthExpr": "L + 2*hookExt - bendDeductions",
+  "totalLengthExpr": "L + hookAllowances - bendDeductions",
   "bendDeductionRule": "code.bendDeduction"
 }

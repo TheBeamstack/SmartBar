@@ -1,0 +1,30 @@
+{
+  "id": "DOUBLE_CRANK",
+  "label_fr": "Double baïonnette",
+  "label_en": "Double crank",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "lower", "label_fr": "Tronçon inférieur", "label_en": "Lower run", "type": "length", "min": 0, "default": 500 },
+    { "key": "crank1", "label_fr": "1er tronçon incliné", "label_en": "First crank run", "type": "length", "min": 0, "default": 150 },
+    { "key": "middle", "label_fr": "Tronçon central", "label_en": "Middle run", "type": "length", "min": 0, "default": 300 },
+    { "key": "crank2", "label_fr": "2e tronçon incliné", "label_en": "Second crank run", "type": "length", "min": 0, "default": 150 },
+    { "key": "upper", "label_fr": "Tronçon supérieur", "label_en": "Upper run", "type": "length", "min": 0, "default": 500 },
+    { "key": "angle", "label_fr": "Angle de crosse", "label_en": "Crank angle", "type": "angle", "min": 0, "max": 45, "default": 15 }
+  ],
+  "segments": [
+    { "line": "lower", "dir": "u+" },
+    { "turn": "angle", "hand": "left" },
+    { "line": "crank1" },
+    { "turn": "angle", "hand": "right" },
+    { "line": "middle" },
+    { "turn": "angle", "hand": "left" },
+    { "line": "crank2" },
+    { "turn": "angle", "hand": "right" },
+    { "line": "upper" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "lower + crank1 + middle + crank2 + upper + hookAllowances - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

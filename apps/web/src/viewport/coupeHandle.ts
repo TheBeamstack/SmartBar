@@ -4,7 +4,7 @@
  * set, and the cut-plane extents — is pure and headless-tested. The handle writes the SAME
  * `updateCut(id, { origin, normal })` the numeric field writes (one source of truth, §2.4).
  */
-import { transverseStations, type SolveResult } from "@rebarconfig/core";
+import { transverseStations, regionStations, type SolveResult } from "@rebarconfig/core";
 
 export type Vec3 = [number, number, number];
 type Member = SolveResult["member"];
@@ -40,8 +40,10 @@ export function memberHalfExtents(member: Member): { halfW: number; halfH: numbe
 /** The transverse-set stations along the axis (deduped, sorted) a cut can snap onto. */
 export function snapStationsFor(result: SolveResult): number[] {
   const set = new Set<number>();
+  const L = result.member.length;
   for (const tr of result.member.transverse) {
-    for (const y of transverseStations(result.member.length, tr.spacing)) set.add(Math.round(y));
+    const ys = tr.regions && tr.regions.length > 0 ? regionStations(tr.regions, L) : transverseStations(L, tr.spacing);
+    for (const y of ys) set.add(Math.round(y));
   }
   return [...set].sort((a, b) => a - b);
 }

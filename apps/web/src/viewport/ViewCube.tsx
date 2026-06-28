@@ -5,7 +5,7 @@
  * keyboard/`<select>` list of the 26 named views. All of this drives the SAME camera state; the
  * pure logic lives in `cameraState.ts` (headless-tested). This file needs a browser/GPU to verify.
  */
-import { useEffect } from "react";
+import { useEffect, type MouseEvent } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import {
@@ -72,13 +72,21 @@ export function ViewCubeGizmo() {
  * HTML overlay (outside the Canvas) — the a11y/keyboard parity path (§1.6): a named-view select,
  * a Home button, and the projection toggle. Same camera state the cube drives.
  */
+const DEG = Math.PI / 180;
+
 export function ViewControls() {
   const lang = useStore((s) => s.lang);
   const projection = useStore((s) => s.projection);
   const requestView = useStore((s) => s.requestView);
   const homeView = useStore((s) => s.homeView);
   const toggleProjection = useStore((s) => s.toggleProjection);
+  const rollRad = useStore((s) => s.rollRad);
+  const rollBy = useStore((s) => s.rollBy);
+  const setRoll = useStore((s) => s.setRoll);
   const s = t(lang);
+
+  // ±90° per click; a Shift modifier gives fine ±5° steps (§1.2 a11y/keyboard path).
+  const roll = (sign: 1 | -1, e: MouseEvent) => rollBy(sign * (e.shiftKey ? 5 : 90) * DEG);
 
   return (
     <div className="view-controls" role="group" aria-label={s.view.title}>
@@ -103,6 +111,23 @@ export function ViewControls() {
       <button type="button" onClick={homeView} title={s.view.home} aria-label={s.view.home}>
         ⌂
       </button>
+      <button type="button" onClick={(e) => roll(1, e)} title={s.view.rollLeft} aria-label={s.view.rollLeft}>
+        ↺
+      </button>
+      <button type="button" onClick={(e) => roll(-1, e)} title={s.view.rollRight} aria-label={s.view.rollRight}>
+        ↻
+      </button>
+      <input
+        type="range"
+        className="roll-ring"
+        min={-180}
+        max={180}
+        step={1}
+        value={Math.round(rollRad / DEG)}
+        aria-label={s.view.roll}
+        title={s.view.roll}
+        onChange={(e) => setRoll(Number(e.target.value) * DEG)}
+      />
       <button
         type="button"
         onClick={toggleProjection}

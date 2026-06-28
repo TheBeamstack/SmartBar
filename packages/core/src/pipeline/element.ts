@@ -14,11 +14,11 @@
  */
 import type { ShapeArchetype } from "../types/shape";
 import type { BarRole } from "../types/reinforcing-element";
-import type { BarPosition, ZoneGeometry, LayoutDescriptor, MemberPlacement } from "../types/layout";
+import type { BarPosition, ZoneGeometry, LayoutDescriptor, MemberPlacement, TransverseRegion } from "../types/layout";
 import type { RectLayout } from "../types/placement";
 import type { MaterialContext, ValidationStatus } from "../types/codepack";
 import type { SeismicOverlay, CritZoneSegment, LapExtent } from "../types/seismic";
-import type { BarShapeResult } from "../geometry/segment-grammar";
+import type { BarShapeResult, UserHook } from "../geometry/segment-grammar";
 import { generateShape } from "../geometry/registry";
 import {
   solveRectLayout,
@@ -84,6 +84,8 @@ export interface ElementLongInput {
    * over-support chapeaux both on TOP (D-P6-1 fix 8b). Omitted → derived from the layout faces.
    */
   providedCount?: number;
+  /** F6 ([REF-SYS-520]): per-end user hook override (none/90/135/180) for this group's shape. */
+  hooks?: { start?: UserHook; end?: UserHook };
 }
 
 export interface ElementTransInput {
@@ -100,6 +102,19 @@ export interface ElementTransInput {
   hookAngle?: number;
   /** tie hook extension as a multiple of φ — seismic requires ≥10φ. Default 10. */
   hookExtFactor?: number;
+  /**
+   * Optional section-frame placement (v1.0.2 F2 cross-ties, [REF-SYS-756]): place this set's loop
+   * at `(u,v)` rotated by `angleDeg` instead of centred — so a cross-tie épingle sits between the
+   * two bars it engages. Absent → centred (perimeter cadre/stirrup, byte-identical to v1.0.1).
+   */
+  anchor?: { u: number; v: number; angleDeg: number };
+  /**
+   * Optional ordered, contiguous spacing regions along the member axis (v1.0.2 F5, [REF-SYS-757]):
+   * each `{from,to,spacing}` densifies its stretch independently. Absent (or one full-length region)
+   * → the uniform `spacing` behaviour, byte-identical to pre-F5. A property of the set — no element
+   * branching.
+   */
+  regions?: TransverseRegion[];
 }
 
 /** A pre-resolved supplemental group (already positioned by the scheme/placement resolver). */
@@ -195,7 +210,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       barArea(lz.diameter),
     );
     zones.push(zoneGeom);
-    const shape = generateShape(lz.shape, lz.params, lz.diameter, code);
+    const shape = generateShape(lz.shape, lz.params, lz.diameter, code, lz.hooks ? { hooks: lz.hooks } : undefined);
     groups.push({
       groupId: lz.groupId,
       role: lz.role ?? "PRIMARY_LONGITUDINAL",
@@ -290,6 +305,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
         spacing: tz.spacing,
         hookAngle: tz.hookAngle ?? 135,
         hookExtFactor: tz.hookExtFactor ?? 10,
+        ...(tz.regions !== undefined ? { regions: tz.regions } : {}),
       })),
       confinementPresent: present,
       longBarsTotal: s.longBarsTotal,
@@ -305,7 +321,12 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     length: geometry.H ?? geometry.L ?? geometry.h,
     b: geometry.b,
     h: geometry.h,
-    transverse: input.transverse.map((tz) => ({ groupId: tz.groupId, spacing: tz.spacing })),
+    transverse: input.transverse.map((tz) => ({
+      groupId: tz.groupId,
+      spacing: tz.spacing,
+      ...(tz.anchor !== undefined ? { anchor: tz.anchor } : {}),
+      ...(tz.regions !== undefined ? { regions: tz.regions } : {}),
+    })),
   };
 
   return {

@@ -17,6 +17,6 @@
   ],
   "endHooks": { "start": "none", "end": "none" },
   "mandrelRule": "code.mandrelMin(diameter)",
-  "totalLengthExpr": "2*h + w - bendDeductions",
+  "totalLengthExpr": "2*h + w + hookAllowances - bendDeductions",
   "bendDeductionRule": "code.bendDeduction"
 }

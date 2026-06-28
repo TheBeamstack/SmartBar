@@ -129,4 +129,6 @@ export interface PlacedBar {
   /** world polyline, flat `[x,y,z, …]` (mm). */
   points: number[];
   closed: boolean;
+  /** index into `SolveResult.bars` for a longitudinal bar (v1.0.2 F7 picker ↔ 3D sync); omitted for loops. */
+  barIndex?: number;
 }

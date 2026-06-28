@@ -1,12 +1,13 @@
 /**
- * App shell (spec §8): navbar on top; left sidebar (tabs + controls + live badges); center 3D
- * viewport; right alerts panel. The store wires them — a control mutation re-solves and every
- * panel + the viewport update in the same tick. No engine logic lives in this package (UI only
- * orchestrates + renders the engine's arrays).
+ * App shell (spec §8 + F4 [REF-UI-830]): navbar on top; left sidebar (tabs + controls + sticky
+ * per-zone readout); center 3D viewport with a Coupes-only bottom dock; right column stacking
+ * Verification + Project + BBS (collapsible, expandable over the 3D). The store wires them — a
+ * control mutation re-solves and every panel + the viewport update in the same tick. No engine
+ * logic lives in this package (UI only orchestrates + renders the engine's arrays).
  */
 import { Navbar } from "./ui/Navbar";
 import { Sidebar } from "./ui/Sidebar";
-import { AlertsPanel } from "./ui/AlertsPanel";
+import { RightColumn } from "./ui/RightColumn";
 import { BottomPanel } from "./ui/BottomPanel";
 import { Viewport } from "./viewport/Viewport";
 import { useAutosave } from "./ui/useAutosave";
@@ -22,7 +23,7 @@ export function App() {
           <Viewport />
           <BottomPanel />
         </main>
-        <AlertsPanel />
+        <RightColumn />
       </div>
     </div>
   );

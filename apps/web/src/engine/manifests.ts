@@ -27,6 +27,9 @@ import releve from "../../manifests/shapes/releve.json";
 import spiraleHelice from "../../manifests/shapes/spirale_helice.json";
 import treillisMesh from "../../manifests/shapes/treillis_mesh.json";
 import marchePalier from "../../manifests/shapes/marche_palier.json";
+import zbar from "../../manifests/shapes/zbar.json";
+import doubleCrank from "../../manifests/shapes/double_crank.json";
+import stepped from "../../manifests/shapes/stepped.json";
 
 import eCol01 from "../../manifests/elements/E-COL-01.json";
 import eBem01 from "../../manifests/elements/E-BEM-01.json";
@@ -70,6 +73,9 @@ export const SHAPES: Record<string, ShapeArchetype> = {
   SPIRALE_HELICE: spiraleHelice as ShapeArchetype,
   TREILLIS_MESH: treillisMesh as ShapeArchetype,
   MARCHE_PALIER: marchePalier as ShapeArchetype,
+  Z_BAR: zbar as ShapeArchetype,
+  DOUBLE_CRANK: doubleCrank as ShapeArchetype,
+  STEPPED: stepped as ShapeArchetype,
 };
 
 export const ELEMENTS: Record<string, ElementManifestView> = {

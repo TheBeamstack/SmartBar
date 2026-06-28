@@ -51,11 +51,14 @@ describe("confinement_required (§7.10b/c)", () => {
 });
 
 describe("crosstie_engagement (§7.13)", () => {
-  it("ND3 requires every bar engaged → 🔴 FAIL when short", () => {
-    const v = col({ ductility: "ND3", confinementPresent: ["SUPP_EPINGLE_CROSSTIE", "SUPP_DIAMANT_TIE"], engaged: 4 }).validation.find(
-      (x) => x.rule === "crosstie_engagement",
-    )!;
-    expect(v.status).toBe("FAIL");
+  // v1.0.2 (owner decision D-V102): short cross-tie engagement WARNs at every ductility class —
+  // the Verification tab flags it but it never blocks export (no FAIL). Constants ride G-RPS.
+  it("ND3 requires every bar engaged → 🟠 WARN (non-blocking) when short", () => {
+    const r = col({ ductility: "ND3", confinementPresent: ["SUPP_EPINGLE_CROSSTIE", "SUPP_DIAMANT_TIE"], engaged: 4 });
+    const v = r.validation.find((x) => x.rule === "crosstie_engagement")!;
+    expect(v.status).toBe("WARN");
+    // never escalates the element to a hard-invalid (export-blocking) state on engagement alone
+    expect(r.status).not.toBe("FAIL");
   });
 
   it("ND2 requires alternate bars → 🟠 WARN when short", () => {

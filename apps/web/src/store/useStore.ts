@@ -22,6 +22,7 @@ import {
   type SeismicEdit,
   type ElementId,
   type SupplementEdit,
+  type CrossTie,
   defaultColumnDoc,
   defaultDocFor,
   isColumnDoc,
@@ -56,8 +57,12 @@ export interface AppState {
   cuts: SectionCut[];
   /** the coupe currently shown in the manager preview + 3D cutting-line. */
   activeCutId: string;
-  /** which bottom panel is open (coupe manager / BBS table / project takeoff), or none. */
-  bottomPanel: "coupes" | "bbs" | "project" | null;
+  /** the bottom dock (F4: Coupes only — it is spatially tied to the 3D), or none. */
+  bottomPanel: "coupes" | null;
+  /** F4 right-column sections (Verification / Project / BBS), each independently open/collapsed. */
+  rightPanels: { verification: boolean; project: boolean; bbs: boolean };
+  /** F4: widen the right column leftward over the 3D for focused reading ([REF-UI-830]). */
+  expandPanels: boolean;
 
   // --- camera / ViewCube (Feature A, §1.7) — session state, NOT persisted in .rcfg ---
   /** camera projection mode (perspective ⇄ orthographic, §1.5). */
@@ -69,6 +74,12 @@ export interface AppState {
   requestView: (id: string) => void;
   /** reset to the element-aware 3/4 iso default (§1.4). */
   homeView: () => void;
+  /** F1 ([REF-SYS-811]): in-plane view roll (radians) — session state, NOT persisted in .rcfg. */
+  rollRad: number;
+  /** set the absolute roll angle (the free ring/slider). */
+  setRoll: (rad: number) => void;
+  /** nudge the roll by a delta (the ↺/↻ snap buttons). */
+  rollBy: (deltaRad: number) => void;
 
   // --- project model (Phase 7, §3.2) ---
   /** every element TYPE in the project; the active one is checked out into doc/cuts. */
@@ -114,6 +125,14 @@ export interface AppState {
   // seismic regime (§7.10) — applies to the column + beam (plastic-hinge members)
   setSeismic: (seismic: SeismicEdit | null) => void;
 
+  // cross-ties (F2) — apply to the active column tie OR beam stirrup (same model)
+  setCrossTies: (crossTies: CrossTie[]) => void;
+  setCrossTieHookAngle: (angle: number) => void;
+
+  // 2D section picker (F7): selected longitudinal bar indices (into result.bars), synced to 3D
+  selectedBars: number[];
+  setSelectedBars: (indices: number[]) => void;
+
   // supplements (§5.5)
   addSupplement: (edit: SupplementEdit) => void;
   removeSupplement: (instanceId: string) => void;
@@ -124,7 +143,9 @@ export interface AppState {
   removeCut: (id: string) => void;
   updateCut: (id: string, patch: Partial<SectionCut>) => void;
   selectCut: (id: string) => void;
-  setBottomPanel: (panel: "coupes" | "bbs" | "project" | null) => void;
+  setBottomPanel: (panel: "coupes" | null) => void;
+  toggleRightPanel: (key: "verification" | "project" | "bbs") => void;
+  toggleExpandPanels: () => void;
 
   // project I/O (§10) — accepts a legacy v1.0 single element OR a v1.1 project envelope
   loadProject: (project: RcfgProject) => void;
@@ -183,13 +204,17 @@ export const useStore = create<AppState>((set, get) => {
     activeInstanceId: firstInstance.id,
     dragMode: false,
     selectedGroupIds: [],
+    selectedBars: [],
     expert: false,
     lang: "fr",
     showSection: false,
     debugPerf: false,
     bottomPanel: null,
+    rightPanels: { verification: true, project: false, bbs: false },
+    expandPanels: false,
     projection: "perspective",
     viewRequest: null,
+    rollRad: 0,
 
     // --- project model (Phase 7) ---
     syncActiveInstance: () => {
@@ -302,6 +327,18 @@ export const useStore = create<AppState>((set, get) => {
     setTie: (patch) =>
       set(edit(asColumn(get().doc, (d) => ({ ...d, tie: { ...d.tie, ...patch } })))),
 
+    setCrossTies: (crossTies) => {
+      const doc = get().doc;
+      if (isColumnDoc(doc)) set(edit({ ...doc, tie: { ...doc.tie, crossTies } }));
+      else if (isBeamDoc(doc)) set(edit({ ...doc, stirrup: { ...doc.stirrup, crossTies } }));
+    },
+    setCrossTieHookAngle: (angle) => {
+      const doc = get().doc;
+      if (isColumnDoc(doc)) set(edit({ ...doc, tie: { ...doc.tie, crossTieHookAngle: angle } }));
+      else if (isBeamDoc(doc)) set(edit({ ...doc, stirrup: { ...doc.stirrup, crossTieHookAngle: angle } }));
+    },
+    setSelectedBars: (indices) => set({ selectedBars: indices }),
+
     setBeamGeometry: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, geometry: { ...d.geometry, ...patch } })))),
     setSpan: (patch) =>
@@ -363,6 +400,9 @@ export const useStore = create<AppState>((set, get) => {
       }),
     selectCut: (id) => set({ activeCutId: id }),
     setBottomPanel: (panel) => set({ bottomPanel: get().bottomPanel === panel ? null : panel }),
+    toggleRightPanel: (key) =>
+      set({ rightPanels: { ...get().rightPanels, [key]: !get().rightPanels[key] } }),
+    toggleExpandPanels: () => set({ expandPanels: !get().expandPanels }),
 
     loadProject: (project) => {
       const instances = rcfgToInstances(project);
@@ -381,9 +421,12 @@ export const useStore = create<AppState>((set, get) => {
 
     toggleProjection: () =>
       set({ projection: get().projection === "perspective" ? "orthographic" : "perspective" }),
-    requestView: (id) => set({ viewRequest: { id, nonce: (get().viewRequest?.nonce ?? 0) + 1 } }),
+    // snapping to any named view (incl. Home) RE-LEVELS the roll (§1.2): roll is a temporary tweak.
+    requestView: (id) => set({ viewRequest: { id, nonce: (get().viewRequest?.nonce ?? 0) + 1 }, rollRad: 0 }),
     homeView: () =>
-      set({ viewRequest: { id: DEFAULT_VIEW_ID, nonce: (get().viewRequest?.nonce ?? 0) + 1 } }),
+      set({ viewRequest: { id: DEFAULT_VIEW_ID, nonce: (get().viewRequest?.nonce ?? 0) + 1 }, rollRad: 0 }),
+    setRoll: (rad) => set({ rollRad: rad }),
+    rollBy: (deltaRad) => set({ rollRad: get().rollRad + deltaRad }),
 
     setDragMode: (on) => set({ dragMode: on }),
     selectGroups: (ids) => set({ selectedGroupIds: ids }),
@@ -403,6 +446,7 @@ export const useStore = create<AppState>((set, get) => {
         expert: false,
         projection: "perspective",
         viewRequest: null,
+        rollRad: 0,
       });
     },
   };

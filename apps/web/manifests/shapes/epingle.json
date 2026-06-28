@@ -5,7 +5,8 @@
   "plane": "2D",
   "closed": false,
   "params": [
-    { "key": "span", "label_fr": "Portée entre barres", "type": "length", "min": 0 }
+    { "key": "span", "label_fr": "Portée entre barres", "type": "length", "min": 0 },
+    { "key": "hook_angle", "label_fr": "Angle de crochet", "type": "angle", "default": 135 }
   ],
   "segments": [
     { "line": "span", "dir": "u+" }

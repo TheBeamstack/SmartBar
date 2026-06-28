@@ -30,11 +30,8 @@ export function AlertsPanel() {
   };
 
   return (
-    <section className="alerts" aria-label={s.alerts}>
-      <header className="alerts-head">
-        <span>{s.alerts}</span>
-        {deferred && <span className="alerts-deferred">… recalcul</span>}
-      </header>
+    <div className="alerts" aria-label={s.alerts}>
+      {deferred && <p className="alerts-deferred">… recalcul</p>}
       {items.length === 0 ? (
         <p className="alerts-empty">{s.noAlerts}</p>
       ) : (
@@ -65,6 +62,6 @@ export function AlertsPanel() {
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 /**
- * RTL smoke (plan P2): changing a diameter updates the As,prov badge and the alert list — the
- * full store → engine → UI loop, no WebGL (panels only; the Canvas viewport is excluded).
+ * RTL smoke (plan P2): changing a diameter updates the As,prov readout and the alert list — the
+ * full store → engine → UI loop, no WebGL (panels only; the Canvas viewport is excluded). The
+ * sticky per-zone readout (F3) shows the column's As,prov in cm²; editing φ re-solves it live.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
@@ -20,26 +21,38 @@ function renderPanels() {
 describe("SPA panels smoke", () => {
   beforeEach(() => useStore.getState().reset());
 
-  it("renders the reference column's As,prov badge and rule rows", () => {
+  it("renders the reference column's As,prov readout and rule rows", () => {
     renderPanels();
-    const badges = document.querySelector(".badges") as HTMLElement;
+    const readout = document.querySelector(".readout") as HTMLElement;
     // 6Ø20 ⇒ As,prov = 1884.96 mm² = 18.85 cm²
-    expect(within(badges).getByText(/18\.85 cm²/)).toBeInTheDocument();
+    expect(within(readout).getByText("18.85")).toBeInTheDocument();
     expect(screen.getByText("provided_area")).toBeInTheDocument();
   });
 
-  it("changing the primary diameter re-solves and updates the As,prov badge live", () => {
+  it("changing the primary diameter re-solves and updates the As,prov readout live", () => {
     renderPanels();
-    const badges = document.querySelector(".badges") as HTMLElement;
-    expect(within(badges).getByText(/18\.85 cm²/)).toBeInTheDocument();
+    const readout = document.querySelector(".readout") as HTMLElement;
+    expect(within(readout).getByText("18.85")).toBeInTheDocument();
 
     // first combobox in the Schéma tab is the primary-bar diameter select
     const primaryDiameter = screen.getAllByRole("combobox")[0]!;
     fireEvent.change(primaryDiameter, { target: { value: "25" } });
 
     // 6Ø25 ⇒ As,prov = 2945.24 mm² = 29.45 cm²
-    expect(within(badges).getByText(/29\.45 cm²/)).toBeInTheDocument();
-    expect(within(badges).queryByText(/18\.85 cm²/)).toBeNull();
+    expect(within(readout).getByText("29.45")).toBeInTheDocument();
+    expect(within(readout).queryByText("18.85")).toBeNull();
+  });
+
+  it("the sticky readout stays mounted with an overall status chip across tab switches", () => {
+    renderPanels();
+    const readout = document.querySelector(".readout") as HTMLElement;
+    expect(readout).toBeInTheDocument();
+    expect(readout).toHaveAttribute("role", "status");
+    expect(readout.querySelector(".readout-overall")).toBeInTheDocument();
+
+    // switching the controls tab must NOT unmount the readout (it lives outside the tab body)
+    fireEvent.click(screen.getByRole("tab", { name: /géom|geom/i }));
+    expect(document.querySelector(".readout")).toBeInTheDocument();
   });
 
   it("clicking an alert row highlights its affected bars (store selection)", () => {

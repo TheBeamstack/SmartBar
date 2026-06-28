@@ -15,6 +15,7 @@
  * a future seismic code (EC8, ASCE 7) swaps the implementation only. Pure + deterministic.
  */
 import type { SeismicOverlay, CritZoneSegment, LapExtent } from "../types/seismic";
+import type { TransverseRegion } from "../types/layout";
 import { item, type ValidationItem } from "./index";
 import { lapInCriticalZone, crosstieEngagement } from "./predicates";
 
@@ -29,6 +30,8 @@ export interface SeismicTransverse {
   hookAngle: number;
   /** hook extension as a multiple of φ (must reach the overlay's extFactor, ≥10φ). */
   hookExtFactor: number;
+  /** optional F5 spacing regions — reconciled against the critical-zone spacing (WARN-only). */
+  regions?: TransverseRegion[];
 }
 
 export interface SeismicMember {
@@ -109,6 +112,37 @@ export function applySeismicOverlay(ctx: SeismicOverlayContext): SeismicOverlayR
           ok
             ? `Critical-zone spacing ${Math.round(seg.spacing)} mm ≤ ${Math.round(sCrit)} mm (${seg.region}, ${nd})`
             : `Critical-zone spacing ${Math.round(seg.spacing)} mm > max ${Math.round(sCrit)} mm (${seg.region}, ${nd}) — densify ties`,
+          [tz.groupId],
+        ),
+      );
+    }
+
+    // (1b) F5 reconciliation: user regions are the base — the critical-zone spacing TIGHTENS within
+    // the end regions rather than silently replacing the list. A user region that overlaps an end
+    // critical zone but is LOOSER than s_crit is surfaced as a WARN (never a silent override; rides
+    // provisional G-RPS — indicate, don't block, owner decision D-V102/F2). No regions → no item
+    // (goldens byte-identical).
+    if (tz.regions && tz.regions.length > 0) {
+      const Lm = member.length;
+      const lcEnd = Math.min(l_c, Lm / 2);
+      const inEndZone = (r: TransverseRegion) =>
+        Math.max(r.from, 0) < lcEnd - 1e-6 || Math.min(r.to, Lm) > Lm - lcEnd + 1e-6;
+      const offenders = tz.regions.filter((r) => inEndZone(r) && r.spacing > sCrit + 1e-6);
+      const worst = offenders.reduce((m, r) => Math.max(m, r.spacing), 0);
+      const ok = offenders.length === 0;
+      out.push(
+        item(
+          `region_crit_spacing:${tz.zone}`,
+          ok ? "PASS" : "WARN",
+          ok ? Math.round(sCrit) : Math.round(worst),
+          Math.round(sCrit),
+          ref,
+          ok
+            ? `Régions en zone critique conformes (≤ ${Math.round(sCrit)} mm, ${nd})`
+            : `Région en zone critique ${Math.round(worst)} mm > max ${Math.round(sCrit)} mm (${nd}) — densifier l'extrémité`,
+          ok
+            ? `End-zone regions within the critical-zone spacing (≤ ${Math.round(sCrit)} mm, ${nd})`
+            : `End-zone region ${Math.round(worst)} mm > critical-zone max ${Math.round(sCrit)} mm (${nd}) — densify the end`,
           [tz.groupId],
         ),
       );

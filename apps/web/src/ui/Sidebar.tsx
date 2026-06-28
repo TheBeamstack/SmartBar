@@ -11,7 +11,10 @@ import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { NumberField } from "./NumberField";
 import { SupplementsPanel } from "./SupplementsPanel";
-import { asProvidedMm2, asReqMm2, cm2, effectiveDepthMm, meetsAsReq } from "./derived";
+import { CrossTieEditor } from "./CrossTieEditor";
+import { RegionEditor } from "./RegionEditor";
+import { FaconnageEditor } from "./FaconnageEditor";
+import { cm2, perZoneReadout } from "./derived";
 import { isColumnDoc, isGenericDoc, isBeamDoc } from "../engine/document";
 import { GENERIC_SPECS, type GenericElementId } from "../engine/elementSpecs";
 
@@ -19,30 +22,43 @@ type Tab = "scheme" | "geometry" | "project";
 
 const DIAMETERS = [6, 8, 10, 12, 14, 16, 20, 25, 32];
 
-function Badges() {
+const STATUS_SYMBOL = { PASS: "🟢", WARN: "🟠", FAIL: "🔴" } as const;
+
+/**
+ * F3 ([REF-UI-820]) — a sticky per-zone verification readout pinned to the top of the controls
+ * column so the config-dependent results never scroll away. One row per flexural zone (As,prov vs
+ * As,req, coloured, with `d`) plus an overall status chip. Replaces the old single-aggregate badges.
+ */
+function ZoneReadout() {
   const lang = useStore((s) => s.lang);
   const result = useStore((s) => s.result);
   const doc = useStore((s) => s.doc);
   const s = t(lang);
-  const asProv = asProvidedMm2(result, doc);
-  const asReq = asReqMm2(doc);
-  const d = effectiveDepthMm(result);
-  const ok = meetsAsReq(result, doc);
+  const rows = perZoneReadout(result, doc, lang);
+  const statusLabel =
+    result.status === "FAIL" ? s.status.fail : result.status === "WARN" ? s.status.warn : s.status.pass;
 
   return (
-    <div className="badges">
-      <div className={`badge ${ok ? "badge-ok" : "badge-bad"}`}>
-        <span className="badge-key">{s.asProvided}</span>
-        <span className="badge-val">{cm2(asProv)} cm²</span>
+    <div className="readout badges" role="status" aria-live="polite">
+      <div className="readout-head">
+        <span className="readout-title">{s.readout.title}</span>
+        <span className={`readout-overall status-${result.status.toLowerCase()}`}>
+          {STATUS_SYMBOL[result.status]} {statusLabel}
+        </span>
       </div>
-      <div className="badge">
-        <span className="badge-key">{s.asRequired}</span>
-        <span className="badge-val">{cm2(asReq)} cm²</span>
-      </div>
-      <div className="badge">
-        <span className="badge-key">{s.effectiveDepth}</span>
-        <span className="badge-val">{d === null ? "—" : `${d.toFixed(0)} mm`}</span>
-      </div>
+      {rows.map((r) => (
+        <div key={r.zone} className={`readout-row ${r.ok ? "badge-ok" : "badge-bad"}`}>
+          <span className="readout-label">{r.label}</span>
+          <span className="readout-areas">
+            <span className="badge-val">{cm2(r.asProvMm2)}</span>
+            <span className="readout-cmp">{r.ok ? "≥" : "<"}</span>
+            <span className="readout-req">
+              {cm2(r.asReqMm2)} cm²{r.perMetre ? "/m" : ""}
+            </span>
+          </span>
+          <span className="readout-d">{r.d === null ? "—" : `d ${r.d.toFixed(0)}`}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -95,12 +111,22 @@ function ColumnSchemeControls() {
         </>
       )}
       <NumberField label={s.asRequired + " (mm²)"} value={L.asReq} min={0} max={20000} step={50} onChange={(v) => setLongitudinal({ asReq: v })} />
+      <FaconnageEditor
+        key={`${doc.element}-${L.groupId}`}
+        shapeId={L.shapeId}
+        diameter={L.diameter}
+        faconnage={L.faconnage}
+        memberLength={doc.geometry.H}
+        onChange={(patch) => setLongitudinal(patch)}
+      />
 
       <h3>{s.ties}</h3>
       <DiameterSelect value={T.diameter} onChange={(v) => setTie({ diameter: v })} />
       <NumberField label={s.spacing} value={T.spacing} min={50} max={400} step={5} onChange={(v) => setTie({ spacing: v })} />
-      <NumberField label={s.legs} value={T.nLegs} min={2} max={6} onChange={(v) => setTie({ nLegs: v })} />
       <NumberField label="Asw,req (mm²/m)" value={T.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setTie({ aswReqPerM: v })} />
+
+      <CrossTieEditor />
+      <RegionEditor />
     </>
   );
 }
@@ -123,6 +149,14 @@ function BeamSchemeControls() {
       <NumberField label={s.beam.bottomBars} value={span.nBottom} min={2} max={8} onChange={(v) => setSpan({ nBottom: v })} />
       <NumberField label={s.asRequired + " (mm²)"} value={span.asReq} min={0} max={20000} step={50} onChange={(v) => setSpan({ asReq: v })} />
       <NumberField label={s.beam.continued} value={span.continuedToSupport} min={0} max={1} step={0.05} onChange={(v) => setSpan({ continuedToSupport: v })} />
+      <FaconnageEditor
+        key={`${doc.element}-${span.groupId}`}
+        shapeId={span.shapeId}
+        diameter={span.diameter}
+        faconnage={span.faconnage}
+        memberLength={doc.geometry.L}
+        onChange={(patch) => setSpan(patch)}
+      />
 
       <h3>{s.beam.montageTitle}</h3>
       <label className="field field-check">
@@ -149,8 +183,10 @@ function BeamSchemeControls() {
       <h3>{s.beam.stirrups}</h3>
       <DiameterSelect value={stirrup.diameter} onChange={(v) => setStirrup({ diameter: v })} />
       <NumberField label={s.spacing} value={stirrup.spacing} min={50} max={400} step={5} onChange={(v) => setStirrup({ spacing: v })} />
-      <NumberField label={s.legs} value={stirrup.nLegs} min={2} max={6} onChange={(v) => setStirrup({ nLegs: v })} />
       <NumberField label="Asw,req (mm²/m)" value={stirrup.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setStirrup({ aswReqPerM: v })} />
+
+      <CrossTieEditor />
+      <RegionEditor />
     </>
   );
 }
@@ -389,7 +425,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <Badges />
+      <ZoneReadout />
       <nav className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === "scheme"} className={tab === "scheme" ? "active" : ""} onClick={() => setTab("scheme")}>
           {s.tabScheme}

@@ -4,18 +4,48 @@
  * debug flag. All geometry comes from the engine via buildScene() — this component only orbits,
  * lights, and clips. Units are mm; the whole scene is scaled down for a comfortable camera.
  */
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useStore } from "../store/useStore";
 import { buildScene, type ConcreteEnvelope } from "./rebarProps";
 import { Rebar } from "./Rebar";
-import { memberGroupRotationFor } from "./cameraState";
+import { memberGroupRotationFor, rollUpVector, type Vec3 } from "./cameraState";
 import { ProjectionRig, ViewController, ViewCubeGizmo, ViewControls } from "./ViewCube";
 import { CoupeHandles } from "./CoupeOverlay";
 
 const MM_TO_SCENE = 0.01; // mm → scene units (a 3 m column ≈ 30 units)
+
+/**
+ * F1 ([REF-SYS-811]) — applies the in-plane roll AFTER OrbitControls each frame (spec §1.3 approach
+ * a): rolls `camera.up` about the view axis by `rollRad`. Orbit (X/Y) + zoom are untouched. When the
+ * roll returns to 0 (a button to level, or a named-view snap) it restores world-up once. In-canvas.
+ */
+function RollController() {
+  const rollRad = useStore((s) => s.rollRad);
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as { target?: THREE.Vector3 } | null;
+  const wasRolled = useRef(false);
+
+  useFrame(() => {
+    const target = controls?.target ?? new THREE.Vector3(0, 0, 0);
+    if (!rollRad) {
+      if (wasRolled.current) {
+        camera.up.set(0, 1, 0); // re-level once when the roll clears
+        camera.lookAt(target);
+        wasRolled.current = false;
+      }
+      return;
+    }
+    const viewDir: Vec3 = [camera.position.x - target.x, camera.position.y - target.y, camera.position.z - target.z];
+    const [ux, uy, uz] = rollUpVector(viewDir, rollRad);
+    camera.up.set(ux, uy, uz);
+    camera.lookAt(target);
+    wasRolled.current = true;
+  }, 1); // priority 1 → runs after drei OrbitControls' own update
+  return null;
+}
 
 function ConcreteVolume({ concrete }: { concrete: ConcreteEnvelope }) {
   const mat = (
@@ -66,12 +96,22 @@ function Scene() {
   const doc = useStore((s) => s.doc);
   const dragMode = useStore((s) => s.dragMode);
   const selectedGroupIds = useStore((s) => s.selectedGroupIds);
+  const selectedBars = useStore((s) => s.selectedBars);
+  const setSelectedBars = useStore((s) => s.setSelectedBars);
   const showSection = useStore((s) => s.showSection);
 
   const scene = useMemo(
-    () => buildScene(result, doc, dragMode, selectedGroupIds),
-    [result, doc, dragMode, selectedGroupIds],
+    () => buildScene(result, doc, dragMode, selectedGroupIds, selectedBars),
+    [result, doc, dragMode, selectedGroupIds, selectedBars],
   );
+
+  // F7: a 3D bar click toggles its selection (synced with the 2D section picker + highlight).
+  const onBarClick = (barIndex: number) =>
+    setSelectedBars(
+      selectedBars.includes(barIndex)
+        ? selectedBars.filter((x) => x !== barIndex)
+        : [...selectedBars, barIndex],
+    );
 
   const length = scene.concrete.length;
   // element-aware attitude (column upright / beam horizontal / slab flat) — §1.4, shared with the fiche.
@@ -88,13 +128,19 @@ function Scene() {
         <group scale={MM_TO_SCENE} position={[0, (-length / 2) * MM_TO_SCENE, 0]}>
           <ConcreteVolume concrete={scene.concrete} />
           {scene.bars.map((bar, i) => (
-            <Rebar key={`${bar.groupId}-${i}`} bar={bar} mode={scene.mode} />
+            <Rebar
+              key={`${bar.groupId}-${i}`}
+              bar={bar}
+              mode={scene.mode}
+              {...(bar.barIndex !== undefined ? { onPick: () => onBarClick(bar.barIndex!) } : {})}
+            />
           ))}
           <CoupeHandles />
         </group>
       </group>
       <OrbitControls makeDefault enableDamping />
       <ViewController />
+      <RollController />
       <ViewCubeGizmo />
     </>
   );

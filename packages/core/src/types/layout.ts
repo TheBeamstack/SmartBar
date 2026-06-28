@@ -77,5 +77,36 @@ export interface MemberPlacement {
   /** CIRCULAR overall diameter (mm). */
   D?: number;
   /** transverse-set spacing per group (mm) — drives station expansion + look-behind. */
-  transverse: { groupId: string; spacing: number }[];
+  transverse: { groupId: string; spacing: number; anchor?: TransverseAnchor; regions?: TransverseRegion[] }[];
+}
+
+/**
+ * One transverse region along the member axis with its own cadre/stirrup spacing (v1.0.2 F5,
+ * [REF-SYS-757]). A transverse set carries an ORDERED, CONTIGUOUS list of these covering 0..length
+ * (no gaps/overlaps). A single full-length region `[{from:0, to:length, spacing:s}]` is exactly the
+ * pre-F5 uniform behaviour (the migration default) — `regionStations` reproduces it byte-identically.
+ * Lets ends be denser than the middle without any element branching (a property of the set).
+ */
+export interface TransverseRegion {
+  /** region start along the member axis (mm). */
+  from: number;
+  /** region end along the member axis (mm). */
+  to: number;
+  /** cadre/stirrup spacing within this region (mm). */
+  spacing: number;
+}
+
+/**
+ * Optional placement anchor for a transverse set (v1.0.2 F2 cross-ties, [REF-SYS-756]). When
+ * present, the set's loop is placed at `(u,v)` in the section frame and rotated by `angleDeg`
+ * (in the u–v plane) instead of being centred at the origin — so a cross-tie (épingle) sits ON
+ * the line between the two longitudinal bars it engages. Absent → centred (the perimeter
+ * cadre/stirrup behaviour, byte-identical to v1.0.1).
+ */
+export interface TransverseAnchor {
+  /** loop centre in the section frame (mm). */
+  u: number;
+  v: number;
+  /** rotation of the loop's local u-axis within the u–v plane (degrees). */
+  angleDeg: number;
 }

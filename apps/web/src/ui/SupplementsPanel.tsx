@@ -1,16 +1,17 @@
 /**
- * Supplemental reinforcement panel (spec §5.5, §8). Lists the active scheme's construction-valid
- * add-ons; the user adds one and binds it to base bars **by index** (the keyboard/a11y path — the
- * 3D click path produces the identical binding via nearestBarIndex, see binding_keyboard.spec).
- * A broken binding (a referenced bar was deleted) surfaces as a WARN row with a rebind prompt.
- *
- * Bindings store stable indices, never coordinates — so a base-param change re-solves the add-on.
+ * Supplemental reinforcement panel (spec §5.5, §8; v1.0.2 F7 [REF-UI-555]). The user picks an add-on
+ * type, then **clicks two bars on the section diagram** to bind it (the SVG dots + the keyboard list
+ * are the two a11y-equal paths; both resolve to the same stable indices via the picker). A broken
+ * binding (a referenced bar was deleted) surfaces as a WARN row with a rebind prompt that re-binds to
+ * the two currently selected bars. Bindings store stable indices, never coordinates (D-P3-4).
  */
 import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { schemeManifest, supplementManifest } from "../engine/manifests";
 import { isColumnDoc, isBeamDoc } from "../engine/document";
+import { SectionPicker } from "./SectionPicker";
+import { useBarLink } from "./useBarLink";
 
 let instanceCounter = 0;
 const nextInstanceId = () => `S${++instanceCounter}`;
@@ -30,11 +31,9 @@ export function SupplementsPanel() {
     : isBeamDoc(doc)
       ? doc.span.groupId
       : (doc.zones[0]?.groupId ?? "");
-  const barCount = result.bars.length;
 
+  const selectedBars = useStore((s) => s.selectedBars);
   const [supId, setSupId] = useState(catalog[0] ?? "");
-  const [bar1, setBar1] = useState(0);
-  const [bar2, setBar2] = useState(Math.min(2, Math.max(0, barCount - 1)));
 
   const label = (id: string) => {
     const m = supplementManifest(id);
@@ -45,7 +44,7 @@ export function SupplementsPanel() {
   const warnFor = (instanceId: string) =>
     result.validation.find((v) => v.rule === `supplement:${instanceId}`);
 
-  const onAdd = () => {
+  const linkSupplement = (a: number, b: number) => {
     if (!supId) return;
     const man = supplementManifest(supId);
     const defaultDia = man.params?.find((p) => p.key === "diameter")?.default ?? 8;
@@ -53,10 +52,11 @@ export function SupplementsPanel() {
       instanceId: nextInstanceId(),
       supplementId: supId,
       group: baseGroupId,
-      barIndices: [bar1, bar2],
+      barIndices: [a, b],
       diameter: defaultDia,
     });
   };
+  const pick = useBarLink(linkSupplement);
 
   return (
     <div className="supplements">
@@ -76,33 +76,8 @@ export function SupplementsPanel() {
               ))}
             </select>
           </label>
-          <label className="field">
-            <span className="field-label">{s.supplements.bar1}</span>
-            <input
-              type="number"
-              className="field-num"
-              min={0}
-              max={Math.max(0, barCount - 1)}
-              value={bar1}
-              aria-label={s.supplements.bar1}
-              onChange={(e) => setBar1(Number(e.target.value))}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">{s.supplements.bar2}</span>
-            <input
-              type="number"
-              className="field-num"
-              min={0}
-              max={Math.max(0, barCount - 1)}
-              value={bar2}
-              aria-label={s.supplements.bar2}
-              onChange={(e) => setBar2(Number(e.target.value))}
-            />
-          </label>
-          <button type="button" onClick={onAdd}>
-            {s.supplements.add}
-          </button>
+          <p className="muted sp-hint">{s.supplements.pickHint}</p>
+          <SectionPicker onPick={pick} />
         </div>
       )}
 
@@ -120,7 +95,8 @@ export function SupplementsPanel() {
                   🟠 {lang === "fr" ? warn.message_fr : warn.message_en}
                   <button
                     type="button"
-                    onClick={() => rebindSupplement(sup.instanceId, [bar1, bar2])}
+                    disabled={selectedBars.length < 2}
+                    onClick={() => rebindSupplement(sup.instanceId, selectedBars.slice(0, 2))}
                   >
                     {s.supplements.rebind}
                   </button>

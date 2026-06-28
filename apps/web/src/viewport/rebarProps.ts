@@ -46,8 +46,10 @@ export interface BarInstance {
   closed: boolean;
   /** in a FAIL rule's affectedGroupIds → render RED. */
   failing: boolean;
-  /** user clicked an alert referencing this group → highlight. */
+  /** clicked alert group OR a bar selected in the F7 section picker → highlight. */
   selected: boolean;
+  /** index into result.bars for a longitudinal bar (F7 picker ↔ 3D click sync); undefined for loops. */
+  barIndex?: number;
 }
 
 /** Concrete envelope to draw (RECT box or CIRCULAR cylinder), from `result.member`. */
@@ -79,6 +81,7 @@ export function buildScene(
   _doc: unknown,
   dragMode: boolean,
   selectedGroupIds: readonly string[] = [],
+  selectedBars: readonly number[] = [],
 ): Scene {
   const { geometry: mode, validation } = viewportDirectives(dragMode);
   const failingIds = failingGroupIds(result);
@@ -91,7 +94,8 @@ export function buildScene(
     diameter: b.diameter,
     closed: b.closed,
     failing: isFailing(b.groupId),
-    selected: isSelected(b.groupId),
+    selected: isSelected(b.groupId) || (b.barIndex !== undefined && selectedBars.includes(b.barIndex)),
+    ...(b.barIndex !== undefined ? { barIndex: b.barIndex } : {}),
   }));
 
   const m = result.member;

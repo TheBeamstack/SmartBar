@@ -1,0 +1,29 @@
+{
+  "id": "STEPPED",
+  "label_fr": "Barre à redans (escalier)",
+  "label_en": "Stepped bar",
+  "plane": "2D",
+  "closed": false,
+  "params": [
+    { "key": "run1", "label_fr": "1er tronçon", "label_en": "First run", "type": "length", "min": 0, "default": 400 },
+    { "key": "rise1", "label_fr": "1er redan", "label_en": "First rise", "type": "length", "min": 0, "default": 200 },
+    { "key": "run2", "label_fr": "2e tronçon", "label_en": "Second run", "type": "length", "min": 0, "default": 400 },
+    { "key": "rise2", "label_fr": "2e redan", "label_en": "Second rise", "type": "length", "min": 0, "default": 200 },
+    { "key": "run3", "label_fr": "3e tronçon", "label_en": "Third run", "type": "length", "min": 0, "default": 400 }
+  ],
+  "segments": [
+    { "line": "run1", "dir": "u+" },
+    { "turn": 90, "hand": "left" },
+    { "line": "rise1" },
+    { "turn": 90, "hand": "right" },
+    { "line": "run2" },
+    { "turn": 90, "hand": "left" },
+    { "line": "rise2" },
+    { "turn": 90, "hand": "right" },
+    { "line": "run3" }
+  ],
+  "endHooks": { "start": "none", "end": "none" },
+  "mandrelRule": "code.mandrelMin(diameter)",
+  "totalLengthExpr": "run1 + rise1 + run2 + rise2 + run3 + hookAllowances - bendDeductions",
+  "bendDeductionRule": "code.bendDeduction"
+}

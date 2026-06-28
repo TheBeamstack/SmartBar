@@ -144,8 +144,10 @@ export function lapInCriticalZone(
 
 /**
  * `crosstie_engagement` (§7.13, §7.10b) — seismic confinement requires longitudinal bars to be
- * laterally engaged by a tie corner or cross-tie: **alternate** bars under ND2 (🟠 WARN if short),
- * **every** bar under ND3 (🔴 FAIL if short). ND1 imposes no engagement requirement.
+ * laterally engaged by a tie corner or cross-tie: **alternate** bars under ND2, **every** bar under
+ * ND3. Short engagement is a 🟠 **WARN** at every class — the Verification tab flags it but it does
+ * **not block export** (owner decision, v1.0.2 F2 / D-V102: indicate, never block). ND1 imposes no
+ * engagement requirement. The constants ride the provisional RPS overlay (gate G-RPS).
  */
 export function crosstieEngagement(
   rule: "none" | "alternate" | "every",
@@ -156,7 +158,7 @@ export function crosstieEngagement(
 ): ValidationItem {
   const need = rule === "every" ? totalBars : rule === "alternate" ? Math.ceil(totalBars / 2) : 0;
   const ok = engagedBars >= need;
-  const status = rule === "none" || ok ? "PASS" : rule === "every" ? "FAIL" : "WARN";
+  const status = rule === "none" || ok ? "PASS" : "WARN";
   return item(
     "crosstie_engagement",
     status,

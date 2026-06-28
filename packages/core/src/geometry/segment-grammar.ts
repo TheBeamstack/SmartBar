@@ -52,6 +52,19 @@ export interface FicheHook {
   extension: number;
 }
 
+/**
+ * A user-chosen end hook (v1.0.2 F6, [REF-SYS-520]): `"none"` removes any hook; an object adds a
+ * 90/135/180° anchorage hook whose extension is `extFactor·diameter` (default 10φ, BAEL/seismic min).
+ * Supplied per end — it OVERRIDES the manifest's `endHooks` for that end, so a hook can be put on any
+ * shape (the grammar's hook accounting handles the cutLength/`totalLengthExpr` cross-check).
+ */
+export type UserHook = "none" | { angle: 90 | 135 | 180; extFactor?: number };
+
+export interface BarShapeOptions {
+  /** F6 per-end hook override; an absent end keeps the manifest's `endHooks`. */
+  hooks?: { start?: UserHook; end?: UserHook };
+}
+
 export interface BarShapeResult {
   archetypeId: string;
   /** flat [x,y,z, …] in the local frame (mm). */
@@ -124,6 +137,7 @@ export function generateBarShape(
   params: Record<string, number>,
   diameter: number,
   code: CodePack,
+  opts?: BarShapeOptions,
 ): BarShapeResult {
   const mandrelDiameter = code.mandrelMin(diameter);
   const filletRadius = mandrelDiameter / 2 + diameter / 2;
@@ -179,16 +193,33 @@ export function generateBarShape(
   }
 
   // --- end hooks (§5.2.1d): each adds an extension allowance + a hook bend ---
+  // A user-chosen `hook_angle` param overrides the manifest's end-hook angle (v1.0.2 F2: the
+  // cross-tie editor sets one hook angle for all épingles in an element; sets up F6). Additive —
+  // shapes that don't pass `hook_angle` keep the manifest angle (goldens unchanged).
+  const hookAngleOverride = params["hook_angle"];
+  const useOverride = typeof hookAngleOverride === "number" && Number.isFinite(hookAngleOverride);
   const hooks: FicheHook[] = [];
-  const hookExtFor = (spec: HookSpec, end: "start" | "end"): number => {
-    if (spec === "none" || !spec) return 0;
-    const ext = evalExpr(spec.ext_expr, baseScope);
-    hooks.push({ end, angle: spec.angle, extension: ext });
-    bodyBends.push({ angle: spec.angle, isHook: true });
+  // resolve one end: a per-end F6 `UserHook` override wins over the manifest spec (and the F2
+  // `hook_angle` param). `undefined` keeps the manifest hook → byte-identical to pre-F6.
+  const hookExtFor = (spec: HookSpec, end: "start" | "end", user: UserHook | undefined): number => {
+    let angle: number;
+    let ext: number;
+    if (user !== undefined) {
+      if (user === "none") return 0;
+      angle = user.angle;
+      ext = Math.max((user.extFactor ?? 10) * diameter, 70);
+    } else if (spec === "none" || !spec) {
+      return 0;
+    } else {
+      angle = useOverride ? hookAngleOverride : spec.angle;
+      ext = evalExpr(spec.ext_expr, baseScope);
+    }
+    hooks.push({ end, angle, extension: ext });
+    bodyBends.push({ angle, isHook: true });
     return ext;
   };
-  const extStart = hookExtFor(archetype.endHooks.start, "start");
-  const extEnd = hookExtFor(archetype.endHooks.end, "end");
+  const extStart = hookExtFor(archetype.endHooks.start, "start", opts?.hooks?.start);
+  const extEnd = hookExtFor(archetype.endHooks.end, "end", opts?.hooks?.end);
   const hookExtSum = extStart + extEnd;
   // representative per-hook ext for totalLengthExpr (uniform-hook authoring convention)
   const hookExtRep = hooks.length > 0 ? hookExtSum / hooks.length : 0;

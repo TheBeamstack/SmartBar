@@ -115,15 +115,24 @@ export function buildElevationFiche(result: SolveResult): ElevationFiche {
     marks.push({ at: rep, text: `${e.mids.length} Ø${e.diameter}` });
   }
 
-  // tie-spacing callouts: one `Ø d e=spacing` per transverse set, fanned along the axis.
+  // tie-spacing callouts: one `Ø d e=spacing` per transverse set, fanned along the axis. F5: when a
+  // set carries spacing regions, emit one callout per region at the region's midpoint along the axis
+  // (`Ø8 e=100` / `e=200`) so the elevation shows the per-region cadence. Uniform sets are unchanged.
   const tieCallouts: FicheLabel[] = [];
   member.transverse.forEach((tset, i) => {
     const g = result.groups.find((x) => x.groupId === tset.groupId);
     if (!g) return;
-    tieCallouts.push({
-      at: o(L * Math.min(0.85, 0.15 + i * 0.18), halfH),
-      text: `Ø${g.diameter} e=${Math.round(tset.spacing)}`,
-    });
+    if (tset.regions && tset.regions.length > 1) {
+      for (const r of tset.regions) {
+        const mid = (Math.max(r.from, 0) + Math.min(r.to, L)) / 2;
+        tieCallouts.push({ at: o(mid, halfH), text: `Ø${g.diameter} e=${Math.round(r.spacing)}` });
+      }
+    } else {
+      tieCallouts.push({
+        at: o(L * Math.min(0.85, 0.15 + i * 0.18), halfH),
+        text: `Ø${g.diameter} e=${Math.round(tset.spacing)}`,
+      });
+    }
   });
 
   // dimensions: overall length (offset on the −height side) + section depth (offset on the −axis side).
