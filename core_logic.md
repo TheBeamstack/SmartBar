@@ -5,9 +5,10 @@
 > For the technical structure, read `architecture_breakdown.md`. For the build contract, read
 > `v1.0-Spec.md`; for the as-built status, `current_state.md`.
 >
-> **This document is direction-aware.** It describes what exists in **v1.0** *and* where the app is
-> deliberately heading (v1.0.1 breadth, v1.1 depth). Sections marked **[now]** are built today;
-> **[next]** is the near roadmap; **[later]** is the longer arc.
+> **This document is direction-aware.** It describes what exists today *and* where the app is
+> deliberately heading. Sections marked **[now]** are built (through **v1.0.2**); **[next]** is the
+> near roadmap (**v1.0.3** — true geometry + bar-by-bar detailing + real shop drawings); **[later]**
+> is the longer arc (**v1.1** — the server jump).
 
 ---
 
@@ -141,6 +142,10 @@ The project panel shows, **per element type**: unit steel mass, **total mass = q
 summary sheet), a **namespaced project-wide BBS** (`P1-01`, `B3-01`), a **per-type DXF batch**, and a
 **per-project export-lock** (any 🔴 type blocks the combined set).
 
+> **Direction (v1.0.3):** the DXF/PDF become full **shop drawings** — leader-lined bar marks
+> (`① 3Ø12 l=1.50`), a **bar-bending (façonnage) table**, **coupe + cover dimensions**, stirrup-zone
+> notation and **support labels** — and the 3D shows every bar in its **true bent shape**. See §9.1.
+
 ---
 
 ## 8. Code compliance & the human gate
@@ -164,19 +169,33 @@ flagged.
 The product is designed to scale **breadth-first, then depth** — and the architecture has the
 "seams" for both built in from day one (so neither requires a rewrite).
 
-### 9.1 **Horizontal — more breadth** (no backend) [some shipped · more next]
-Adding capability *without* a backend.
+### 9.1 **Horizontal — more breadth, then more detailing depth** (no backend) [shipping fast]
+Growing capability *without* a backend.
 
-**Already shipped in v1.0.1** (viewport/exporters only — no engine change): a true **shop-drawing
-elevation** (columns drawn upright, bar marks, tie-spacing callouts, dimensions); a **ViewCube** to
-rotate the 3D + a **perspective/orthographic** toggle; a **3D drag-handle** to place section cuts; and
-**combined multi-element exports** (project PDF + namespaced BBS).
+**Already shipped (v1.0.1 → v1.0.2):**
+- A **shop-drawing elevation** (columns upright, bar marks, tie-spacing callouts, dimensions), a
+  **ViewCube** + **perspective/orthographic** toggle, an in-3D **coupe drag-handle**, and **combined
+  multi-element exports** (project PDF + namespaced BBS).
+- **Real cross-ties** (épingles that engage *actual* bars, configured on a clickable 2D section),
+  **per-zone stirrup spacing** along the length, a **sticky per-zone As,prov/As,req readout**, a
+  focus-friendly **panel layout**, **in-plane view roll**, and the first **façonnage editor** (pick a
+  bar's shape — straight, hooked, cranked, bent-up).
 
-**Specced for v1.0.2 [next]:** in-plane **view roll**; a rebuilt **column cross-tie** model (cross-ties
-that engage *real* bars, configured on a clickable 2D section); a **sticky per-zone As,prov/As,req
-readout**; a focus-friendly **panel layout**; **user-defined cadre regions** (different stirrup spacing
-along the length); and a **façonnage editor** (choose each bar's shape — straight, hooked, cranked,
-bent-up — with a live sketch).
+**Next — v1.0.3, the shop-drawing detailing leap [next]:** the biggest jump since v1.0 — turning the
+schematic cage into a *geometry-faithful* model and the exports into *real fabrication drawings*:
+- **True bar geometry** — bars are drawn in their actual bent shapes (hooks, cranks, relevés, the
+  spiral coil, the stair profile), with façonné endpoints visibly leaving the concrete — so the 3D
+  matches what gets built.
+- **Bar-by-bar detailing** — shape, hook, length or replace **individual** bars (not just whole
+  groups), add **independent** bars, and place steel on **multiple section levels** (e.g. the U-bars
+  just under the top bars over a support).
+- **Real beam supports** — two distinct supports (V1/V2) with their own chapeaux, anchorage and
+  widths, **bent-up bars (relevés)**, and stirrup zones that **auto-densify** near the supports.
+- **Lap splices & couplers** — bars too long for stock are spliced with code lap lengths (staggered)
+  or joined by couplers, all scheduled and drawn.
+- **Proper shop drawings** — leader-line bar annotations (`① 3Ø12 l=1.50`), **per-element bar marks**,
+  **coupe markers (A-A/B-B)**, **stirrup-zone notation** (`11×9`), **support labels + dimensions**,
+  section **cover dimensions**, and a **bar-bending (façonnage) table** — matching a real drawing.
 
 **Further out [later]:**
 - **More elements:** shear walls, isolated/strap footings, waffle slabs, retaining walls, L- and
