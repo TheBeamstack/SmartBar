@@ -108,6 +108,12 @@ function drawCoupe(page: PDFPage, view: CoupeView, font: PDFFont, rect: { x: num
   for (const a of view.annotations) {
     page.drawText(`${a.count} Ø ${a.diameter}`, { x: T.px(a.at.s) + 2, y: T.py(a.at.t) + 2, size: 6, font, color: rgb(0, 0, 0) });
   }
+  // dimensions: section width/height + enrobage (cover) on each face (G6 §6.4) — mirrors dxf.coupeToDxf
+  const dim = rgb(0.1, 0.45, 0.1);
+  for (const d of view.dimensions) {
+    page.drawLine({ start: { x: T.px(d.from.s), y: T.py(d.from.t) }, end: { x: T.px(d.to.s), y: T.py(d.to.t) }, thickness: 0.4, color: dim });
+    page.drawText(d.label, { x: (T.px(d.from.s) + T.px(d.to.s)) / 2 + 1, y: (T.py(d.from.t) + T.py(d.to.t)) / 2 + 1, size: 5.5, font, color: dim });
+  }
   page.drawText(view.label, { x: rect.x + 4, y: rect.y + 2, size: 7, font, color: rgb(0, 0, 0) });
 }
 

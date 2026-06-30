@@ -6,9 +6,13 @@
  * This is the core-side equivalent of the SPA's `rebarProps.buildScene` (which it will replace),
  * kept pure so it feeds BOTH the 3D viewport and the Section/Coupe engine (D-P2-3, D-P5-1).
  *
- *   - Longitudinal bars run along `+Y` at their section position `(u, v)`.
+ *   - Longitudinal bars render their REAL bent `centerline3D` (v1.0.3 G1, [REF-SYS-960]) oriented
+ *     onto the member frame at their section position `(u, v)`: the shape's local run maps to the
+ *     member axis `+Y`, its local lateral offset bends into the section depth `±Z`. A straight
+ *     `DROITE` is byte-identical to the old straight 2-point line (local lateral ≡ 0).
  *   - Transverse sets (ties/stirrups/hoops) are the bent loop centreline laid flat in the `X–Z`
- *     plane, instanced up the axis at the set's `spacing`.
+ *     plane, instanced up the axis at the set's `spacing`. A continuous coil (spiral/helix) is
+ *     placed ONCE as a single member-length helix (G1), never instanced + flattened per station.
  *   - Supplements are surfaced for presence (centred at mid-length) — precise placement is a
  *     later pass (D-P3-6), and the coupe engine treats them like transverse loops.
  *
@@ -37,25 +41,33 @@ function isSingleFullRegion(regions: TransverseRegion[], length: number): boolea
 }
 
 /**
- * Region-aware transverse stations (v1.0.2 F5): emit stations region-by-region, each at its own
- * spacing, with the global end margins preserved at axis 0 and `length`. A single full-length region
- * delegates to `transverseStations` so the uniform case is byte-identical (protects the goldens).
- * Boundaries shared by adjacent regions are de-duplicated.
+ * Region-aware transverse stations (v1.0.2 F5 + v1.0.3 G6 cadence continuity, [REF-SYS-757b]):
+ * emit stations region-by-region, each at its own spacing, with the global end margins preserved at
+ * axis 0 and `length`. A single full-length region delegates to `transverseStations` so the uniform
+ * case is byte-identical (protects the goldens).
+ *
+ * **Cadence continuity (G6, spec §6.1):** when a new region starts, its first cadre is placed ONE
+ * new-spacing step after the *last placed cadre of the previous region* — NOT reset to the region's
+ * `from` station. The region `from` only marks where the new spacing takes over; carrying the running
+ * station across the boundary removes the illogical short stub (e.g. a 2 cm gap) at a region change.
  */
 export function regionStations(regions: TransverseRegion[], length: number): number[] {
   if (regions.length === 0) return transverseStations(length, length);
   if (isSingleFullRegion(regions, length)) return transverseStations(length, regions[0]!.spacing);
   const margin = Math.min(50, length / 2);
   const ys: number[] = [];
+  let last: number | undefined; // the last placed station (carried across region boundaries)
   for (let ri = 0; ri < regions.length; ri++) {
     const r = regions[ri]!;
     const s = r.spacing > 0 ? r.spacing : Math.max(r.to - r.from, 1);
-    const start = ri === 0 ? Math.max(r.from, margin) : r.from;
     const isLast = ri === regions.length - 1;
     const stop = isLast ? Math.min(r.to, length - margin) : r.to;
-    for (let y = start; y <= stop + 1e-6; y += s) {
-      if (ys.length && Math.abs(ys[ys.length - 1]! - y) < 1e-6) continue; // shared boundary
+    // first region begins at the end margin; later regions continue ONE new step past the carried
+    // station (cadence continuity, G6), so the boundary `from` is never a forced/short stub.
+    let y = last === undefined ? Math.max(r.from, margin) : last + s;
+    for (; y <= stop + 1e-6; y += s) {
       ys.push(y);
+      last = y;
     }
   }
   if (ys.length === 0) ys.push(length / 2);
@@ -114,6 +126,41 @@ function placeLoop(centerline3D: number[], y: number, anchor?: TransverseAnchor)
 
 const LONG_ROLES = new Set(["PRIMARY_LONGITUDINAL", "DISTRIBUTION"]);
 
+/**
+ * Orient a longitudinal bar's local bent centreline (v1.0.3 G1) onto the member frame at its
+ * section position `(u, v)`. The generator emits a flat 2D centreline `[localX, localY, 0, …]`
+ * (`localX` = run along u+, `localY` = lateral in v); we map it to world mm by
+ * `worldX = u`, `worldY = axisStart + localX`, `worldZ = v + localY`. A straight `DROITE`
+ * (`localY ≡ 0`, `localX` 0..L) reproduces the old `[u,0,v, u,L,v]` line byte-for-byte.
+ * `axisStart` shifts a bar's run along the axis (default 0; G2 unique-length bars will use it).
+ */
+function placeLongitudinal(centerline3D: number[], u: number, v: number, axisStart: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 2 < centerline3D.length; i += 3) {
+    out.push(u, axisStart + centerline3D[i]!, v + centerline3D[i + 1]!);
+  }
+  return out;
+}
+
+/** A continuous coil (spiral/helix) carries `coilLength` — placed ONCE, not per station (G1, mirrors bbs.ts). */
+function isContinuousCoil(shape: SolvedGroup["shape"]): boolean {
+  return "coilLength" in shape;
+}
+
+/**
+ * Place a continuous coil (spiral/helix) along the member axis (v1.0.3 G1). The bespoke helix
+ * generator emits its centreline with the coil axis along local `+v` and the circle in the `u–w`
+ * plane (`bespoke/helix.ts`): `[u, axis, w]`. World frame is `X = u`, `Y = axis (0..length)`,
+ * `Z = w`, so the helix centreline maps straight through — one bar spanning the member.
+ */
+function placeCoil(centerline3D: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 2 < centerline3D.length; i += 3) {
+    out.push(centerline3D[i]!, centerline3D[i + 1]!, centerline3D[i + 2]!);
+  }
+  return out;
+}
+
 /** Place every bar of a solved element into world space (pure, deterministic). */
 export function placeBars(result: SolveResult): PlacedBar[] {
   const { member, bars, groups } = result;
@@ -126,27 +173,42 @@ export function placeBars(result: SolveResult): PlacedBar[] {
   const mainLong = longGroups[0];
   const topLong = longGroups[1] ?? longGroups[0];
 
-  // longitudinal runs along +Y at (u, v)
+  // longitudinal bars render their real bent centreline (G1), oriented at (u, v) on the member axis
   for (let bi = 0; bi < bars.length; bi++) {
     const bp = bars[bi]!;
     // slab-family bars carry the zone in faceTag → exact group match; else the rect convention
     // (a TOP-face bar belongs to the second long group, e.g. a beam's chapeaux).
     const g = byZone.get(bp.faceTag) ?? (bp.faceTag === "TOP" ? topLong : mainLong) ?? mainLong;
     if (!g) continue;
+    const cl = g.shape.centerline3D;
+    // honour the group's bent shape; fall back to a straight full-length run if it has no polyline.
+    const points = cl.length >= 6
+      ? placeLongitudinal(cl, bp.position.u, bp.position.v, 0)
+      : [bp.position.u, 0, bp.position.v, bp.position.u, length, bp.position.v];
     out.push({
       groupId: g.groupId,
       diameter: g.diameter,
       role: g.role,
-      points: [bp.position.u, 0, bp.position.v, bp.position.u, length, bp.position.v],
+      points,
       closed: false,
       barIndex: bi,
     });
   }
 
-  // transverse loops instanced up the axis at the set spacing
+  // transverse sets: a continuous coil is placed ONCE (G1); discrete loops instance up the axis
   for (const tset of member.transverse) {
     const g = groups.find((x) => x.groupId === tset.groupId);
     if (!g) continue;
+    if (isContinuousCoil(g.shape)) {
+      out.push({
+        groupId: g.groupId,
+        diameter: g.diameter,
+        role: g.role,
+        points: placeCoil(g.shape.centerline3D),
+        closed: false,
+      });
+      continue;
+    }
     for (const y of stationsFor(tset, length)) {
       out.push({
         groupId: g.groupId,

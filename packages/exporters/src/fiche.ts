@@ -141,6 +141,17 @@ export function buildElevationFiche(result: SolveResult): ElevationFiche {
     { from: o(0, -halfH - off), to: o(L, -halfH - off), label: `${Math.round(L)}` },
     { from: o(-off, -halfH), to: o(-off, halfH), label: `${Math.round(2 * halfH)}` },
   ];
+  // region-length dimension lines (v1.0.3 G6 / §6.4): when a stirrup set carries spacing regions,
+  // dimension each region's length under the overall-length line, so the elevation reads the
+  // dense-end / loose-middle zoning (e.g. 1000 · 4000 · 1000). Drawn once per distinct region set.
+  const regionSet = member.transverse.find((t) => t.regions && t.regions.length > 1);
+  if (regionSet?.regions) {
+    const ro = off * 0.45; // a closer offset row, between the concrete face and the overall-length line
+    for (const r of regionSet.regions) {
+      const from = Math.max(r.from, 0), to = Math.min(r.to, L);
+      dims.push({ from: o(from, -halfH - ro), to: o(to, -halfH - ro), label: `${Math.round(to - from)}` });
+    }
+  }
 
   const all: FichePt[] = [
     ...concrete,

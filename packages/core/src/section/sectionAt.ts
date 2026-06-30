@@ -259,8 +259,8 @@ export function sectionAt(
   }
   annotations.sort((a, b) => a.groupId.localeCompare(b.groupId));
 
-  // --- 4. dimensions (templated) ---
-  const dimensions = buildDimensions(outline, member, f, result);
+  // --- 4. dimensions: section width/height + enrobage (cover) on each face (G6, §6.4) ---
+  const dimensions = buildDimensions(outline, member, result, circles);
 
   // --- 5. cutting-line + tag on the elevation ---
   const tag = String(cut.id);
@@ -297,8 +297,8 @@ function arrowOnElevation(normal: Vec3): { axis: number; lateral: number } {
 function buildDimensions(
   outline: Pt2[],
   member: SolveResult["member"],
-  _f: CoupeFrame,
   result: SolveResult,
+  circles: CoupeBarCircle[],
 ): CoupeDimension[] {
   if (outline.length === 0) return [];
   const minS = Math.min(...outline.map((p) => p.s));
@@ -330,16 +330,25 @@ function buildDimensions(
       label: `${Math.round(member.h ?? maxT - minT)}`,
     });
   }
-  // a single cover dimension off the first solved zone's d', if present
-  const dPrime = result.zones[0]?.dPrime;
-  if (typeof dPrime === "number") {
-    dims.push({
-      kind: "COVER",
-      from: { s: minS, t: maxT },
-      to: { s: minS, t: maxT - dPrime },
-      value: dPrime,
-      label: `enr. ${Math.round(dPrime)}`,
-    });
+  // enrobage (cover) on EACH face (G6 / §6.4): the inset from a concrete face to the nearest bar
+  // centroid in that half. Measured from the real section circles; falls back to the first zone's
+  // d' when the cut crossed no bars (e.g. a near-parallel / slab-representative coupe).
+  const midT = (minT + maxT) / 2;
+  const topBars = circles.filter((c) => c.center.t >= midT);
+  const botBars = circles.filter((c) => c.center.t < midT);
+  if (topBars.length > 0) {
+    const t = Math.max(...topBars.map((c) => c.center.t));
+    dims.push({ kind: "COVER", from: { s: minS, t: maxT }, to: { s: minS, t }, value: maxT - t, label: `enr. ${Math.round(maxT - t)}` });
+  }
+  if (botBars.length > 0) {
+    const t = Math.min(...botBars.map((c) => c.center.t));
+    dims.push({ kind: "COVER", from: { s: maxS, t: minT }, to: { s: maxS, t }, value: t - minT, label: `enr. ${Math.round(t - minT)}` });
+  }
+  if (topBars.length === 0 && botBars.length === 0) {
+    const dPrime = result.zones[0]?.dPrime;
+    if (typeof dPrime === "number") {
+      dims.push({ kind: "COVER", from: { s: minS, t: maxT }, to: { s: minS, t: maxT - dPrime }, value: dPrime, label: `enr. ${Math.round(dPrime)}` });
+    }
   }
   return dims;
 }
