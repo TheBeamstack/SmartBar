@@ -85,6 +85,12 @@ export interface AppState {
   setRoll: (rad: number) => void;
   /** nudge the roll by a delta (the ↺/↻ snap buttons). */
   rollBy: (deltaRad: number) => void;
+  /** G9 ([REF-UI-850]): viewport navigation mode — left-drag orbits or pans. Session-only, NOT in .rcfg. */
+  navMode: "orbit" | "pan";
+  /** toggle the hand-pan tool on/off (orbit ⇄ pan). */
+  toggleNavMode: () => void;
+  /** set the navigation mode explicitly. */
+  setNavMode: (mode: "orbit" | "pan") => void;
 
   // --- project model (Phase 7, §3.2) ---
   /** every element TYPE in the project; the active one is checked out into doc/cuts. */
@@ -228,6 +234,7 @@ export const useStore = create<AppState>((set, get) => {
     projection: "perspective",
     viewRequest: null,
     rollRad: 0,
+    navMode: "orbit",
 
     // --- project model (Phase 7) ---
     syncActiveInstance: () => {
@@ -477,6 +484,8 @@ export const useStore = create<AppState>((set, get) => {
       set({ viewRequest: { id: DEFAULT_VIEW_ID, nonce: (get().viewRequest?.nonce ?? 0) + 1 }, rollRad: 0 }),
     setRoll: (rad) => set({ rollRad: rad }),
     rollBy: (deltaRad) => set({ rollRad: get().rollRad + deltaRad }),
+    toggleNavMode: () => set({ navMode: get().navMode === "orbit" ? "pan" : "orbit" }),
+    setNavMode: (mode) => set({ navMode: mode }),
 
     setDragMode: (on) => set({ dragMode: on }),
     selectGroups: (ids) => set({ selectedGroupIds: ids }),
@@ -497,6 +506,7 @@ export const useStore = create<AppState>((set, get) => {
         projection: "perspective",
         viewRequest: null,
         rollRad: 0,
+        navMode: "orbit",
       });
     },
   };

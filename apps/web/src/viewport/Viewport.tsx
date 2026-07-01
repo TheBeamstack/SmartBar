@@ -4,10 +4,10 @@
  * debug flag. All geometry comes from the engine via buildScene() — this component only orbits,
  * lights, and clips. Units are mm; the whole scene is scaled down for a comfortable camera.
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
+import { OrbitControls, Edges } from "@react-three/drei";
 import { useStore } from "../store/useStore";
 import { buildScene, type ConcreteEnvelope } from "./rebarProps";
 import { Rebar } from "./Rebar";
@@ -17,60 +17,122 @@ import { CoupeHandles } from "./CoupeOverlay";
 
 const MM_TO_SCENE = 0.01; // mm → scene units (a 3 m column ≈ 30 units)
 
-/**
- * F1 ([REF-SYS-811]) — applies the in-plane roll AFTER OrbitControls each frame (spec §1.3 approach
- * a): rolls `camera.up` about the view axis by `rollRad`. Orbit (X/Y) + zoom are untouched. When the
- * roll returns to 0 (a button to level, or a named-view snap) it restores world-up once. In-canvas.
- */
-function RollController() {
-  const rollRad = useStore((s) => s.rollRad);
-  const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as { target?: THREE.Vector3 } | null;
-  const wasRolled = useRef(false);
+// crisp concrete outline edge (G8): a light line over the transparent volume so it reads as a block.
+const CONCRETE_COLOR = "#c8ccd2";
+const EDGE_COLOR = "#9aa3b2";
 
-  useFrame(() => {
-    const target = controls?.target ?? new THREE.Vector3(0, 0, 0);
-    if (!rollRad) {
-      if (wasRolled.current) {
-        camera.up.set(0, 1, 0); // re-level once when the roll clears
-        camera.lookAt(target);
-        wasRolled.current = false;
-      }
-      return;
-    }
-    const viewDir: Vec3 = [camera.position.x - target.x, camera.position.y - target.y, camera.position.z - target.z];
-    const [ux, uy, uz] = rollUpVector(viewDir, rollRad);
-    camera.up.set(ux, uy, uz);
-    camera.lookAt(target);
-    wasRolled.current = true;
-  }, 1); // priority 1 → runs after drei OrbitControls' own update
-  return null;
-}
-
-function ConcreteVolume({ concrete }: { concrete: ConcreteEnvelope }) {
-  const mat = (
+/** The shared transparent concrete material (spec §8: transparent solid so the cage stays legible). */
+function concreteMaterial() {
+  return (
     <meshStandardMaterial
-      color="#c8ccd2"
+      color={CONCRETE_COLOR}
       transparent
       opacity={0.3}
       depthWrite={false}
       side={THREE.DoubleSide}
     />
   );
+}
+
+/**
+ * G9 ([REF-UI-811b/850], spec §9.1) — in-plane roll applied ON DEMAND, not per-frame. The old F1
+ * `useFrame(…, 1)` mutated `camera.up` + `lookAt` every frame, which (with OrbitControls damping)
+ * precessed/auto-spun the ViewCube. Now roll is a discrete transform re-applied only when `rollRad`
+ * changes, and **starting an orbit/drag auto-levels** the roll to 0 (removing the up-vector conflict).
+ */
+function RollController() {
+  const rollRad = useStore((s) => s.rollRad);
+  const setRoll = useStore((s) => s.setRoll);
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as
+    | (THREE.EventDispatcher & { target?: THREE.Vector3; update?: () => void })
+    | null;
+
+  // Apply the roll once, on demand (when rollRad / the camera / the controls change) — no frame loop.
+  useEffect(() => {
+    if (!controls) return;
+    const target = controls.target ?? new THREE.Vector3(0, 0, 0);
+    if (!rollRad) {
+      camera.up.set(0, 1, 0); // level → world up
+    } else {
+      const viewDir: Vec3 = [
+        camera.position.x - target.x,
+        camera.position.y - target.y,
+        camera.position.z - target.z,
+      ];
+      const [ux, uy, uz] = rollUpVector(viewDir, rollRad);
+      camera.up.set(ux, uy, uz);
+    }
+    camera.lookAt(target);
+    controls.update?.();
+  }, [rollRad, camera, controls]);
+
+  // Auto-level on orbit: the moment the user starts a drag, reset the roll to 0 (spec §9.1).
+  useEffect(() => {
+    const c = controls as
+      | { addEventListener?: (t: string, f: () => void) => void; removeEventListener?: (t: string, f: () => void) => void }
+      | null;
+    if (!c?.addEventListener) return;
+    const onStart = () => {
+      if (useStore.getState().rollRad !== 0) setRoll(0);
+    };
+    c.addEventListener("start", onStart);
+    return () => c.removeEventListener?.("start", onStart);
+  }, [controls, setRoll]);
+
+  return null;
+}
+
+function ConcreteVolume({ concrete }: { concrete: ConcreteEnvelope }) {
   if (concrete.envelope === "CIRCULAR") {
     const r = (concrete.D ?? 600) / 2;
     return (
       <mesh>
         <cylinderGeometry args={[r, r, concrete.length, 48]} />
-        {mat}
+        {concreteMaterial()}
+        <Edges threshold={15} color={EDGE_COLOR} />
       </mesh>
     );
   }
   return (
     <mesh>
       <boxGeometry args={[concrete.b ?? 300, concrete.length, concrete.h ?? 600]} />
-      {mat}
+      {concreteMaterial()}
+      <Edges threshold={15} color={EDGE_COLOR} />
     </mesh>
+  );
+}
+
+/**
+ * G8 (spec §8.1) — stepped stair concrete. The engine models the stair as a FLAT rect envelope
+ * (slab-family, D-P4b-3); here — UI only, for E-STR-01 — we rebuild the concrete as a real stepped
+ * profile from the stair geometry (`g` going · `r` riser · `n_steps` · `flight_width`). Each step is a
+ * disjoint box (distinct going range along the member axis → no overlap), so the transparent solid
+ * reads as an actual stair. Centred on the member frame, matching the flat box it replaces.
+ */
+function SteppedStair({ geometry, width }: { geometry: Record<string, number>; width: number }) {
+  const g = geometry.g ?? 280;
+  const r = geometry.r ?? 170;
+  const n = Math.max(1, Math.round(geometry.n_steps ?? 14));
+  const b = geometry.flight_width ?? width;
+  const L = n * g; // total going (run) along the member axis
+  const R = n * r; // total rise
+  const steps = Array.from({ length: n }, (_, i) => {
+    const height = (i + 1) * r; // solid to the base → a full staircase silhouette
+    const yc = -L / 2 + i * g + g / 2; // centred along the run (member +Y)
+    const zc = -R / 2 + height / 2; // centred over the rise (section +Z)
+    return { i, height, yc, zc };
+  });
+  return (
+    <group>
+      {steps.map((st) => (
+        <mesh key={st.i} position={[0, st.yc, st.zc]}>
+          <boxGeometry args={[b, g, st.height]} />
+          {concreteMaterial()}
+          <Edges threshold={15} color={EDGE_COLOR} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -99,6 +161,7 @@ function Scene() {
   const selectedBars = useStore((s) => s.selectedBars);
   const setSelectedBars = useStore((s) => s.setSelectedBars);
   const showSection = useStore((s) => s.showSection);
+  const navMode = useStore((s) => s.navMode);
 
   const scene = useMemo(
     () => buildScene(result, doc, dragMode, selectedGroupIds, selectedBars),
@@ -116,6 +179,15 @@ function Scene() {
   const length = scene.concrete.length;
   // element-aware attitude (column upright / beam horizontal / slab flat) — §1.4, shared with the fiche.
   const rotation = memberGroupRotationFor(doc.element);
+  // G8: E-STR-01 renders a stepped concrete profile (from its geometry) instead of the flat rect box.
+  const stairGeometry =
+    doc.element === "E-STR-01" && "geometry" in doc ? (doc.geometry as Record<string, number>) : null;
+
+  // G9 (§9.2): the hand-pan tool maps LEFT-drag to pan; orbit stays on RIGHT-drag. Zoom always works.
+  const mouseButtons =
+    navMode === "pan"
+      ? { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }
+      : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
 
   return (
     <>
@@ -126,7 +198,11 @@ function Scene() {
       {/* outer group rotates the member to its drawing attitude; inner group centers it on the target */}
       <group rotation={rotation}>
         <group scale={MM_TO_SCENE} position={[0, (-length / 2) * MM_TO_SCENE, 0]}>
-          <ConcreteVolume concrete={scene.concrete} />
+          {stairGeometry ? (
+            <SteppedStair geometry={stairGeometry} width={scene.concrete.b ?? 1200} />
+          ) : (
+            <ConcreteVolume concrete={scene.concrete} />
+          )}
           {scene.bars.map((bar, i) => (
             <Rebar
               key={`${bar.groupId}-${i}`}
@@ -138,7 +214,7 @@ function Scene() {
           <CoupeHandles />
         </group>
       </group>
-      <OrbitControls makeDefault enableDamping />
+      <OrbitControls makeDefault enableDamping mouseButtons={mouseButtons} />
       <ViewController />
       <RollController />
       <ViewCubeGizmo />

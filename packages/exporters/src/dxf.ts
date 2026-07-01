@@ -229,6 +229,8 @@ export interface Dxf1Options {
   coupe?: SectionCut;
   /** horizontal gap between the elevation and the coupe view box (mm). */
   gap?: number;
+  /** G7 beam bearing width + bottom-bar anchorage per support (V1/V2 label annotations). */
+  supports?: { side: "left" | "right"; width?: number; anchorage?: number }[];
 }
 
 /**
@@ -240,7 +242,8 @@ export function buildDxf1(result: SolveResult, opts: Dxf1Options = {}): string {
   const view = sectionAt(result, cut);
   const b = new DxfBuilder();
   elevationToDxf(result, b, [view]);
-  shopDrawingToDxf(result, b); // G7 shop annotations (leaders + zones + support labels + bending table)
+  // G7 shop annotations (leaders + zones + support labels + bending table); supports add V1/V2 width/anchorage.
+  shopDrawingToDxf(result, b, opts.supports ? { supports: opts.supports } : {});
   // place the coupe to the right of the elevation: its left edge at length + gap
   const gap = opts.gap ?? 500;
   const minS = Math.min(...view.concrete.outline.map((p) => p.s));
@@ -253,11 +256,18 @@ export function buildDxf1(result: SolveResult, opts: Dxf1Options = {}): string {
  * (incl. arbitrary/oblique orientation) laid out left→right, each with its cutting-line/tag on the
  * elevation. Label-collision solver is templated (deferred per the plan).
  */
-export function buildDxfCoupes(result: SolveResult, cuts: SectionCut[]): string {
+export function buildDxfCoupes(
+  result: SolveResult,
+  cuts: SectionCut[],
+  supports?: { side: "left" | "right"; width?: number; anchorage?: number }[],
+): string {
   const views = cuts.map((c) => sectionAt(result, c));
   const b = new DxfBuilder();
   elevationToDxf(result, b, views);
-  shopDrawingToDxf(result, b, { coupes: cuts.filter((c) => !c.isDefault) });
+  shopDrawingToDxf(result, b, {
+    coupes: cuts.filter((c) => !c.isDefault),
+    ...(supports ? { supports } : {}),
+  });
   let x0 = result.member.length + 500; // left edge of the next coupe
   for (const view of views) {
     const ss = view.concrete.outline.map((p) => p.s);

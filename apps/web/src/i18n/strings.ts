@@ -227,6 +227,8 @@ export interface Strings {
     roll: string;
     rollLeft: string;
     rollRight: string;
+    pan: string;
+    orbit: string;
   };
 }
 
@@ -451,6 +453,8 @@ const FR: Strings = {
     roll: "Rotation dans le plan",
     rollLeft: "Pivoter à gauche (Maj = 5°)",
     rollRight: "Pivoter à droite (Maj = 5°)",
+    pan: "Déplacer (main) — clic-gauche translate",
+    orbit: "Orbite (clic-gauche pivote)",
   },
 };
 
@@ -675,6 +679,8 @@ const EN: Strings = {
     roll: "In-plane roll",
     rollLeft: "Roll left (Shift = 5°)",
     rollRight: "Roll right (Shift = 5°)",
+    pan: "Pan (hand) — left-drag pans",
+    orbit: "Orbit (left-drag rotates)",
   },
 };
 

@@ -16,6 +16,24 @@ import {
   type ProjectPdfType,
 } from "@rebarconfig/exporters";
 import type { SolveResult, SectionCut } from "@rebarconfig/core";
+import { isBeamDoc, type ElementDoc } from "./document";
+
+/** The G7 shop-drawing support annotations (bearing width + bottom-bar anchorage) per beam support. */
+export type SupportsMeta = { side: "left" | "right"; width?: number; anchorage?: number }[];
+
+/**
+ * Extract the beam's V1/V2 bearing width + bottom-bar anchorage for the G7 shop-drawing support
+ * labels (these live on the doc, not the pure SolveResult, so the app must thread them into the
+ * exporters). Non-beam elements have no supports → `undefined` (the labels simply omit the extras).
+ */
+export function beamSupportsMeta(doc: ElementDoc): SupportsMeta | undefined {
+  if (!isBeamDoc(doc)) return undefined;
+  return (["left", "right"] as const).map((side) => ({
+    side,
+    width: doc.supports[side].width,
+    anchorage: doc.supports[side].anchorage,
+  }));
+}
 
 /** Slug an element id + suffix into a stable filename, e.g. `E-COL-01.pdf`. */
 function filename(result: SolveResult, ext: string): string {
@@ -66,8 +84,9 @@ export async function exportPdf(
 }
 
 /** Build + download the DXF drawing (DXF-2 with the user coupes, or DXF-1 if only the default). */
-export function exportDxf(result: SolveResult, cuts: SectionCut[]): string {
-  const dxf = cuts.length > 1 ? buildDxfCoupes(result, cuts) : buildDxf1(result);
+export function exportDxf(result: SolveResult, cuts: SectionCut[], supports?: SupportsMeta): string {
+  const dxf =
+    cuts.length > 1 ? buildDxfCoupes(result, cuts, supports) : buildDxf1(result, supports ? { supports } : {});
   downloadBlob(filename(result, "dxf"), dxf, "application/dxf");
   return dxf;
 }
@@ -94,6 +113,8 @@ export interface ProjectExportType {
   mark: string;
   quantity: number;
   cuts: SectionCut[];
+  /** G7 per-type beam bearing width + anchorage (from the type's doc); absent for non-beams. */
+  supports?: SupportsMeta;
 }
 
 /**
@@ -108,6 +129,7 @@ export async function exportProjectPdf(types: ProjectExportType[], meta: PdfMeta
     mark: t.mark,
     quantity: t.quantity,
     coupes: t.cuts.filter((c) => !c.isDefault),
+    ...(t.supports ? { supports: t.supports } : {}),
   }));
   const bytes = await buildProjectPdf(pdfTypes, meta);
   downloadBlob("projet.pdf", bytes, "application/pdf");
@@ -122,7 +144,10 @@ export async function exportProjectPdf(types: ProjectExportType[], meta: PdfMeta
 export function exportProjectDxf(types: ProjectExportType[]): number {
   let n = 0;
   for (const t of types) {
-    const dxf = t.cuts.length > 1 ? buildDxfCoupes(t.result, t.cuts) : buildDxf1(t.result);
+    const dxf =
+      t.cuts.length > 1
+        ? buildDxfCoupes(t.result, t.cuts, t.supports)
+        : buildDxf1(t.result, t.supports ? { supports: t.supports } : {});
     if (downloadBlob(`${t.mark}.dxf`, dxf, "application/dxf")) n += 1;
   }
   return n;

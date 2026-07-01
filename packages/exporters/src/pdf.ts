@@ -314,6 +314,8 @@ export interface ProjectPdfType {
   quantity: number;
   /** user coupes beyond the default for this type's sheet. */
   coupes?: SectionCut[];
+  /** G7 per-type beam bearing width + anchorage (this type's supports; falls back to meta.supports). */
+  supports?: { side: "left" | "right"; width?: number; anchorage?: number }[];
 }
 
 /**
@@ -342,7 +344,7 @@ export async function buildProjectPdf(types: ProjectPdfType[], meta: PdfMetadata
       coupes: t.coupes ?? [],
       mark: t.mark,
       quantity: t.quantity,
-      ...(meta.supports ? { supports: meta.supports } : {}),
+      ...((t.supports ?? meta.supports) ? { supports: t.supports ?? meta.supports } : {}),
     });
   }
   drawSummarySheet(doc, font, fontB, types, { projectName: meta.projectName, date });

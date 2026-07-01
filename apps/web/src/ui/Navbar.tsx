@@ -23,6 +23,7 @@ import {
   exportProjectPdf,
   exportProjectDxf,
   exportProjectBbsJson,
+  beamSupportsMeta,
   type ProjectExportType,
 } from "../engine/exportActions";
 import { parseRcfg } from "@rebarconfig/exporters";
@@ -60,8 +61,8 @@ export function Navbar() {
   // Combined project export set: the active type uses the live result/cuts; others are re-solved.
   const projectTypes: ProjectExportType[] = instances.map((i) =>
     i.id === activeInstanceId
-      ? { result, mark: i.mark, quantity: i.quantity, cuts }
-      : { result: solveDoc(i.doc), mark: i.mark, quantity: i.quantity, cuts: i.cuts },
+      ? { result, mark: i.mark, quantity: i.quantity, cuts, supports: beamSupportsMeta(doc) }
+      : { result: solveDoc(i.doc), mark: i.mark, quantity: i.quantity, cuts: i.cuts, supports: beamSupportsMeta(i.doc) },
   );
   const isProject = projectTypes.length > 1;
   const projectLocked = projectTypes.some((t) => t.result.status === "FAIL");
@@ -74,11 +75,11 @@ export function Navbar() {
   const onExportPdf = () => {
     closeMenu();
     // export-lock: buildPdf throws on FAIL; the item is disabled, this guards the race anyway.
-    void exportPdf(result, cuts).catch(() => undefined);
+    void exportPdf(result, cuts, { supports: beamSupportsMeta(doc) }).catch(() => undefined);
   };
   const onExportDxf = () => {
     closeMenu();
-    exportDxf(result, cuts);
+    exportDxf(result, cuts, beamSupportsMeta(doc));
   };
   const onExportBbs = () => {
     closeMenu();

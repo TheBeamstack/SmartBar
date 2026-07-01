@@ -83,6 +83,8 @@ export function ViewControls() {
   const rollRad = useStore((s) => s.rollRad);
   const rollBy = useStore((s) => s.rollBy);
   const setRoll = useStore((s) => s.setRoll);
+  const navMode = useStore((s) => s.navMode);
+  const toggleNavMode = useStore((s) => s.toggleNavMode);
   const s = t(lang);
 
   // ±90° per click; a Shift modifier gives fine ±5° steps (§1.2 a11y/keyboard path).
@@ -128,6 +130,15 @@ export function ViewControls() {
         title={s.view.roll}
         onChange={(e) => setRoll(Number(e.target.value) * DEG)}
       />
+      <button
+        type="button"
+        onClick={toggleNavMode}
+        aria-pressed={navMode === "pan"}
+        title={navMode === "pan" ? s.view.pan : s.view.orbit}
+        aria-label={navMode === "pan" ? s.view.pan : s.view.orbit}
+      >
+        ✋
+      </button>
       <button
         type="button"
         onClick={toggleProjection}
