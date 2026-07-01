@@ -23,6 +23,10 @@ import {
   type ElementId,
   type SupplementEdit,
   type CrossTie,
+  type BarOverrideEdit,
+  type AddressableBar,
+  type SupportZone,
+  type ReleveZone,
   defaultColumnDoc,
   defaultDocFor,
   isColumnDoc,
@@ -30,6 +34,7 @@ import {
   isGenericDoc,
 } from "../engine/document";
 import { solveDoc, type SolveResult } from "../engine/solveDoc";
+import { supportSeededRegions } from "../engine/regions";
 import {
   type ElementInstance,
   makeInstance,
@@ -113,9 +118,13 @@ export interface AppState {
   // beam edits
   setBeamGeometry: (patch: Partial<BeamDoc["geometry"]>) => void;
   setSpan: (patch: Partial<BeamDoc["span"]>) => void;
-  setChapeau: (patch: Partial<BeamDoc["chapeau"]>) => void;
   setStirrup: (patch: Partial<BeamDoc["stirrup"]>) => void;
   setTopBars: (patch: Partial<BeamDoc["topBars"]>) => void;
+  // G3 two-support model: patch one support's chapeau / anchorage / width
+  setSupport: (side: "left" | "right", patch: { chapeau?: Partial<SupportZone["chapeau"]>; anchorage?: number; width?: number }) => void;
+  setReleves: (releves: ReleveZone[]) => void;
+  /** G3: auto-seed editable stirrup regions (dense ends) from the two supports' zone lengths. */
+  seedStirrupRegions: () => void;
 
   // generic-element edits (circular / slab / joist / stair)
   setGenericGeometry: (key: string, value: number) => void;
@@ -128,6 +137,10 @@ export interface AppState {
   // cross-ties (F2) — apply to the active column tie OR beam stirrup (same model)
   setCrossTies: (crossTies: CrossTie[]) => void;
   setCrossTieHookAngle: (angle: number) => void;
+
+  // G2 addressable bars (column longitudinal / beam span)
+  setBarOverrides: (overrides: BarOverrideEdit[]) => void;
+  setExtraBars: (bars: AddressableBar[]) => void;
 
   // 2D section picker (F7): selected longitudinal bar indices (into result.bars), synced to 3D
   selectedBars: number[];
@@ -337,18 +350,55 @@ export const useStore = create<AppState>((set, get) => {
       if (isColumnDoc(doc)) set(edit({ ...doc, tie: { ...doc.tie, crossTieHookAngle: angle } }));
       else if (isBeamDoc(doc)) set(edit({ ...doc, stirrup: { ...doc.stirrup, crossTieHookAngle: angle } }));
     },
+
+    setBarOverrides: (overrides) => {
+      const doc = get().doc;
+      if (isColumnDoc(doc)) set(edit({ ...doc, longitudinal: { ...doc.longitudinal, barOverrides: overrides } }));
+      else if (isBeamDoc(doc)) set(edit({ ...doc, span: { ...doc.span, barOverrides: overrides } }));
+    },
+    setExtraBars: (bars) => {
+      const doc = get().doc;
+      if (isColumnDoc(doc)) set(edit({ ...doc, extraBars: bars }));
+      else if (isBeamDoc(doc)) set(edit({ ...doc, extraBars: bars }));
+    },
     setSelectedBars: (indices) => set({ selectedBars: indices }),
 
     setBeamGeometry: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, geometry: { ...d.geometry, ...patch } })))),
     setSpan: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, span: { ...d.span, ...patch } })))),
-    setChapeau: (patch) =>
-      set(edit(asBeam(get().doc, (d) => ({ ...d, chapeau: { ...d.chapeau, ...patch } })))),
     setStirrup: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, stirrup: { ...d.stirrup, ...patch } })))),
     setTopBars: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, topBars: { ...d.topBars, ...patch } })))),
+    setSupport: (side, patch) =>
+      set(edit(asBeam(get().doc, (d) => ({
+        ...d,
+        supports: {
+          ...d.supports,
+          [side]: {
+            ...d.supports[side],
+            ...(patch.anchorage !== undefined ? { anchorage: patch.anchorage } : {}),
+            ...(patch.width !== undefined ? { width: patch.width } : {}),
+            chapeau: { ...d.supports[side].chapeau, ...(patch.chapeau ?? {}) },
+          },
+        },
+      })))),
+    setReleves: (releves) =>
+      set(edit(asBeam(get().doc, (d) => ({ ...d, releves })))),
+    seedStirrupRegions: () =>
+      set(edit(asBeam(get().doc, (d) => ({
+        ...d,
+        stirrup: {
+          ...d.stirrup,
+          regions: supportSeededRegions(
+            d.geometry.L,
+            d.supports.left.chapeau.enabled ? d.supports.left.chapeau.length : 0,
+            d.supports.right.chapeau.enabled ? d.supports.right.chapeau.length : 0,
+            d.stirrup.spacing,
+          ),
+        },
+      })))),
 
     setGenericGeometry: (key, value) =>
       set(edit(asGeneric(get().doc, (d) => ({ ...d, geometry: { ...d.geometry, [key]: value } })))),

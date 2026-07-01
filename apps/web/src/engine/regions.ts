@@ -70,6 +70,32 @@ export function symmetricEndsRegions(
   ];
 }
 
+/**
+ * v1.0.3 G3 ([REF-SYS-260], spec §3.2) — seed editable stirrup regions from the two beam supports:
+ * a tighter end-region over each support (sized to that support's chapeau zone) and a looser middle
+ * (the `11×9 / 15×20 / 11×9` pattern). Asymmetric support lengths give asymmetric end zones; the
+ * result is stored on `stirrup.regions` so the user can then edit it (G6 RegionEditor). End spacing
+ * defaults to half the uniform spacing (denser), the middle keeps the uniform spacing.
+ */
+export function supportSeededRegions(
+  length: number,
+  leftZone: number,
+  rightZone: number,
+  spacing: number,
+): TransverseRegion[] {
+  const endS = Math.max(1, Math.round(spacing / 2));
+  const midS = Math.max(1, spacing);
+  const lz = Math.max(0, Math.min(leftZone, length / 2));
+  const rz = Math.max(0, Math.min(rightZone, length / 2));
+  if (lz + rz >= length) return uniformRegions(length, endS);
+  if (lz <= 0 && rz <= 0) return uniformRegions(length, midS);
+  const regions: TransverseRegion[] = [];
+  if (lz > 0) regions.push({ from: 0, to: lz, spacing: endS });
+  regions.push({ from: lz, to: length - rz, spacing: midS });
+  if (rz > 0) regions.push({ from: length - rz, to: length, spacing: endS });
+  return regions;
+}
+
 /** The effective region list for display (the stored list, or the uniform default). */
 export function effectiveRegions(
   regions: TransverseRegion[] | undefined,

@@ -54,6 +54,11 @@ in the browser — no server, free hosting.**
 | **v1.0.2 P7 (F1)** — in-plane view roll (pure `rollUpVector`; session `rollRad` not in `.rcfg`; ↺/↻ buttons + roll slider; Home/named-view re-level) | ✅ **CODE DONE + tested** (D-V102-7) · ⏳ owner GPU pass (roll feel) | Zayd, 2026-06-28 |
 | **v1.0.3 P1 (G1)** — true bar geometry: `placeBars` renders each longitudinal bar's real bent `centerline3D` (façonnage/cranks/relevés), the spiral as ONE member-length coil, the stair main bar along waist+landing; straight `DROITE` byte-identical | ✅ **CODE DONE + tested** (D-V103-1) · ⏳ owner GPU pass | Amer, 2026-06-30 |
 | **v1.0.3 P2 (G6)** — stirrup cadence continuity across region boundaries (no short stub) + coupe section dims & cover on both faces (PDF now draws `view.dimensions`) + elevation region-length dims | ✅ **CODE DONE + tested** (D-V103-2) | Amer, 2026-06-30 |
+| **v1.0.3 P3 (G5)** — cross-tie/épingle unification: ONE cross-tie model (épingle dropped from scheme catalogs), the épingle hook now rendered in the centreline (open shapes), legacy supplement-épingles migrate to `crossTies`, no centred épingle anywhere | ✅ **CODE DONE + tested** (D-V103-3) · ⏳ owner GPU pass | Zayd, 2026-06-30 |
+| **v1.0.3 P4 (G2)** — addressable bars: per-bar overrides (shape/hooks/Ø/unique length+axial pos/remove), independent extra bars + section levels, façonnage editor targets a specific bar; flows to 3D/coupe/PDF/DXF + BBS via a pipeline `longBars[]` channel (gated on presence → legacy byte-identical) | ✅ **CODE DONE + tested** (D-V103-4) · ⏳ owner GPU pass · per-bar As is group-based (note) | Zayd, 2026-06-30 |
+| **v1.0.3 P5 (G3)** — beam **two supports V1/V2** (asymmetric chapeaux + per-support anchorage + width, each a validated zone), **first-class relevés** (bent-up bottom bars via the G2 addressable channel — rendered + scheduled), **auto-seeded editable stirrup regions** from the supports; legacy single-`chapeau` beam migrates to symmetric V1=V2 | ✅ **CODE DONE + tested** (D-V103-5) · ⏳ owner GPU pass · G-BAEL · representative render note | Zayd, 2026-07-01 |
+| **v1.0.3 P6 (G4)** — **lap splices / couplers**: pure `spliceBar` (segments incl. `code.l0` overlap, cutLength invariant preserved) + `autoSplice` (stock-length), doc `splices?`/`autoSplice?` on column-long/beam-span, BBS schedules **segments + coupler tally**, `lap_stagger` WARN + seismic `lap_in_critical_zone`; legacy unspliced byte-identical | ✅ **CODE DONE + tested** (D-V103-6) · ⏳ owner GPU pass · G-BAEL/EC2 (provisional `l0`) | Zayd, 2026-07-01 |
+| **v1.0.3 P7 (G7)** — **shop-drawing PDF/DXF**: a pure `shopDrawing()` annotation model (leader lines `mark·nØd·l=`, per-element sequential marks, coupe markers A-A, stirrup-zone `count×spacing` notation, support labels V1/V2) + a **bending table** (one row per distinct shape · sketch · Ø · cut · count/element · ×quantity total), shared by PDF + DXF; existing render goldens held (structural) | ✅ **CODE DONE + tested** (D-V103-7) · ⏳ owner GPU pass | Zayd, 2026-07-01 |
 
 **Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
 phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
@@ -70,17 +75,37 @@ DROITE default, byte-identical). The remaining one v1.0.2 feature (**F1 — in-p
 planned but not coded. New agents: read `core_logic.md` (product) + `architecture_breakdown.md` (structure)
 first, then `v1.0.2_impl_plan.md`. **All seven v1.0.2 features (F1–F7) are now code-complete.**
 
-**v1.0.3 in progress (2026-06-30).** The first two v1.0.3 phases are now implemented (NOT pushed): **P1/G1**
+**v1.0.3 in progress (2026-06-30).** The first three v1.0.3 phases are now implemented (NOT pushed): **P1/G1**
 (true bar geometry — `placeBars` renders every longitudinal bar's real bent `centerline3D`, the spiral as ONE
 continuous coil, the stair main bar along the waist+landing; a straight `DROITE` is byte-identical so every
-existing golden held — no re-baseline needed) and **P2/G6** (stirrup cadence now continues across a region
+existing golden held — no re-baseline needed), **P2/G6** (stirrup cadence now continues across a region
 boundary instead of resetting to `from`, so there's no short stub; the PDF coupe now draws section width/height +
-enrobage **cover on both faces**, and the elevation gains per-region length dims). See **D-V103-1/2**. New agent:
-read `v1.0.3_spec.md` + `v1.0.3_impl_plan.md`; the next phase is **P3 (G5 — épingle unification/anchoring)**.
+enrobage **cover on both faces**, and the elevation gains per-region length dims), and **P3/G5** (ONE cross-tie
+model — the épingle is dropped from the scheme catalogs and added only via the `CrossTieEditor`; its **hook now
+renders** in the centreline (open shapes); legacy supplement-épingles migrate to `crossTies`; no centred épingle
+anywhere), and **P4/G2** (addressable bars — per-bar overrides, independent extra bars + section levels, and a
+per-bar façonnage editor; the pipeline emits an explicit `longBars[]` consumed by `placeBars` + the BBS, gated on
+presence so legacy is byte-identical). See **D-V103-1/2/3/4**. **P5/G3 + P6/G4 now landed too** (2026-07-01):
+**P5/G3** (the beam **two-support model** — V1/V2 with asymmetric chapeaux + per-support anchorage + width,
+each a validated zone; **first-class relevés** as bent-up bottom bars riding the G2 addressable-bar channel so
+they render bent + schedule; **auto-seeded editable stirrup regions** from the supports; a legacy single-`chapeau`
+beam migrates to symmetric V1=V2) and **P6/G4** (**lap splices / couplers** — a pure `spliceBar` helper whose
+segments carry the `code.l0` lap overlap and preserve the cutLength invariant, `autoSplice` at stock length, the
+BBS scheduling segments + a coupler tally, a `lap_stagger` WARN, and the seismic `lap_in_critical_zone` fed by the
+real lap extents). See **D-V103-5/6**. **P7/G7 now landed too** (2026-07-01): the exported PDF/DXF are proper
+**shop drawings** — a pure `shopDrawing()` layer (built once over the fiche + BBS + `sectionAt`, shared by PDF
+**and** DXF so they agree) emitting **per-bar leader lines** (`mark · nØd · l=`), **per-element sequential marks**
+(the BBS ordinals, separate from the project `markPrefix`), **coupe markers** (A-A…), **stirrup-zone `count×spacing`
+notation** per region, and **support labels V1/V2** (+ optional bearing width/anchorage), plus a **bar-bending
+(façonnage) table** (one row per distinct scheduled shape: mark · centreline sketch · Ø · cut · count/element ·
+**total = count × element quantity**). See **D-V103-7**. New agent: read `v1.0.3_spec.md` + `v1.0.3_impl_plan.md`;
+the remaining phases are **P8 (G8 — 3D concrete edges + stepped stair)** + **P9 (G9 — camera roll/cube/pan)** —
+both viewport-only (owner GPU-verified).
 
-**Last green gate (v1.0.3 P1+P2, 2026-06-30):** `npm run check` ✓ — purity ✓, manifests ✓ (**16 shapes** / 8
-elements / 10 schemes / 7 supplements), core+web typecheck ✓, **411 tests / 83 files** (+24/+5 over the v1.0.2
-baseline of 387/78); `npm run build:web` ✓ (built in 57s); `npm run coverage` **94.92% core** (≥90% threshold).
+**Last green gate (v1.0.3 P1–P7, 2026-07-01):** `npm run check` ✓ — purity ✓, manifests ✓ (**16 shapes** / 8
+elements / 10 schemes / 7 supplements), core+web typecheck ✓, **463 tests / 93 files** (+15/+2 over the P1–P6
+baseline of 448/91); `npm run build:web` ✓ (13.2s); `npm run coverage` **93.88% stmts** (≥90% threshold; core-only
+scope — the new P7 code lives in `packages/exporters`, outside the coverage include).
 The standing engineer sign-offs (G-BAEL/EC2/RPS/COUPE/TOL) + the owner GPU/visual passes remain open (acceptance,
 not code).
 **The headless gate can't see WebGL** — the ViewCube/persp⇄ortho/coupe handle (v1.0.1) **and the new F7 3D bar
@@ -307,11 +332,175 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 - **D-V102-4** (P4/F4 — workspace re-layout, implemented) **UI/layout-only, no engine/`.rcfg` change** (spec §4.3). The right strip (was a single always-on `AlertsPanel`) is replaced by `ui/RightColumn.tsx` — a flex column stacking **three collapsible, independently-scrollable sections**: **Verification** (`AlertsPanel`), **Project** (`ProjectPanel`), **BBS** (`BbsPanel`). Each section has a header button (caret, `aria-expanded`) toggling its body; the **same** open/collapse state is driven from the navbar (the BBS/Project/Vérifications buttons now call `toggleRightPanel`, not the old bottom-dock toggle). New store state: `rightPanels {verification,project,bbs}` (default `verification:true`, others collapsed — preserves "checks always visible") + `expandPanels` (an **Expand** toggle that widens the column to 60% over the 3D via the `.right-column.expanded` class; the 3D stays mounted, just narrower). **The bottom dock now hosts only Coupes** (`BottomPanel` → `CoupePanel`; `bottomPanel` narrowed `"coupes"|"bbs"|"project"|null` → `"coupes"|null`). `AlertsPanel` lost its own `.alerts-head` chrome (the section header supplies the title; the deferred "… recalcul" badge moved into the body). Layout prefs are **session-only** (not reset on element `reset()`, not in `.rcfg`). New i18n `workspace {expand,collapse,expandHint}` (note: `layout` was already taken by the layout-principle group). Tests: `workspace_layout` (3 sections render + collapse, expand sets flag/class, Coupes-only bottom dock); `export_menu`/`smoke` kept green (the latter renders `AlertsPanel` standalone — its header-less refactor is transparent to it).
 - **D-V103-1** (P1/G1 — true bar geometry, implemented) `placeBars` (core, `section/place.ts`) no longer draws longitudinal bars as straight 2-point axis lines. **Longitudinal:** each bar now renders the group's real bent `centerline3D` oriented onto the member frame at the bar's `(u,v)` — convention `worldX = u`, `worldY = axisStart + localX`, `worldZ = v + localY` (the generator emits a flat `[localX, localY, 0, …]`; `localX` = run along u+, `localY` = lateral in v). **A straight `DROITE` is byte-identical** (`localY≡0`, `localX` 0..L) → **every existing render/BBS/fiche/DXF golden held, no re-baseline was needed** (the goldens are structural, not byte-snapshots). A bent shape (baïonnette/relevé/Z) now bends into the section **depth** plane (±Z). `axisStart` is plumbed (default 0) for G2 unique-length bars. **Continuous coil:** a transverse set whose shape carries `coilLength` (the bespoke helix) is detected via `isContinuousCoil` (mirrors `bbs.ts`) and placed **ONCE** as a single member-length helix (`placeCoil` maps the helix frame `[u, axis, w]` straight to world `[X,Y,Z]`, axis 0..length) — never instanced per station + flattened. **Stair:** the `MARCHE_PALIER` main bar rides the same longitudinal mapping automatically (flight→axis, landing bend→depth). A short-polyline fallback keeps a straight run when a group has no centreline. The coupe engine + elevation fiche + PDF/DXF consume `placeBars`, so true geometry flows everywhere for free. Tests: `tests/{true_geometry,coil_placement,stair_bars}.spec.ts` + `perf_heavy` extended with two `placeBars` perf cases (dense 120-turn helix + heavy column, both < 16 ms). **No core branching, purity held.**
 - **D-V103-2** (P2/G6 — cadence continuity + coupe/elevation dims, implemented) **(a) Cadence continuity:** `regionStations` (core, `section/place.ts`) multi-region path now **carries the running station across a boundary** — a new region's first cadre is placed ONE new-spacing step past the previous region's last cadre, NOT reset to `region.from` (the `from` only marks where the new spacing takes over) — removing the illogical short stub (e.g. a 2 cm gap) at a boundary. The single-full-length-region path still delegates to `transverseStations` → **byte-identical** (goldens safe); `regionStationCounts` still partitions by containing region. **(b) Coupe dims (PDF):** `sectionAt` `buildDimensions` now emits **WIDTH + HEIGHT + an enrobage COVER on EACH face** (measured from the concrete face to the nearest bar centroid in that half, from the real section circles; falls back to the first zone's `d'` when the cut crosses no bars). `pdf.ts drawCoupe` now **renders `view.dimensions`** (it previously ignored them — the gap); the DXF coupe (`coupeToDxf`) already drew them, so PDF + DXF now agree. **(c) Elevation region dims:** `fiche.ts buildElevationFiche` adds one `FicheDim` per stirrup **region length** under the overall-length line (drawn by both `pdf.drawElevation` + `dxf.elevationToDxf`, which already iterate `fiche.dims`). Tests: `tests/{region_cadence,coupe_dims}.spec.ts`; existing `transverse_regions`/`elevation_fiche`/`dxf_coupe_golden`/`dxf1_golden`/`pdf_smoke` stayed green. **BBS/cutLength goldens unchanged** (rendering doesn't change cut lengths).
+- **D-V103-4** (P4/G2 — addressable bars, section levels & per-bar façonnage, implemented) **Per-bar detailing via a pipeline `longBars[]` channel** (spec §2, [REF-SYS-530]). **Architecture (lowest-risk):** `ElementSolveInput` gained `longOverrides?`/`extraBars?`; `solveElement` emits a new `SolveResult.longBars[]` — an explicit per-bar list (each bar's own shape/Ø/axial start/removed + appended extra bars) — **only when overrides/extra bars exist** (else `undefined` → the grouped fast path, **byte-identical**, every golden held). `placeBars` (3D/coupe/PDF/DXF via the shared placement) and `computeBBS` (schedule) read `longBars` when present (skip longitudinal-role groups), so a façonné / unique-length / removed / independent bar appears everywhere + on the schedule. **The bar→group shape mapping mirrors `placeBars`** (zone match, else rect TOP/main); no `if(elementType)`. **G2a section levels** = an addressable bar at a chosen section depth `v` (incl. an intermediate U-bar level) — no separate level registry. **G2b overrides** + **G2c extra bars** are DATA on the doc (`barOverrides` on the column `longitudinal` / beam `span`; `extraBars` on the column/beam) → the adapter (`solveDoc.buildLongOverrides`/`buildExtraBars`) passes the FULL resolved shape+params (group default merged with the user edit + optional unique `L`). **G2d** `ui/AddressableBars.tsx`: a section picker selects ONE bar; the existing `FaconnageEditor` is reused for its shape/hooks, plus Ø/length/axial-pos/remove NumberFields, plus an independent-bars list (picker **and** numeric, a11y parity). New store actions `setBarOverrides`/`setExtraBars`. **`.rcfg` round-trips for free** (rides `meta.app_document`; additive; legacy → none). **Scope/limitation (engineer-gate, principle 7):** override/extra/removed bars are **detailing add-ons** — they change the render + schedule but **NOT the validation layout/As** (the count-group still drives the §7 checks); per-bar mixed-diameter As-weighting + per-bar `d` are a deferred refinement (not changed silently). `length` maps to the shape's `L` param (straight unique-length bars). Tests: `tests/{bar_overrides,independent_bars,section_levels}.spec.ts` (core: override/removed/unique-length/extra/levels + legacy `longBars` undefined), `apps/web/.../addressable_bars.spec.ts` (adapter + .rcfg + As-untouched), `ui/addressable_bars_ui.spec.tsx` (RTL pick→remove→extra). BBS/cutLength goldens unchanged.
+- **D-V103-5** (P5/G3 — beam two-support model + relevés + auto-seeded regions, implemented) **Two supports V1/V2, data-driven, no core branch** (spec §3). `BeamDoc.chapeau{supportZone}` is **replaced** by `supports:{left,right}` where `SupportZone={chapeau{enabled,diameter,nTop,asReq,length},anchorage,width}` + `chapeauShapeId` + `releves?:ReleveZone[]`. The adapter (`beamInput`) emits **two chapeau longitudinal zones** `As_top_support_left/right`, each its own §7.7 `computeCurtailment(length)` → **asymmetric lengths are just data**, each independently validated (`provided_area`/`ratio_limits`/`clear_spacing` — the beam profile already iterates zones). **Representative section:** the layout TOP face carries `montage + max(nChapeauL,nChapeauR)` (the two supports never share a cross-section) — NOT the sum (which crammed 4 top bars into a 300 mm beam → clear-spacing FAIL). **Relevés ride the G2 `extraBars` channel** (a `RELEVE`-shaped bottom bar per `count`, `axisStart` near its support) so they **render bent (G1) + schedule** with their own cutLength, without touching the layout/As (detailing add-on). **`buildLongBars` fix (core, general):** the per-bar longBars enumeration now **distributes layout bars across the zones that share a face** (declaration order, by each zone's provided count) and **emits any under-seated zone** (the second support's chapeau, when relevés/overrides trigger the longBars path) as addressable bars — so both chapeaux always schedule; a single-zone face (column) is byte-identical. **Auto-seed:** pure `supportSeededRegions(L, leftZone, rightZone, spacing)` (dense ends ½·spacing, looser mid) + a store `seedStirrupRegions()` + a "Densifier aux appuis" button writes editable `stirrup.regions` — **solve path unchanged unless seeded** (goldens safe). **Legacy migration** (`migrateBeamSupports` at the `rcfgToDoc` chokepoint, BEFORE `beamLayoutBars` reads `supports`): a v1.0.2 `chapeau{supportZone}` → symmetric `left=right` + default anchorage 400/width 300 + no relevé; idempotent, lossless. UI: `SupportControls` (V1/V2) + `ReleveEditor` + the seed button in `Sidebar.BeamSchemeControls`. **Scope/limitation:** the second support's chapeau + the relevés render at a **representative axial position** (the precise per-support axial offset of the grouped-path chapeau is a rendering nicety, not a schedule/validation gap); the member-level `end_support_anchorage` check stays single (per-support anchorage is stored + drawn, G7). Tests: `apps/web/.../beam_supports.spec.ts` (asymmetric cutlengths + both validated, relevé bent+scheduled, region seeding densifies, legacy migration). Updated `element_catalog`/`beam_top_bars`/`per_zone_readout`/`beam_supplements` for the `As_top_support_left/right` zone split. **BBS/cutLength goldens unchanged.**
+- **D-V103-6** (P6/G4 — lap splices / couplers, implemented) **Full lap/coupler scheduling** (spec §4). Pure core `geometry/splice.ts`: `spliceBar(run, splices[], code, {diameter,material,fractionLapped}) → {segments[], couplerCount, lapLength, totalCutLength}` — a **lap** extends the segment before it by `l_r = code.l0(...)`, a **coupler** adds no length but is counted; **the D-P1-1 accounting is preserved** (`Σ segment cuts = run + #laps·l_r`). `autoSplices(run, stock=12000)` splits an over-length run. Exported from `index.ts`. **Doc:** the column `longitudinal` + beam `span` groups gain `splices?:Splice[]` + `autoSplice?` (additive; absent → unspliced). **Pipeline:** `ElementLongInput` gains `splices?`/`autoSplice?`; `solveElement` splices each longitudinal group off its `shape.cutLength`, attaches `SolvedGroup.splice`, collects **lap extents** for the seismic overlay, and pushes a `lap_stagger:<zone>` **WARN** (group-level laps coincide → not staggered). **BBS:** a spliced group is scheduled as its **segments** (each × the group count) + a **`couplers` total** on the schedule; the seismic `lap_in_critical_zone` now fires off the real lap extents (FAIL under ND2/ND3 in `l_c`). **UI:** `Sidebar.SpliceEditor` (auto-split toggle + a station/kind list, picker AND numeric — a11y) on column + beam, riding the existing `setLongitudinal`/`setSpan` setters; `.rcfg` round-trips for free. **Scope:** splices are **group-level** (all bars of a group splice at the same station — hence the stagger WARN); per-bar splices via the addressable channel are a later refinement. Lap length rides the **provisional** BAEL/EC2 `code.l0` (G-BAEL/G-EC2). Tests: `apps/web/.../lap_splice.spec.ts` (spliceBar invariant + coupler + autoSplices; doc→schedule segments + coupler tally + stagger WARN; seismic lap-in-`l_c` FAIL; legacy unspliced byte-identical). **BBS/cutLength goldens unchanged** (no splices on the default docs).
+- **D-V103-3** (P3/G5 — cross-tie / épingle unification + anchoring, implemented) **ONE cross-tie model** (spec §5). (a) **Catalog:** dropped `SUPP_EPINGLE_CROSSTIE` from the 4 scheme `supplementalCatalog`s — épingles are added only via the `CrossTieEditor` (F2); the supplement **manifest is kept** (core `resolveSupplement`/`placement_resolve`/`binding_keyboard`/`supplement_rebind` tests still load it; 7 supplements unchanged). (b) **Hook geometry (the D-V103-1 follow-up):** `generateBarShape` now appends/prepends the end-hook **return leg** to `centerline3D` for **OPEN** shapes (the join becomes a filleted bend), so the épingle crochet renders in 3D/coupe/PDF/DXF and reflects the resolved `hook_angle`; **CLOSED shapes (cadre/étrier) skip it** (welded loop, byte-identical), and the `cutLength`/`totalLengthExpr` cross-check is computed BEFORE the vertices are extended → **invariant untouched** (only `geomLength`/render change). A no-hook end (DROITE) is byte-identical. (c) **Anchored-only:** `placeBars` skips the centred-supplement fallback for `shape.archetypeId === "EPINGLE"` — épingles are *only* the anchored cross-tie on the bar-pair line (D-V102-2). (d) **Migration:** `migrateDoc` folds legacy `SUPP_EPINGLE_CROSSTIE` supplements into `crossTies` (dropped from `supplements`) at the `rcfgToDoc` chokepoint — idempotent, lossless, alongside the `nLegs` migration. Defaults already ship `crossTies:[]`. **Render goldens stayed green (structural, not byte-snapshots); BBS/cutLength unchanged.** Tests: `tests/epingle_anchored.spec.ts` (hook-in-centreline + anchored + no centred épingle), `tie_legs_geometry` (default-zero + supplement migration), `scheme_switch`/`beam_supplements` updated.
+- **D-V103-7** (P7/G7 — shop-drawing PDF/DXF, implemented) **A pure `shopDrawing(result, opts) → {leaders, marks, coupeMarkers, stirrupZones, supportLabels, bendingTable}` annotation model** (`packages/exporters/src/shopDrawing.ts`, spec §7 [REF-SYS-930]) built ONCE over `buildElevationFiche` + `computeBBS` + `sectionAt` and **shared by PDF and DXF** so the two agree by construction. **Leaders:** one per distinct longitudinal group (aggregated from `placeBars`, mirroring the fiche marks), joined to its BBS line for the mark + cut length → `mark nØd l=cut` (e.g. `1 3Ø20 l=6000`), with a **basic anti-overlap** label column fanned along the member's drawing axis. **Sequential marks** = the BBS ordinals (bare `1,2,3…`; a project `markPrefix` still namespaces `P1-01`, §7.2 — both coexist). **Coupe markers** via `cuttingLineFiche` (default `defaultCoupeFor` + any user coupes → A-A/B-B on the elevation). **Stirrup-zone notation** `count×spacing` per region (uniform → `transverseStations`, regions → `regionStationCounts`, from G6). **Support labels V1/V2** derived from the presence of the G3 `As_top_support_left/right` chapeau zones on the result; bearing **width + bottom-bar anchorage** are optional drawing data supplied via `opts.supports` (NOT on the pure `SolveResult` — the beam-doc carries them, threaded through `PdfMetadata.supports`), so the labels emit regardless, annotated when supplied. **Bending table** = one row per distinct scheduled shape (= the BBS lines): mark · **2D centreline sketch** (from the source group's `shape.centerline3D`, flat `[x,y,0,…]`, looked up via the BBS `groupIds`, splice `#seg` suffix stripped) · Ø · cut length · **count/element** · **total = count × `opts.quantity`** (default 1; `buildProjectPdf` passes each type's fabrication quantity). **Wiring:** `pdf.ts` `drawElevation` now renders the shop overlay (leaders/coupe markers/zone notation/support labels, fit-bbox expanded over the annotation anchors) + a new `drawBendingTable` (with the mini sketch) below the BBS table; `dxf.ts` `shopDrawingToDxf` emits leaders (COTATION+TEXTE) + zone/support labels (TEXTE) + a `bendingTableToDxf` (TEXTE rows + ARMATURES **polyline** sketch — **no CIRCLE**, so the coupe-circle-count golden is untouched) into `buildDxf1`/`buildDxfCoupes` (coupe cutting-lines stay in `elevationToDxf`, not duplicated). **Purity held** (no DOM/three, no `if(elementType)` — support labels key off the zone name, data-driven); the render goldens are structural (4-layer/entity/regex checks) so **`dxf1_golden`/`dxf_coupe_golden`/`elevation_fiche`/`bbs_golden`/`pdf_smoke`/`project_pdf` all held — no re-baseline needed**; **BBS/cutLength goldens unchanged**. **Scope/limitation:** support width/anchorage need the caller to pass `opts.supports` (the web `exportActions` don't yet thread the beam doc's supports → a small follow-up; V1/V2 labels + positions render without it); the bending-table sketch is the group's centreline (spliced-segment rows fall back to no sketch). Tests: `tests/shop_drawing.spec.ts` (leaders `mark nØd l=`, sequential + prefixed marks, anti-overlap, coupe markers, uniform + per-region stirrup-zone notation, V1/V2 labels + width/anchorage, none for single-support, determinism), `tests/bending_table.spec.ts` (row-per-distinct-shape = BBS lines, count/element, ×quantity total, default quantity 1).
 - **D-V102-3** (P3/F3 — sticky per-zone readout, implemented) **UI-only, no engine/`.rcfg`/validation change** (spec §3.3): the per-zone provided area + `ZoneGeometry.d` already exist on `SolveResult`. New pure selector `ui/derived.ts perZoneReadout(result, doc, lang) → ZoneReadoutRow[]` — **one row per flexural zone** (`As,prov` vs `As,req`, `ok`, `d`, `perMetre`), driven off the validation `provided_area[:zone]` items + `result.zones` (the column's lone un-suffixed `provided_area` maps onto `result.zones[0]`; slab zones flagged `perMetre` → cm²/m). **Generic over all 8 elements**, no `if(elementType)`. The old single-aggregate `Badges` is **replaced** by `ZoneReadout` (`position: sticky; top:0` inside the scrolling `.sidebar`, full-width via negative margins; `role="status" aria-live="polite"`; per-zone rows green/red + an overall 🟢/🟠/🔴 status chip from `result.status`). Zone labels: generic zones use the doc's own `label_fr/_en`; column/beam use a new `i18n readout.zones` map (`As_total`/`As_span_bottom`/`As_top_support`/`As_top_montage`). Old `derived.ts` helpers (`asProvidedMm2` etc.) kept (still used by `store_resolve.spec`). Tests: `per_zone_readout` (column/beam/slab rows + FAIL flip + per-metre); `smoke` updated (queries `.readout`, readout survives a tab switch).
 
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-07-01 — v1.0.3 Phase 7 (G7 — shop-drawing PDF/DXF) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented **Phase 7 (G7)** of `v1.0.3_impl_plan.md` (spec §7, [REF-SYS-930]), after reading
+`cross_projects_policy.md` (one level up), `core_logic.md`, `v1.0.3_spec.md`, the plan, and this file; confirmed
+the P1–P6 baseline GREEN first (`npm run check` = 448/91). Full detail in **D-V103-7**.
+
+- **The exports are now real shop drawings.** A single pure `shopDrawing(result, opts)` layer
+  (`packages/exporters/src/shopDrawing.ts`) — built once over `buildElevationFiche` + `computeBBS` + `sectionAt`
+  and **shared by both the PDF and the DXF** so they agree — produces the full reference-drawing annotation set:
+  **per-bar leader lines** `mark · nØd · l=` (basic anti-overlap), **per-element sequential marks** (BBS ordinals,
+  separate from the project `markPrefix`), **coupe markers** (A-A/B-B), **stirrup-zone `count×spacing` notation**
+  per region (from G6), **support labels V1/V2** (+ optional bearing width/anchorage), and a **bar-bending
+  (façonnage) table** (one row per distinct scheduled shape: mark · 2D centreline **sketch** · Ø · cut · count per
+  element · **total = count × element quantity**).
+- **Wired into both exporters.** `pdf.ts` renders the shop overlay on the elevation (fit-bbox expanded over the
+  annotation anchors) + a new façonnage table beside the BBS table; `dxf.ts` `shopDrawingToDxf` emits the leaders
+  + zone/support labels + a bending table (TEXTE rows + an **ARMATURES polyline** sketch — no CIRCLE, so the
+  coupe-circle golden is untouched). `buildPdf`/`buildProjectPdf` thread the fabrication `quantity` (per type) and
+  an optional `PdfMetadata.supports` (bearing width/anchorage) through to the model.
+
+**State now: GREEN, NOT pushed** (policy §10 — push only when the owner asks). `npm run check` ✓ (**463 tests /
+93 files**, +15/+2 over the P1–P6 baseline), `npm run build:web` ✓ (13.2s), `npm run coverage` **93.88% stmts**
+(≥90; core-only include — P7 code is in `packages/exporters`, outside the coverage scope). New files:
+`packages/exporters/src/shopDrawing.ts`, `tests/{shop_drawing,bending_table}.spec.ts`. Touched exporters
+`{index,pdf,dxf}.ts`. **No new `if(elementType)` (support labels key off the zone name, data-driven); engine purity
+held (pure exporter, no DOM/three); `.rcfg` untouched; the structural render goldens held (no re-baseline);
+BBS/cutLength goldens unchanged.**
+
+**Open / not done (NONE block P7 code-completeness).** (a) **Owner GPU/visual pass** on the leadered elevation +
+the façonnage table (headless can't see the rendered PDF/DXF; the pure model is headless-tested). (b) **Support
+width/anchorage threading:** the V1/V2 labels + positions render off the result's chapeau zones, but the bearing
+width + bottom-bar anchorage annotations need the caller to pass `opts.supports` — the web `engine/exportActions.ts`
+don't yet forward the beam doc's `supports.{left,right}.{width,anchorage}` into `PdfMetadata.supports` (a small,
+mechanical follow-up; the model + PDF/DXF plumbing already accept it). (c) The bending-table **sketch** is the
+source group's centreline; a spliced-segment row falls back to no sketch (per-segment sketch is a later refinement).
+(d) The remaining phases **P8 (G8 — 3D concrete edges + stepped stair) → P9 (G9 — camera roll/cube/pan)** are
+unbuilt — both are **viewport-only** (`apps/web/src/viewport/Viewport.tsx`, owner GPU-verified per the plan).
+**→ Next agent:** implement `v1.0.3_impl_plan.md` **Phase 8 (G8 — transparent concrete crisp edges + stepped stair
+mesh)**, then **Phase 9 (G9 — kill the ViewCube auto-spin, on-demand roll + auto-level on orbit, toolbar hand-pan)**.
+Before coding: `git log`/diff; `npm run check` + `build:web` GREEN; append a §9 entry.
+
+### 2026-07-01 — v1.0.3 Phase 5 (G3 — beam two-support model + relevés) + Phase 6 (G4 — lap splices / couplers) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented the **next two v1.0.3 phases** (`v1.0.3_impl_plan.md` P5→P6), after reading
+`cross_projects_policy.md`, `core_logic.md`, `v1.0.3_spec.md`, the plan, and this file; confirmed the P1–P4
+baseline GREEN first (`npm run check` = 434/89). Full detail in **D-V103-5** (G3) and **D-V103-6** (G4).
+
+- **P5 / G3 — beam two supports (V1/V2) + relevés + auto-seeded stirrup regions** (spec §3, [REF-SYS-260]). The
+  beam's single collapsed `chapeau` became **two independent supports** (`supports:{left,right}` — each an own
+  chapeau length/Ø/count + anchorage + width), so **asymmetric chapeaux** are validated + scheduled distinctly
+  (`As_top_support_left/right`). **Relevés are first-class** (bent-up `RELEVE` bottom bars) via the **G2
+  addressable-bar channel** so they render bent (G1) + schedule. **Defining supports auto-seeds editable stirrup
+  regions** (dense ends). A legacy single-`chapeau` beam **migrates to symmetric V1=V2** at the `rcfgToDoc`
+  chokepoint. The one general core change is in `buildLongBars`: it now **distributes section bars across the
+  zones sharing a face** and **emits any under-seated zone** (the second support's chapeau) so both chapeaux
+  always schedule — a column (single zone) stays byte-identical.
+- **P6 / G4 — lap splices / couplers** (spec §4, [REF-SYS-770]). New pure core `spliceBar`
+  (segments carry the `code.l0` lap overlap; the **cutLength invariant is preserved**) + `autoSplices` (stock
+  length). Column-long / beam-span groups gain `splices?`/`autoSplice?`; the pipeline attaches `SolvedGroup.splice`
+  + feeds lap extents to the seismic overlay; the **BBS schedules segments + a coupler tally**; a `lap_stagger`
+  WARN fires (group-level laps coincide) and the seismic `lap_in_critical_zone` FAILs a lap inside `l_c`. A minimal
+  `SpliceEditor` (auto toggle + station/kind list) wires it in the Sidebar.
+
+**State now: GREEN, NOT pushed** (policy §10 — push only when the owner asks). `npm run check` ✓ (**448 tests /
+91 files**, +14/+2 over the P1–P4 baseline), `npm run build:web` ✓ (12.8s), `npm run coverage` **93.88% stmts**
+(≥90). New files: `packages/core/src/geometry/splice.ts`, `apps/web/src/engine/{beam_supports,lap_splice}.spec.ts`.
+Touched core `pipeline/element.ts` (buildLongBars face-distribution + shortfall emission; splice plumbing; lap
+extents + stagger WARN), `geometry/index.ts`; exporters `bbs.ts` (segments + `couplers`); web
+`engine/{document,solveDoc,crossTies,regions,rcfgDoc}.ts`, `store/useStore.ts`, `ui/Sidebar.tsx`, `i18n/strings.ts`;
++ updated 4 existing beam tests for the `As_top_support_left/right` zone split. **No new `if(elementType)`; engine
+purity held; `.rcfg` additive + legacy-migrated; BBS/cutLength goldens unchanged.**
+
+**Open / not done (NONE block P5/P6 code-completeness).** (a) **Owner GPU/visual pass** on the two-support cage +
+the relevés + the spliced-bar drawing. (b) **Representative-render notes** (documented, not gaps): the second
+support's chapeau + the relevés render at a representative axial position; the member-level `end_support_anchorage`
+check stays single (per-support anchorage is stored + will be **drawn in G7**). (c) **Group-level splices** (all
+bars of a group splice at the same station → the stagger WARN); per-bar splices are a later refinement. (d) Lap
+length + support anchorage ride the **provisional** BAEL/EC2 packs (**G-BAEL/G-EC2**). (e) Remaining phases **P7
+(G7 — shop-drawing PDF/DXF) → P8 (G8 — 3D concrete/stair fidelity) → P9 (G9 — camera roll/cube/pan)** are unbuilt.
+**→ Next agent:** implement `v1.0.3_impl_plan.md` **Phase 7 (G7 — shop-drawing PDF/DXF)** — it consumes P5's
+supports (V1/V2 labels + widths + anchorage), P6's splice marks, P2's coupe/elevation dims and P4's bar marks into
+a `shopDrawing()` annotation layer + a per-distinct-shape bending table, shared by PDF + DXF. Before coding:
+`git log`/diff; `npm run check` + `build:web` GREEN; append a §9 entry.
+
+### 2026-06-30 — v1.0.3 Phase 4 (G2 — addressable bars, section levels & per-bar façonnage) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented **Phase 4 (G2)** of `v1.0.3_impl_plan.md` (spec §2, [REF-SYS-530]) — the largest v1.0.3
+phase — after confirming the P3 baseline GREEN (`npm run check` = 419/84). Full detail in **D-V103-4**.
+
+- **The bar model is now addressable.** Beyond "a group = N identical bars", a user can: shape **one** bar
+  (its own shape + start/end hooks), give it a **unique length + axial position**, change its **Ø**, **remove**
+  it, add **independent extra bars**, and place bars on an **intermediate section level** (a U-bar level at a
+  chosen depth `v`). All of it renders in 3D/coupe/PDF/DXF **and** appears on the schedule.
+- **Lowest-risk architecture.** The engine emits a new `SolveResult.longBars[]` (explicit per-bar geometry)
+  **only when overrides/extra bars are present** — absent → the grouped fast path, **byte-identical** (every
+  existing render/BBS/cutLength golden held; the gate proves it). `placeBars` + `computeBBS` consume `longBars`;
+  the **validation layout/As is untouched** (overrides/extra bars are detailing add-ons — a deliberate
+  engineer-gate scope choice, see the limitation in D-V103-4).
+- **Adapter + doc + UI + .rcfg.** `barOverrides`/`extraBars` are additive doc data; `solveDoc` threads them into
+  `longOverrides`/`extraBars`; `ui/AddressableBars.tsx` drives them (picker + numeric, a11y parity), reusing the
+  F6 `FaconnageEditor` per-bar; `.rcfg` round-trips via `meta.app_document`.
+
+**State now: GREEN, NOT pushed** (policy §10 — push only when the owner asks). `npm run check` ✓ (**434 tests /
+89 files**, +15/+5 over the P3 baseline), `npm run build:web` ✓ (13s), `npm run coverage` **95.54% core** (≥90).
+New: core `tests/{bar_overrides,independent_bars,section_levels}.spec.ts` (+ `g2-helpers.ts`); web
+`engine/addressable_bars.spec.ts`, `ui/addressable_bars_ui.spec.tsx`, `ui/AddressableBars.tsx`. Touched core
+`pipeline/element.ts` + `section/place.ts`, exporters `bbs.ts`, web `engine/{solveDoc,document}.ts`,
+`store/useStore.ts`, `ui/Sidebar.tsx`. **No new `if(elementType)`; purity held; `.rcfg` additive; BBS/cutLength
+goldens unchanged.**
+
+**Open / not done (NONE block P4 code-completeness).** (a) **Owner GPU/visual pass** on the new per-bar
+geometry + the editor feel. (b) **Per-bar validation/As is group-based** by design (principle 7 — engineer
+gate): a removed/extra/per-Ø override changes the render + schedule but NOT the §7 As/`d` checks; per-bar
+mixed-diameter As-weighting + per-bar `d` are a deferred refinement (do NOT change them silently — flag to the
+engineer). (c) `length` override maps to the shape `L` param (straight unique-length bars); a non-DROITE
+unique-length shape uses its own params. (d) Remaining phases **P5 (G3) → P6 (G4) → P7 (G7) → P8 (G8) → P9 (G9)**
+unbuilt.
+**→ Next agent:** implement `v1.0.3_impl_plan.md` **Phase 5 (G3 — beam two-support model V1/V2 + relevés +
+auto-seeded editable stirrup regions)**. It depends on P4 (relevés/per-support chapeaux are addressable shaped
+bars) + P2 (stirrup regions). Before coding: `git log`/diff; `npm run check` + `build:web` GREEN; append a §9 entry.
+
+### 2026-06-30 — v1.0.3 Phase 3 (G5 — cross-tie / épingle unification + anchoring) IMPLEMENTED — by **Zayd** (Hetzner dev box)
+
+**What I did.** Implemented **Phase 3 (G5)** of `v1.0.3_impl_plan.md` (spec §5, [REF-SYS-756b]), after reading
+`cross_projects_policy.md`, `core_logic.md`, `v1.0.3_spec.md`, the plan, and this file; confirmed the baseline
+GREEN first (`npm run check` = 411/83). Full detail in **D-V103-3**.
+
+- **One cross-tie model.** Épingles are now *only* cross-ties (the F2 model). Removed `SUPP_EPINGLE_CROSSTIE`
+  from the four scheme catalogs that offered it (`col-ties-crosstie`, `col-ties`, `beam-span-simple`,
+  `beam-span-chapeaux-releves`) — épingles are added solely via the `CrossTieEditor`. The supplement **manifest
+  file is kept** (still loaded by the core `resolveSupplement` tests; counts unchanged at 7 supplements).
+- **Hook visibility (the G1 follow-up flagged in D-V103-1).** The segment-grammar generator now renders end-hook
+  geometry in `centerline3D` for **OPEN** shapes (a short return leg + the filleted bend), so an épingle's crochet
+  is finally **visible** in 3D/coupe/PDF/DXF and reflects the `hook_angle`. **Closed shapes (cadre/étrier) and the
+  `cutLength`/`totalLengthExpr` guard are untouched**; a no-hook end (DROITE etc.) is byte-identical.
+- **Anchored-only placement.** `placeBars` skips the legacy centred-supplement fallback for any épingle-archetype
+  group (`shape.archetypeId === "EPINGLE"`) — every épingle is the anchored cross-tie placed on the bar-pair line.
+- **Legacy migration.** `migrateDoc` (at the `rcfgToDoc` chokepoint) now folds any `SUPP_EPINGLE_CROSSTIE`
+  supplement into the tie/stirrup `crossTies` and drops it from `supplements` (idempotent, lossless), alongside
+  the existing `nLegs` migration.
+
+**State now: GREEN, NOT pushed** (policy §10 — push only when the owner asks). `npm run check` ✓ (**419 tests /
+84 files**, +8/+1 over the P2 baseline), `npm run build:web` ✓ (12.6s), `npm run coverage` **95.47% core** (≥90).
+New file `tests/epingle_anchored.spec.ts`; touched core `geometry/segment-grammar.ts` + `section/place.ts`, web
+`engine/{crossTies,…}` + the 4 scheme manifests; updated `tie_legs_geometry`/`scheme_switch`/`beam_supplements`
+tests. **No new `if(elementType)`; engine purity held; `.rcfg` untouched (additive migration); BBS/cutLength
+goldens unchanged** (hook geometry changes `geomLength`/render only, not cut lengths — render goldens are
+structural, none needed re-baselining).
+
+**Open / not done (NONE block P3 code-completeness).** (a) **Owner GPU/visual pass** on the now-visible épingle
+hooks + anchored placement (headless can't see WebGL; pure geometry is headless-tested). (b) A **180° hook**
+folds flat along the bar axis, so in the current flat-projection render it overlaps the body (no distinct lateral
+return) — physically correct, but a 3D out-of-plane hook is a later refinement. (c) The remaining v1.0.3 phases
+**P4 (G2) → P5 (G3) → P6 (G4) → P7 (G7) → P8 (G8) → P9 (G9)** are unbuilt.
+**→ Next agent:** implement `v1.0.3_impl_plan.md` **Phase 4 (G2 — addressable bars, section levels & the
+façonnage editor)** — the largest phase; stage it a→d and keep the grouped fast path byte-identical when no
+overrides/levels/extraBars are present. Before coding: `git log`/diff; `npm run check` + `build:web` GREEN; append
+a §9 entry.
 
 ### 2026-06-30 — v1.0.3 Phase 1 (G1 — true bar geometry) + Phase 2 (G6 — cadence + coupe/elevation dims) IMPLEMENTED — by **Amer** (owner's Windows PC)
 

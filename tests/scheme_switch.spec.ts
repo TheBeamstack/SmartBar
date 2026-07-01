@@ -22,7 +22,10 @@ describe("scheme switch / zone mapping (§5.3)", () => {
     const el = loadElement("E-COL-01");
     const a = resolveScheme(loadScheme("E-COL-01", "col-ties-crosstie"), el);
     const b = resolveScheme(loadScheme("E-COL-01", "col-ties"), el);
-    expect(a.supplementalCatalog).toContain("SUPP_EPINGLE_CROSSTIE");
+    // v1.0.3 G5: the épingle is no longer a supplement — it lives in the ONE cross-tie model, so no
+    // scheme catalog offers it (col-ties still offers the interior diamond tie).
+    expect(a.supplementalCatalog).not.toContain("SUPP_EPINGLE_CROSSTIE");
+    expect(b.supplementalCatalog).toContain("SUPP_DIAMANT_TIE");
     expect(b.groups.length).toBe(2);
     expect([...b.coveredZones].sort()).toEqual(["As_total", "Asw_confinement"]);
     // group ids are scheme-scoped, so they never collide across a switch

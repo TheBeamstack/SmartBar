@@ -5,3 +5,5 @@ export * from "./segment-grammar";
 export * from "./registry";
 export * from "./bespoke/helix";
 export * from "./bespoke/mesh";
+// v1.0.3 G4 — lap splices / couplers (§4)
+export * from "./splice";

@@ -28,6 +28,8 @@ import {
   type SlabSolveInput,
   type StairSolveInput,
   type JoistSolveInput,
+  type LongBarOverride,
+  type ExtraLongBar,
 } from "@rebarconfig/core";
 import { makeBaelPack, makeRpsOverlay, type BaelPack } from "@rebarconfig/codepacks";
 import {
@@ -40,6 +42,8 @@ import {
   type CrossTie,
   type TransverseRegion,
   type BarFaconnage,
+  type BarOverrideEdit,
+  type AddressableBar,
   isColumnDoc,
   isGenericDoc,
 } from "./document";
@@ -158,6 +162,92 @@ function faconnageHooks(f: BarFaconnage | undefined): { start?: UserHook; end?: 
 }
 
 // ---------------------------------------------------------------------------
+// G2 addressable bars ([REF-SYS-530]): per-bar overrides + independent extra bars flow into the
+// engine's `longOverrides`/`extraBars` channels (the pipeline emits a per-bar `longBars[]` that the
+// 3D/coupe/PDF/DXF placement + the BBS consume). The adapter passes the FULL resolved shape+params
+// (group default merged with the user edit + an optional unique length) so the engine regenerates
+// each bar's geometry exactly. Empty lists → grouped fast path (legacy byte-identical).
+// ---------------------------------------------------------------------------
+function buildLongOverrides(
+  edits: BarOverrideEdit[] | undefined,
+  group: { shapeId: string; diameter: number },
+  defaultParams: Record<string, number>,
+): LongBarOverride[] {
+  if (!edits || edits.length === 0) return [];
+  return edits.map((e) => {
+    const shapeId = e.shapeId ?? group.shapeId;
+    const params = e.length !== undefined
+      ? { ...faconnageParams(e.faconnage, defaultParams), L: e.length }
+      : faconnageParams(e.faconnage, defaultParams);
+    const hooks = faconnageHooks(e.faconnage);
+    return {
+      barIndex: e.index,
+      shape: loadShape(shapeId),
+      params,
+      diameter: e.diameter ?? group.diameter,
+      ...(hooks ? { hooks } : {}),
+      ...(e.axialPos !== undefined ? { axisStart: e.axialPos } : {}),
+      ...(e.removed ? { removed: true } : {}),
+    };
+  });
+}
+
+function buildExtraBars(bars: AddressableBar[] | undefined, memberLen: number): ExtraLongBar[] {
+  if (!bars || bars.length === 0) return [];
+  return bars.map((eb) => {
+    const hooks = faconnageHooks(eb.faconnage);
+    const base = faconnageParams(eb.faconnage, { L: eb.length ?? memberLen });
+    return {
+      id: eb.id,
+      position: { u: eb.u, v: eb.v },
+      shape: loadShape(eb.shapeId),
+      params: eb.length !== undefined ? { ...base, L: eb.length } : base,
+      diameter: eb.diameter,
+      ...(hooks ? { hooks } : {}),
+      ...(eb.axialPos !== undefined ? { axisStart: eb.axialPos } : {}),
+    };
+  });
+}
+
+/**
+ * v1.0.3 G3 ([REF-SYS-260], spec §3.2): a beam relevé — a bent-up (`RELEVE`) bottom bar near a
+ * support — expanded into G2 addressable bars (one per `count`). It rides the `extraBars` channel so
+ * it renders its true bent shape (G1) and is scheduled (its own RELEVE cutLength), without entering
+ * the layout/As (a detailing add-on, like a supplement). Placed on the bottom-bar level `v`, spread
+ * across the inner width, axially near its support.
+ */
+function releveExtraBars(doc: BeamDoc, phiT: number): ExtraLongBar[] {
+  const releves = doc.releves ?? [];
+  if (releves.length === 0) return [];
+  const L = doc.geometry.L;
+  const phiSpan = doc.span.diameter;
+  const innerH = Math.max(40, doc.geometry.h - 2 * doc.cover - 40);
+  const vBottom = -(doc.geometry.h / 2 - doc.cover - phiT - phiSpan / 2);
+  const innerHalfW = Math.max(0, doc.geometry.b / 2 - doc.cover - phiT - phiSpan / 2);
+  const out: ExtraLongBar[] = [];
+  for (const rz of releves) {
+    const bottom = L * 0.25, top = L * 0.15, incline = innerH, angle = 45;
+    const run = bottom + top + incline * Math.cos((angle * Math.PI) / 180);
+    const axisStart = rz.support === "left" ? 0 : Math.max(0, L - run);
+    const params = { bottom, incline, top, angle };
+    const n = Math.max(1, rz.count);
+    for (let k = 0; k < n; k++) {
+      const u = n === 1 ? 0 : -innerHalfW + (2 * innerHalfW * k) / (n - 1);
+      out.push({
+        id: `${rz.id}_${k + 1}`,
+        position: { u, v: vBottom },
+        shape: loadShape("RELEVE"),
+        params,
+        diameter: rz.diameter,
+        axisStart,
+        role: "PRIMARY_LONGITUDINAL",
+      });
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // element-specific conventions → generic ElementSolveInput
 // ---------------------------------------------------------------------------
 function columnInput(
@@ -172,6 +262,8 @@ function columnInput(
   const wTie = doc.geometry.b - 2 * doc.cover - phiT;
   const hTie = doc.geometry.h - 2 * doc.cover - phiT;
   const cfg = transverseConfig(doc);
+  const longOverrides = buildLongOverrides(doc.longitudinal.barOverrides, { shapeId: doc.longitudinal.shapeId, diameter: phiL }, { L: doc.geometry.H });
+  const extraBars = buildExtraBars(doc.extraBars, doc.geometry.H);
   return {
     element: "E-COL-01",
     profile: "BAEL_COLUMN",
@@ -203,6 +295,8 @@ function columnInput(
         asReq: doc.longitudinal.asReq,
         tensionFace: "BOTTOM",
         ...(faconnageHooks(doc.longitudinal.faconnage) ? { hooks: faconnageHooks(doc.longitudinal.faconnage) } : {}),
+        ...(doc.longitudinal.splices !== undefined ? { splices: doc.longitudinal.splices } : {}),
+        ...(doc.longitudinal.autoSplice ? { autoSplice: true } : {}),
       },
     ],
     transverse: [
@@ -219,6 +313,8 @@ function columnInput(
       },
       ...crossTieGroups,
     ],
+    ...(longOverrides.length > 0 ? { longOverrides } : {}),
+    ...(extraBars.length > 0 ? { extraBars } : {}),
     ...seismicBlock(
       doc.seismic,
       { kind: "COLUMN", length: doc.geometry.H, bMin: Math.min(doc.geometry.b, doc.geometry.h), hSectionMax: Math.max(doc.geometry.b, doc.geometry.h) },
@@ -239,13 +335,18 @@ function beamInput(
 ): ElementSolveInput {
   const cfg = transverseConfig(doc);
   const phiSpan = doc.span.diameter;
-  const phiTop = doc.chapeau.enabled ? doc.chapeau.diameter : phiSpan;
+  const supL = doc.supports.left, supR = doc.supports.right;
+  const phiTop = supL.chapeau.enabled ? supL.chapeau.diameter : supR.chapeau.enabled ? supR.chapeau.diameter : phiSpan;
   const phiLInset = Math.max(phiSpan, phiTop, doc.topBars.enabled ? doc.topBars.diameter : 0);
   const phiT = doc.stirrup.diameter;
   const wStir = doc.geometry.b - 2 * doc.cover - phiT;
   const hStir = doc.geometry.h - 2 * doc.cover - phiT;
   // single bottom layer ⇒ d = h − (cover + φ_t + φ_ℓ/2) exactly (§6.1)
   const dApprox = doc.geometry.h - (doc.cover + phiT + phiLInset / 2);
+  const longOverrides = buildLongOverrides(doc.span.barOverrides, { shapeId: doc.span.shapeId, diameter: phiSpan }, { L: doc.geometry.L });
+  // G3 ([REF-SYS-260]): relevés ride the G2 addressable-bar channel (a RELEVE-shaped bottom bar that
+  // bends up near its support) — rendered + scheduled, the layout/As untouched (detailing add-on).
+  const extraBars = [...buildExtraBars(doc.extraBars, doc.geometry.L), ...releveExtraBars(doc, phiT)];
 
   const longitudinal: ElementSolveInput["longitudinal"] = [
     {
@@ -260,14 +361,23 @@ function beamInput(
       tensionFace: "BOTTOM",
       continuedToSupport: doc.span.continuedToSupport,
       ...(faconnageHooks(doc.span.faconnage) ? { hooks: faconnageHooks(doc.span.faconnage) } : {}),
+      ...(doc.span.splices !== undefined ? { splices: doc.span.splices } : {}),
+      ...(doc.span.autoSplice ? { autoSplice: true } : {}),
     },
   ];
 
   // Top face physically carries (8b, D-P6-1): full-length montage bars + over-support chapeaux.
-  // Each top zone declares an EXPLICIT providedCount so the two never double-count on the TOP face.
+  // Each top zone declares an EXPLICIT providedCount so they never double-count on the TOP face.
+  // G3 ([REF-SYS-260]): the single chapeau is now TWO independent supports V1 (left) / V2 (right),
+  // each its own validated zone with its own §7.7 curtailment length (asymmetric is just data).
+  // A representative cross-section sits over ONE support, so the layout's TOP face carries the montage
+  // PLUS the governing (larger) single support's chapeau — NOT the sum of both (the left & right
+  // chapeaux never share a section). Each support is still validated independently via its explicit
+  // providedCount; the under-placed support's bars are emitted as addressable bars (buildLongBars).
   const nMontage = doc.topBars.enabled ? doc.topBars.nTop : 0;
-  const nChapeau = doc.chapeau.enabled ? doc.chapeau.nTop : 0;
-  const nTop = Math.max(2, nMontage + nChapeau);
+  const nChapeauL = supL.chapeau.enabled ? supL.chapeau.nTop : 0;
+  const nChapeauR = supR.chapeau.enabled ? supR.chapeau.nTop : 0;
+  const nTop = Math.max(2, nMontage + Math.max(nChapeauL, nChapeauR));
 
   if (doc.topBars.enabled) {
     longitudinal.push({
@@ -283,27 +393,29 @@ function beamInput(
       providedCount: nMontage,
     });
   }
-  if (doc.chapeau.enabled) {
+  const pushChapeau = (sup: BeamDoc["supports"]["left"], side: "left" | "right", n: number): void => {
     const cur = computeCurtailment(code, {
       diameter: phiTop,
       material: doc.material,
-      supportZone: doc.chapeau.supportZone,
+      supportZone: sup.chapeau.length,
       d: dApprox,
       goodBond: false, // top bars over a support cast poor-bond (§7.7)
     });
     longitudinal.push({
-      zone: "As_top_support",
-      groupId: doc.chapeau.groupId,
+      zone: `As_top_support_${side}`,
+      groupId: `C_${side}`,
       role: "PRIMARY_LONGITUDINAL",
-      shape: loadShape(doc.chapeau.shapeId),
+      shape: loadShape(doc.chapeauShapeId),
       params: { L: cur.extension },
       diameter: phiTop,
       faces: ["TOP"],
-      asReq: doc.chapeau.asReq,
+      asReq: sup.chapeau.asReq,
       tensionFace: "TOP",
-      providedCount: nChapeau, // explicit — does NOT absorb the montage bars on the same face
+      providedCount: n,
     });
-  }
+  };
+  if (supL.chapeau.enabled) pushChapeau(supL, "left", nChapeauL);
+  if (supR.chapeau.enabled) pushChapeau(supR, "right", nChapeauR);
 
   return {
     element: "E-BEM-01",
@@ -333,6 +445,8 @@ function beamInput(
       },
       ...crossTieGroups,
     ],
+    ...(longOverrides.length > 0 ? { longOverrides } : {}),
+    ...(extraBars.length > 0 ? { extraBars } : {}),
     ...seismicBlock(
       doc.seismic,
       { kind: "BEAM", length: doc.geometry.L, bMin: doc.geometry.b, hSectionMax: doc.geometry.h },
@@ -363,7 +477,9 @@ function longBarsTotal(doc: ColumnDoc | BeamDoc): number {
     return l.nTop + l.nBottom + l.nLeft + l.nRight;
   }
   const nMontage = doc.topBars.enabled ? doc.topBars.nTop : 0;
-  const nChapeau = doc.chapeau.enabled ? doc.chapeau.nTop : 0;
+  const nChapeau =
+    (doc.supports.left.chapeau.enabled ? doc.supports.left.chapeau.nTop : 0) +
+    (doc.supports.right.chapeau.enabled ? doc.supports.right.chapeau.nTop : 0);
   return doc.span.nBottom + Math.max(2, nMontage + nChapeau);
 }
 

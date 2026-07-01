@@ -78,6 +78,25 @@ export interface Strings {
     montageTitle: string;
     montageEnable: string;
     montageBars: string;
+    supportV1: string;
+    supportV2: string;
+    anchorage: string;
+    supportWidth: string;
+    releves: string;
+    releveSupport: string;
+    releveCount: string;
+    releveAdd: string;
+    seedRegions: string;
+  };
+  splice: {
+    title: string;
+    auto: string;
+    kind: string;
+    lap: string;
+    coupler: string;
+    station: string;
+    addLap: string;
+    addCoupler: string;
   };
   generic: {
     reinforcement: string;
@@ -123,6 +142,8 @@ export interface Strings {
       As_total: string;
       As_span_bottom: string;
       As_top_support: string;
+      As_top_support_left: string;
+      As_top_support_right: string;
       As_top_montage: string;
     };
   };
@@ -281,6 +302,25 @@ const FR: Strings = {
     montageTitle: "Barres supérieures filantes",
     montageEnable: "Ajouter des barres filantes en partie haute",
     montageBars: "Barres filantes (haut)",
+    supportV1: "Appui V1 (gauche)",
+    supportV2: "Appui V2 (droite)",
+    anchorage: "Ancrage sur appui (mm)",
+    supportWidth: "Largeur d'appui (mm)",
+    releves: "Barres relevées",
+    releveSupport: "Appui",
+    releveCount: "Nombre",
+    releveAdd: "+ Relevé",
+    seedRegions: "Densifier cadres aux appuis",
+  },
+  splice: {
+    title: "Recouvrements / manchons",
+    auto: "Découpe auto (> longueur de stock)",
+    kind: "Type de jonction",
+    lap: "Recouvrement",
+    coupler: "Manchon",
+    station: "Position (mm)",
+    addLap: "+ Recouvrement",
+    addCoupler: "+ Manchon",
   },
   generic: {
     reinforcement: "Armatures",
@@ -326,6 +366,8 @@ const FR: Strings = {
       As_total: "Longitudinal",
       As_span_bottom: "Travée (bas)",
       As_top_support: "Chapeaux (appui)",
+      As_top_support_left: "Chapeaux V1 (gauche)",
+      As_top_support_right: "Chapeaux V2 (droite)",
       As_top_montage: "Montage (haut)",
     },
   },
@@ -484,6 +526,25 @@ const EN: Strings = {
     montageTitle: "Full-length top bars",
     montageEnable: "Add full-length top (montage) bars",
     montageBars: "Top bars (full length)",
+    supportV1: "Support V1 (left)",
+    supportV2: "Support V2 (right)",
+    anchorage: "Support anchorage (mm)",
+    supportWidth: "Support width (mm)",
+    releves: "Bent-up bars (relevés)",
+    releveSupport: "Support",
+    releveCount: "Count",
+    releveAdd: "+ Relevé",
+    seedRegions: "Densify stirrups at supports",
+  },
+  splice: {
+    title: "Lap splices / couplers",
+    auto: "Auto-split (> stock length)",
+    kind: "Joint type",
+    lap: "Lap",
+    coupler: "Coupler",
+    station: "Position (mm)",
+    addLap: "+ Lap",
+    addCoupler: "+ Coupler",
   },
   generic: {
     reinforcement: "Reinforcement",
@@ -529,6 +590,8 @@ const EN: Strings = {
       As_total: "Longitudinal",
       As_span_bottom: "Span (bottom)",
       As_top_support: "Top (support)",
+      As_top_support_left: "Top V1 (left)",
+      As_top_support_right: "Top V2 (right)",
       As_top_montage: "Top (montage)",
     },
   },

@@ -17,6 +17,6 @@
       "placement": { "rule": "ALONG_PATH", "path": { "ref": "COLUMN_HEIGHT" }, "spacing": "param" }
     }
   ],
-  "supplementalCatalog": ["SUPP_EPINGLE_CROSSTIE", "SUPP_DIAMANT_TIE"],
+  "supplementalCatalog": ["SUPP_DIAMANT_TIE"],
   "validationProfile": "BAEL_COLUMN"
 }

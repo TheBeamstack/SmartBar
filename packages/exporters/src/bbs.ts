@@ -71,10 +71,15 @@ export interface BarBendingSchedule {
   status: ValidationStatus;
   /** true when the element is WARN (🟠): the schedule must be stamped "À vérifier" (§7.12). */
   reviewRequired: boolean;
+  /** v1.0.3 G4 ([REF-SYS-770]): total mechanical couplers across the element's spliced bars. */
+  couplers: number;
 }
 
 /** Round to a fixed grid so float noise never splits an otherwise-identical bar. */
 const q = (x: number): number => Math.round(x * 1e3) / 1e3;
+
+/** Longitudinal roles — scheduled per-bar from `longBars` when the element has overrides (G2). */
+const LONG_ROLES = new Set(["PRIMARY_LONGITUDINAL", "DISTRIBUTION"]);
 
 /** A continuous coil (spiral/helix) is ONE bar of `cutLength`, not a stack of discrete sets. */
 function isContinuousCoil(shape: SolvedGroup["shape"]): boolean {
@@ -141,12 +146,36 @@ export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendi
     cutLength: number;
     fiche: SolvedGroup["shape"]["fiche"];
   }
+  // v1.0.3 G2 ([REF-SYS-530]): when the element carries per-bar overrides / extra bars the pipeline
+  // emits an explicit `longBars[]`; schedule the longitudinal steel from it (one line per DISTINCT
+  // bar — uniques split out, identical bars merge) instead of the grouped count. Absent → grouped.
+  const longBars = result.longBars;
   const raws: Raw[] = [];
+  let couplerCount = 0; // v1.0.3 G4: mechanical couplers tallied across the spliced groups
   for (const g of result.groups) {
+    if (longBars && LONG_ROLES.has(g.role)) continue; // longitudinal handled per-bar below
     const count = groupCount(g, transverseSets, result.member.length);
     if (count <= 0) continue;
-    const cutLength = g.shape.cutLength;
     const legSig = g.shape.fiche.legs.map((l) => q(l.length)).join(",");
+    // v1.0.3 G4 ([REF-SYS-770]): a spliced bar is scheduled as its SEGMENTS (each its own cut,
+    // `count` of them) + a coupler tally; the total-length invariant rides in the segment cut lengths.
+    if (g.splice) {
+      g.splice.segments.forEach((seg, si) => {
+        raws.push({
+          key: `${g.shape.archetypeId}|${g.diameter}|${q(seg.cutLength)}|SEG`,
+          groupId: `${g.groupId}#${si + 1}`,
+          shapeArchetypeId: g.shape.archetypeId,
+          role: g.role,
+          diameter: g.diameter,
+          count,
+          cutLength: seg.cutLength,
+          fiche: g.shape.fiche,
+        });
+      });
+      couplerCount += g.splice.couplerCount * count;
+      continue;
+    }
+    const cutLength = g.shape.cutLength;
     raws.push({
       key: `${g.shape.archetypeId}|${g.diameter}|${q(cutLength)}|${legSig}`,
       groupId: g.groupId,
@@ -157,6 +186,23 @@ export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendi
       cutLength,
       fiche: g.shape.fiche,
     });
+  }
+  if (longBars) {
+    for (const lb of longBars) {
+      if (lb.removed) continue;
+      const cutLength = lb.shape.cutLength;
+      const legSig = lb.shape.fiche.legs.map((l) => q(l.length)).join(",");
+      raws.push({
+        key: `${lb.shape.archetypeId}|${lb.diameter}|${q(cutLength)}|${legSig}`,
+        groupId: lb.groupId,
+        shapeArchetypeId: lb.shape.archetypeId,
+        role: lb.role,
+        diameter: lb.diameter,
+        count: 1,
+        cutLength,
+        fiche: lb.shape.fiche,
+      });
+    }
   }
 
   // 2. merge identical bars (shape + Ø + dims) across groups/segments -------------------------
@@ -225,6 +271,7 @@ export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendi
     summary: { byDiameter, totalWeight_kg, concreteVolume_m3, steelRatio_kg_m3 },
     status: result.status,
     reviewRequired: result.status === "WARN",
+    couplers: couplerCount,
   };
 }
 

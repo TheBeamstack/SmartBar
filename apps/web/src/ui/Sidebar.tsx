@@ -14,8 +14,9 @@ import { SupplementsPanel } from "./SupplementsPanel";
 import { CrossTieEditor } from "./CrossTieEditor";
 import { RegionEditor } from "./RegionEditor";
 import { FaconnageEditor } from "./FaconnageEditor";
+import { AddressableBars } from "./AddressableBars";
 import { cm2, perZoneReadout } from "./derived";
-import { isColumnDoc, isGenericDoc, isBeamDoc } from "../engine/document";
+import { isColumnDoc, isGenericDoc, isBeamDoc, type Splice } from "../engine/document";
 import { GENERIC_SPECS, type GenericElementId } from "../engine/elementSpecs";
 
 type Tab = "scheme" | "geometry" | "project";
@@ -79,6 +80,51 @@ function DiameterSelect({ value, onChange }: { value: number; onChange: (v: numb
   );
 }
 
+/**
+ * G4 ([REF-UI-770]): lap-splice / coupler editor for the active primary longitudinal group (column
+ * verticals or beam span bars). Auto-splice toggle + a station/kind list (picker AND numeric — a11y).
+ */
+function SpliceEditor() {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const setLongitudinal = useStore((s) => s.setLongitudinal);
+  const setSpan = useStore((s) => s.setSpan);
+  const s = t(lang);
+  const isCol = isColumnDoc(doc);
+  if (!isCol && !isBeamDoc(doc)) return null;
+  const group = isCol ? doc.longitudinal : doc.span;
+  const memberLen = isCol ? doc.geometry.H : doc.geometry.L;
+  const splices = group.splices ?? [];
+  const patch = (p: { splices?: Splice[]; autoSplice?: boolean }): void => {
+    if (isCol) setLongitudinal(p);
+    else setSpan(p);
+  };
+  const add = (kind: Splice["kind"]) => patch({ splices: [...splices, { at: Math.round(memberLen / 2), kind }] });
+  return (
+    <>
+      <h3>{s.splice.title}</h3>
+      <label className="field field-check">
+        <input type="checkbox" checked={group.autoSplice ?? false} onChange={(e) => patch({ autoSplice: e.target.checked })} />
+        <span className="field-label">{s.splice.auto}</span>
+      </label>
+      {splices.map((sp, i) => (
+        <div className="field-row" key={i}>
+          <select aria-label={s.splice.kind} value={sp.kind} onChange={(e) => patch({ splices: splices.map((x, j) => (j === i ? { ...x, kind: e.target.value as Splice["kind"] } : x)) })}>
+            <option value="lap">{s.splice.lap}</option>
+            <option value="coupler">{s.splice.coupler}</option>
+          </select>
+          <NumberField label={s.splice.station} value={sp.at} min={0} max={memberLen} step={50} onChange={(v) => patch({ splices: splices.map((x, j) => (j === i ? { ...x, at: v } : x)) })} />
+          <button type="button" className="btn-mini" onClick={() => patch({ splices: splices.filter((_, j) => j !== i) })}>×</button>
+        </div>
+      ))}
+      <div className="field-row">
+        <button type="button" className="btn-mini" onClick={() => add("lap")}>{s.splice.addLap}</button>
+        <button type="button" className="btn-mini" onClick={() => add("coupler")}>{s.splice.addCoupler}</button>
+      </div>
+    </>
+  );
+}
+
 function ColumnSchemeControls() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
@@ -119,6 +165,8 @@ function ColumnSchemeControls() {
         memberLength={doc.geometry.H}
         onChange={(patch) => setLongitudinal(patch)}
       />
+      <AddressableBars />
+      <SpliceEditor />
 
       <h3>{s.ties}</h3>
       <DiameterSelect value={T.diameter} onChange={(v) => setTie({ diameter: v })} />
@@ -131,16 +179,75 @@ function ColumnSchemeControls() {
   );
 }
 
+/** G3 ([REF-UI-260]): one beam support (V1 left / V2 right) — its chapeau + anchorage + width. */
+function SupportControls({ side }: { side: "left" | "right" }) {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const setSupport = useStore((s) => s.setSupport);
+  const s = t(lang);
+  if (!isBeamDoc(doc)) return null;
+  const sup = doc.supports[side];
+  const title = side === "left" ? s.beam.supportV1 : s.beam.supportV2;
+  return (
+    <>
+      <h3>{title}</h3>
+      <label className="field field-check">
+        <input type="checkbox" checked={sup.chapeau.enabled} onChange={(e) => setSupport(side, { chapeau: { enabled: e.target.checked } })} />
+        <span className="field-label">{s.beam.chapeaux}</span>
+      </label>
+      {sup.chapeau.enabled && (
+        <>
+          <DiameterSelect value={sup.chapeau.diameter} onChange={(v) => setSupport(side, { chapeau: { diameter: v } })} />
+          <NumberField label={s.beam.topBars} value={sup.chapeau.nTop} min={2} max={8} onChange={(v) => setSupport(side, { chapeau: { nTop: v } })} />
+          <NumberField label={s.asRequired + " (mm²)"} value={sup.chapeau.asReq} min={0} max={20000} step={50} onChange={(v) => setSupport(side, { chapeau: { asReq: v } })} />
+          <NumberField label={s.beam.supportZone} value={sup.chapeau.length} min={0} max={3000} step={50} onChange={(v) => setSupport(side, { chapeau: { length: v } })} />
+        </>
+      )}
+      <NumberField label={s.beam.anchorage} value={sup.anchorage} min={0} max={2000} step={10} onChange={(v) => setSupport(side, { anchorage: v })} />
+      <NumberField label={s.beam.supportWidth} value={sup.width} min={100} max={1000} step={10} onChange={(v) => setSupport(side, { width: v })} />
+    </>
+  );
+}
+
+/** G3 ([REF-UI-260]): bent-up bottom bars (relevés) near a support — count/Ø/side, add & remove. */
+function ReleveEditor() {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const setReleves = useStore((s) => s.setReleves);
+  const s = t(lang);
+  if (!isBeamDoc(doc)) return null;
+  const releves = doc.releves ?? [];
+  const add = () =>
+    setReleves([...releves, { id: `R${releves.length + 1}`, support: "left", count: 2, diameter: 12 }]);
+  return (
+    <>
+      <h3>{s.beam.releves}</h3>
+      {releves.map((r, i) => (
+        <div className="field-row" key={r.id}>
+          <select aria-label={s.beam.releveSupport} value={r.support} onChange={(e) => setReleves(releves.map((x, j) => (j === i ? { ...x, support: e.target.value as "left" | "right" } : x)))}>
+            <option value="left">V1</option>
+            <option value="right">V2</option>
+          </select>
+          <NumberField label={s.beam.releveCount} value={r.count} min={1} max={8} onChange={(v) => setReleves(releves.map((x, j) => (j === i ? { ...x, count: v } : x)))} />
+          <DiameterSelect value={r.diameter} onChange={(v) => setReleves(releves.map((x, j) => (j === i ? { ...x, diameter: v } : x)))} />
+          <button type="button" className="btn-mini" onClick={() => setReleves(releves.filter((_, j) => j !== i))}>×</button>
+        </div>
+      ))}
+      <button type="button" className="btn-mini" onClick={add}>{s.beam.releveAdd}</button>
+    </>
+  );
+}
+
 function BeamSchemeControls() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
   const setSpan = useStore((s) => s.setSpan);
-  const setChapeau = useStore((s) => s.setChapeau);
   const setStirrup = useStore((s) => s.setStirrup);
   const setTopBars = useStore((s) => s.setTopBars);
+  const seedStirrupRegions = useStore((s) => s.seedStirrupRegions);
   const s = t(lang);
   if (!isBeamDoc(doc)) return null;
-  const { span, chapeau, stirrup, topBars } = doc;
+  const { span, stirrup, topBars } = doc;
 
   return (
     <>
@@ -157,6 +264,8 @@ function BeamSchemeControls() {
         memberLength={doc.geometry.L}
         onChange={(patch) => setSpan(patch)}
       />
+      <AddressableBars />
+      <SpliceEditor />
 
       <h3>{s.beam.montageTitle}</h3>
       <label className="field field-check">
@@ -170,20 +279,15 @@ function BeamSchemeControls() {
         </>
       )}
 
-      {chapeau.enabled && (
-        <>
-          <h3>{s.beam.chapeaux}</h3>
-          <DiameterSelect value={chapeau.diameter} onChange={(v) => setChapeau({ diameter: v })} />
-          <NumberField label={s.beam.topBars} value={chapeau.nTop} min={2} max={8} onChange={(v) => setChapeau({ nTop: v })} />
-          <NumberField label={s.asRequired + " (mm²)"} value={chapeau.asReq} min={0} max={20000} step={50} onChange={(v) => setChapeau({ asReq: v })} />
-          <NumberField label={s.beam.supportZone} value={chapeau.supportZone} min={0} max={3000} step={50} onChange={(v) => setChapeau({ supportZone: v })} />
-        </>
-      )}
+      <SupportControls side="left" />
+      <SupportControls side="right" />
+      <ReleveEditor />
 
       <h3>{s.beam.stirrups}</h3>
       <DiameterSelect value={stirrup.diameter} onChange={(v) => setStirrup({ diameter: v })} />
       <NumberField label={s.spacing} value={stirrup.spacing} min={50} max={400} step={5} onChange={(v) => setStirrup({ spacing: v })} />
       <NumberField label="Asw,req (mm²/m)" value={stirrup.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setStirrup({ aswReqPerM: v })} />
+      <button type="button" className="btn-mini" onClick={seedStirrupRegions}>{s.beam.seedRegions}</button>
 
       <CrossTieEditor />
       <RegionEditor />

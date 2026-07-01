@@ -37,7 +37,8 @@ describe("perZoneReadout (F3 per-zone readout)", () => {
     const zones = rows.map((x) => x.zone);
 
     expect(zones).toContain("As_span_bottom");
-    expect(zones).toContain("As_top_support");
+    expect(zones).toContain("As_top_support_left"); // G3: two supports V1/V2
+    expect(zones).toContain("As_top_support_right");
     expect(zones).not.toContain("As_top_montage"); // montage off
 
     const span = rows.find((x) => x.zone === "As_span_bottom")!;

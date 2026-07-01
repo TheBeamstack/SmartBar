@@ -22,7 +22,8 @@ describe("element + scheme catalog", () => {
     expect(st.doc.element).toBe("E-BEM-01");
     expect(st.result.status).not.toBe("FAIL");
     expect(rules()).toContain("provided_area:As_span_bottom");
-    expect(rules()).toContain("provided_area:As_top_support");
+    expect(rules()).toContain("provided_area:As_top_support_left"); // G3: two supports V1/V2
+    expect(rules()).toContain("provided_area:As_top_support_right");
     expect(rules()).toContain("stirrup_spacing:Asw_shear");
     expect(rules()).toContain("end_support_anchorage");
   });
@@ -33,7 +34,8 @@ describe("element + scheme catalog", () => {
     useStore.getState().selectScheme("BEAM_SPAN_SIMPLE");
     const st = useStore.getState();
     expect(st.doc.geometry.b).toBe(350); // project edits preserved across the remap
-    expect(rules()).not.toContain("provided_area:As_top_support");
+    expect(rules()).not.toContain("provided_area:As_top_support_left");
+    expect(rules()).not.toContain("provided_area:As_top_support_right");
     expect(rules()).toContain("provided_area:As_span_bottom");
   });
 

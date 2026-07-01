@@ -149,11 +149,13 @@ export function generateBarShape(
   const vertices: Vec2[] = [];
   let pos: Vec2 = { u: 0, v: 0 };
   let heading = 0;
+  let firstHeading: number | undefined; // heading of the first leg (for the start-hook return)
   vertices.push({ ...pos });
 
   for (const op of archetype.segments) {
     if (isLine(op)) {
       heading = headingFromDir(op.dir, heading);
+      if (firstHeading === undefined) firstHeading = heading;
       const len = evalExpr(op.line, baseScope);
       legs.push(len);
       pos = advance(pos, heading, len);
@@ -248,6 +250,27 @@ export function generateBarShape(
       `shape "${archetype.id}": totalLengthExpr (${declared.toFixed(3)}) disagrees with ` +
         `generated cutLength (${cutLength.toFixed(3)}) — check the manifest formula (§5.2.1e)`,
     );
+  }
+
+  // --- v1.0.3 G5 ([REF-SYS-756b], §5): render the end-hook (crochet) geometry on OPEN shapes so
+  // the hook is VISIBLE in 3D/coupe/PDF/DXF (épingles especially — their hooks anchor the bar pair).
+  // The hook is appended/prepended as a short return leg (the join becomes a filleted bend below);
+  // its angle is the resolved hook angle (so the cross-tie `hook_angle` shows). Geometry only — the
+  // cutLength/totalLengthExpr cross-check above already accounts for the hook allowance + bend, so
+  // it is untouched here. CLOSED shapes (cadre/étrier) keep their welded loop (hooks internal), and
+  // a no-hook end (ext 0 → DROITE & friends) adds nothing → byte-identical to pre-G5.
+  if (!archetype.closed && vertices.length >= 2) {
+    const h0 = firstHeading ?? 0;
+    const endHook = hooks.find((h) => h.end === "end");
+    const startHook = hooks.find((h) => h.end === "start");
+    if (endHook && endHook.extension > 0) {
+      const last = vertices[vertices.length - 1]!;
+      vertices.push(advance(last, heading + endHook.angle, endHook.extension));
+    }
+    if (startHook && startHook.extension > 0) {
+      const v0 = vertices[0]!;
+      vertices.unshift(advance(v0, h0 + 180 - startHook.angle, startHook.extension));
+    }
   }
 
   // --- build the sampled centerline (straights + fillet arcs) for the 3D tube ---

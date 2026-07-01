@@ -22,6 +22,7 @@ import {
   type Pt2,
 } from "@rebarconfig/core";
 import { buildElevationFiche, cuttingLineFiche } from "./fiche";
+import { shopDrawing, type ShopDrawingOptions, type BendingRow } from "./shopDrawing";
 
 /** The four strict DXF layers (§9.2) with their ACI colour numbers. */
 export const DXF_LAYERS = {
@@ -160,6 +161,69 @@ export function elevationToDxf(result: SolveResult, b: DxfBuilder, coupes: Coupe
   return b;
 }
 
+/** Fit a 2D polyline into a box (aspect-preserving, centred) → placed vertices in model space. */
+function fitPolyline(
+  pts: { x: number; y: number }[],
+  box: { x: number; y: number; w: number; h: number },
+): { x: number; y: number }[] {
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys);
+  const mw = Math.max(1e-6, mxx - mnx), mh = Math.max(1e-6, mxy - mny);
+  const s = Math.min(box.w / mw, box.h / mh);
+  const ox = box.x + (box.w - s * mw) / 2, oy = box.y + (box.h - s * mh) / 2;
+  return pts.map((p) => ({ x: ox + s * (p.x - mnx), y: oy + s * (p.y - mny) }));
+}
+
+/**
+ * Emit the bar-bending (façonnage) table (spec §7.2.6, G7): one row per distinct scheduled shape —
+ * repère · shape sketch · Ø · cut length · count/element · total — below the elevation. TEXTE for
+ * the columns, ARMATURES for the shape thumbnail (no CIRCLE, so the coupe-circle golden is unaffected).
+ */
+function bendingTableToDxf(rows: BendingRow[], b: DxfBuilder, x0: number, yTop: number): DxfBuilder {
+  const rowH = TEXT_H * 1.8;
+  const sketchW = TEXT_H * 5;
+  const cols = [0, sketchW + TEXT_H, sketchW + TEXT_H * 5, sketchW + TEXT_H * 9, sketchW + TEXT_H * 13]; // Ø, cut, nb, total
+  b.text("TEXTE", x0, yTop + rowH, TEXT_H, "TABLEAU DE FACONNAGE");
+  b.text("TEXTE", x0, yTop, TEXT_H, "Rep.");
+  b.text("TEXTE", x0 + cols[1]!, yTop, TEXT_H, "O");
+  b.text("TEXTE", x0 + cols[2]!, yTop, TEXT_H, "Long.");
+  b.text("TEXTE", x0 + cols[3]!, yTop, TEXT_H, "Nb");
+  b.text("TEXTE", x0 + cols[4]!, yTop, TEXT_H, "Total");
+  rows.forEach((r, i) => {
+    const y = yTop - (i + 1) * rowH;
+    b.text("TEXTE", x0, y, TEXT_H, r.mark);
+    if (r.sketch && r.sketch.length >= 2) {
+      const placed = fitPolyline(r.sketch, { x: x0 + TEXT_H, y: y - TEXT_H * 0.3, w: sketchW - TEXT_H, h: TEXT_H * 1.2 });
+      b.polyline("ARMATURES", placed, false);
+    }
+    b.text("TEXTE", x0 + cols[1]!, y, TEXT_H, `${r.diameter}`);
+    b.text("TEXTE", x0 + cols[2]!, y, TEXT_H, `${Math.round(r.cutLength_mm)}`);
+    b.text("TEXTE", x0 + cols[3]!, y, TEXT_H, `${r.countPerElement}`);
+    b.text("TEXTE", x0 + cols[4]!, y, TEXT_H, `${r.totalCount}`);
+  });
+  return b;
+}
+
+/**
+ * Emit the shop-drawing annotation overlay (spec §7 [REF-SYS-930], G7) onto the elevation: per-bar
+ * leader lines `mark nØd l=`, stirrup-zone `count × spacing` notation, and beam support labels
+ * V1/V2 — from the shared `shopDrawing` model (so PDF + DXF agree). Coupe cutting-lines are already
+ * drawn by `elevationToDxf`, so they are not repeated here.
+ */
+export function shopDrawingToDxf(result: SolveResult, b: DxfBuilder, opts: ShopDrawingOptions = {}): DxfBuilder {
+  const shop = shopDrawing(result, opts);
+  for (const led of shop.leaders) {
+    b.line("COTATION", led.from.x, led.from.y, led.to.x, led.to.y);
+    b.text("TEXTE", led.to.x, led.to.y, TEXT_H, led.text);
+  }
+  for (const z of shop.stirrupZones) b.text("TEXTE", z.at.x, z.at.y, TEXT_H, z.label);
+  for (const s of shop.supportLabels) b.text("TEXTE", s.at.x, s.at.y, TEXT_H, s.label);
+  // bending table under the member (member y ∈ [−halfH, halfH]); place it well below the dims.
+  const halfH = result.member.envelope === "CIRCULAR" ? (result.member.D ?? 0) / 2 : (result.member.h ?? 0) / 2;
+  bendingTableToDxf(shop.bendingTable, b, 0, -halfH - TEXT_H * 6);
+  return b;
+}
+
 export interface Dxf1Options {
   /** override the seeded default coupe (else `defaultCoupeFor`). */
   coupe?: SectionCut;
@@ -176,6 +240,7 @@ export function buildDxf1(result: SolveResult, opts: Dxf1Options = {}): string {
   const view = sectionAt(result, cut);
   const b = new DxfBuilder();
   elevationToDxf(result, b, [view]);
+  shopDrawingToDxf(result, b); // G7 shop annotations (leaders + zones + support labels + bending table)
   // place the coupe to the right of the elevation: its left edge at length + gap
   const gap = opts.gap ?? 500;
   const minS = Math.min(...view.concrete.outline.map((p) => p.s));
@@ -192,6 +257,7 @@ export function buildDxfCoupes(result: SolveResult, cuts: SectionCut[]): string 
   const views = cuts.map((c) => sectionAt(result, c));
   const b = new DxfBuilder();
   elevationToDxf(result, b, views);
+  shopDrawingToDxf(result, b, { coupes: cuts.filter((c) => !c.isDefault) });
   let x0 = result.member.length + 500; // left edge of the next coupe
   for (const view of views) {
     const ss = view.concrete.outline.map((p) => p.s);

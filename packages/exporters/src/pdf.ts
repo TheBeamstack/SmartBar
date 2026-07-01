@@ -20,6 +20,7 @@ import {
 import { computeBBS, type BarBendingSchedule } from "./bbs";
 import { assertExportable, statusStamp } from "./export-lock";
 import { buildElevationFiche } from "./fiche";
+import { shopDrawing, type ShopDrawing, type BendingRow } from "./shopDrawing";
 
 export interface PdfMetadata {
   projectName?: string;
@@ -28,6 +29,8 @@ export interface PdfMetadata {
   date?: string;
   /** extra coupes to include beyond the default (each gets a view box). */
   coupes?: SectionCut[];
+  /** G7 per-support drawing data (bearing width + bottom-bar anchorage) for the V1/V2 labels. */
+  supports?: { side: "left" | "right"; width?: number; anchorage?: number }[];
 }
 
 const A4 = { w: 595.28, h: 841.89 }; // points, portrait
@@ -56,13 +59,31 @@ function fitBox(
   };
 }
 
-/** Draw the longitudinal elevation *fiche* (oriented + annotated, §9.2) into a PDF rectangle. */
-function drawElevation(page: PDFPage, result: SolveResult, font: PDFFont, rect: { x: number; y: number; w: number; h: number }) {
+/**
+ * Draw the longitudinal elevation *fiche* (oriented + annotated, §9.2) PLUS the G7 shop-drawing
+ * overlay (leader lines `mark nØd l=`, coupe markers A-A, stirrup-zone `count × spacing` notation,
+ * support labels V1/V2) into a PDF rectangle. The fit box is expanded to include the shop annotation
+ * anchors so the leaders/labels stay on-sheet.
+ */
+function drawElevation(page: PDFPage, result: SolveResult, font: PDFFont, rect: { x: number; y: number; w: number; h: number }, shop: ShopDrawing) {
   const fiche = buildElevationFiche(result);
-  const T = fitBox(fiche.bbox, rect);
+  // expand the fit bbox over the shop annotation anchors (leaders/coupe markers/support labels)
+  const extra = [
+    ...shop.leaders.flatMap((l) => [l.from, l.to]),
+    ...shop.coupeMarkers.flatMap((m) => [m.from, m.to, m.tagAt]),
+    ...shop.supportLabels.map((s) => s.at),
+  ];
+  const bbox = {
+    minX: Math.min(fiche.bbox.minX, ...extra.map((p) => p.x)),
+    minY: Math.min(fiche.bbox.minY, ...extra.map((p) => p.y)),
+    maxX: Math.max(fiche.bbox.maxX, ...extra.map((p) => p.x)),
+    maxY: Math.max(fiche.bbox.maxY, ...extra.map((p) => p.y)),
+  };
+  const T = fitBox(bbox, rect);
   const steel = rgb(0.8, 0.1, 0.1);
   const concrete = rgb(0.4, 0.4, 0.4);
   const dim = rgb(0.1, 0.45, 0.1);
+  const lead = rgb(0.15, 0.15, 0.55);
   // concrete outline (closed)
   const c = fiche.concrete;
   for (let i = 0; i < c.length; i++) {
@@ -81,9 +102,56 @@ function drawElevation(page: PDFPage, result: SolveResult, font: PDFFont, rect: 
     page.drawLine({ start: { x: T.px(d.from.x), y: T.py(d.from.y) }, end: { x: T.px(d.to.x), y: T.py(d.to.y) }, thickness: 0.4, color: dim });
     page.drawText(d.label, { x: (T.px(d.from.x) + T.px(d.to.x)) / 2, y: (T.py(d.from.y) + T.py(d.to.y)) / 2 + 1, size: 6, font, color: dim });
   }
-  // bar marks (n Ø d) + tie-spacing callouts (Ø d e=s)
-  for (const m of fiche.marks) page.drawText(m.text, { x: T.px(m.at.x) + 2, y: T.py(m.at.y) + 2, size: 6, font, color: rgb(0, 0, 0) });
+  // tie-spacing callouts (Ø d e=s) — the fiche's per-set callout
   for (const cl of fiche.tieCallouts) page.drawText(cl.text, { x: T.px(cl.at.x) + 2, y: T.py(cl.at.y) - 7, size: 6, font, color: rgb(0, 0, 0) });
+  // G7 coupe markers (cutting line + tag on the elevation)
+  for (const m of shop.coupeMarkers) {
+    page.drawLine({ start: { x: T.px(m.from.x), y: T.py(m.from.y) }, end: { x: T.px(m.to.x), y: T.py(m.to.y) }, thickness: 0.5, color: dim });
+    page.drawText(m.tag, { x: T.px(m.tagAt.x) - 2, y: T.py(m.tagAt.y), size: 7, font, color: dim });
+  }
+  // G7 stirrup-zone notation (count × spacing) per region
+  for (const z of shop.stirrupZones) page.drawText(z.label, { x: T.px(z.at.x) - 6, y: T.py(z.at.y) + 3, size: 6, font, color: rgb(0, 0, 0) });
+  // G7 support labels V1/V2 (+ width/anchorage)
+  for (const s of shop.supportLabels) page.drawText(s.label, { x: T.px(s.at.x) - 6, y: T.py(s.at.y) - 8, size: 6.5, font, color: rgb(0, 0, 0) });
+  // G7 per-bar leader lines: mark · nØd · l=
+  for (const led of shop.leaders) {
+    page.drawLine({ start: { x: T.px(led.from.x), y: T.py(led.from.y) }, end: { x: T.px(led.to.x), y: T.py(led.to.y) }, thickness: 0.35, color: lead });
+    page.drawText(led.text, { x: T.px(led.to.x) + 1, y: T.py(led.to.y) + 1, size: 6, font, color: lead });
+  }
+}
+
+/** Draw the bar-bending (façonnage) table (§7.2.6, G7): one row per distinct shape + a mini sketch. */
+function drawBendingTable(page: PDFPage, rows: BendingRow[], font: PDFFont, fontB: PDFFont, top: number): number {
+  const x = MARGIN;
+  const cols = [0, 34, 96, 128, 176, 216]; // mark, sketch, Ø, cut(mm), nb, total
+  const headers = ["Rep.", "Forme", "Ø", "Long.(mm)", "Nb", "Total"];
+  let y = top;
+  page.drawText("Tableau de façonnage (bar-bending table)", { x, y, size: 9, font: fontB, color: rgb(0, 0, 0) });
+  y -= 12;
+  headers.forEach((h, i) => page.drawText(h, { x: x + cols[i]!, y, size: 7, font: fontB, color: rgb(0, 0, 0) }));
+  y -= 12;
+  const steel = rgb(0.8, 0.1, 0.1);
+  for (const r of rows) {
+    // mini shape sketch fitted into the "Forme" column cell
+    if (r.sketch && r.sketch.length >= 2) {
+      const xs = r.sketch.map((p) => p.x), ys = r.sketch.map((p) => p.y);
+      const mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys);
+      const mw = Math.max(1e-6, mxx - mnx), mh = Math.max(1e-6, mxy - mny);
+      const bw = 52, bh = 9;
+      const s = Math.min(bw / mw, bh / mh);
+      const ox = x + cols[1]! + (bw - s * mw) / 2, oy = y - 1 + (bh - s * mh) / 2;
+      const px = (p: { x: number; y: number }) => ({ x: ox + s * (p.x - mnx), y: oy + s * (p.y - mny) });
+      for (let i = 0; i + 1 < r.sketch.length; i++) {
+        const a = px(r.sketch[i]!), b = px(r.sketch[i + 1]!);
+        page.drawLine({ start: a, end: b, thickness: 0.5, color: steel });
+      }
+    }
+    const cells = [r.mark, "", `${r.diameter}`, `${Math.round(r.cutLength_mm)}`, `${r.countPerElement}`, `${r.totalCount}`];
+    cells.forEach((cell, i) => { if (cell) page.drawText(cell, { x: x + cols[i]!, y, size: 7, font, color: rgb(0, 0, 0) }); });
+    y -= 12;
+    if (y < MARGIN + 20) break;
+  }
+  return y;
 }
 
 /** Draw one coupe view box into a PDF rectangle (concrete + circles + lines + annotations). */
@@ -149,10 +217,17 @@ function drawElementSheet(
   fontB: PDFFont,
   result: SolveResult,
   bbs: BarBendingSchedule,
-  opts: { projectName?: string; drawnBy?: string; date: string; coupes: SectionCut[]; mark?: string },
+  opts: { projectName?: string; drawnBy?: string; date: string; coupes: SectionCut[]; mark?: string; quantity?: number; supports?: { side: "left" | "right"; width?: number; anchorage?: number }[] },
 ): void {
   const stamp = statusStamp(result.status);
   const coupes = [defaultCoupeFor(result), ...opts.coupes];
+  // G7 ([REF-SYS-930]): the shop-drawing annotation model — shared with the DXF so they agree.
+  const shop = shopDrawing(result, {
+    ...(opts.mark ? { markPrefix: opts.mark } : {}),
+    ...(opts.quantity !== undefined ? { quantity: opts.quantity } : {}),
+    coupes: opts.coupes,
+    ...(opts.supports ? { supports: opts.supports } : {}),
+  });
   const page = doc.addPage([A4.w, A4.h]);
 
   // --- cartouche (title block) ---
@@ -172,7 +247,7 @@ function drawElementSheet(
   const elevRect = { x: MARGIN, y: drawTop - 200, w: A4.w - 2 * MARGIN, h: 200 };
   page.drawRectangle({ x: elevRect.x, y: elevRect.y, width: elevRect.w, height: elevRect.h, borderWidth: 0.5, borderColor: rgb(0.7, 0.7, 0.7) });
   page.drawText("Élévation", { x: elevRect.x + 4, y: elevRect.y + elevRect.h - 12, size: 8, font: fontB, color: rgb(0, 0, 0) });
-  drawElevation(page, result, font, elevRect);
+  drawElevation(page, result, font, elevRect, shop);
 
   // coupe boxes in a row beneath the elevation
   const coupeTop = elevRect.y - 10;
@@ -184,13 +259,16 @@ function drawElementSheet(
     drawCoupe(page, view, font, r);
   });
 
-  // --- BBS table ---
-  const tableBottom = drawBbsTable(page, bbs, font, fontB, coupeTop - 190);
+  // --- BBS table + the G7 bar-bending (façonnage) table beside it ---
+  const bbsTop = coupeTop - 190;
+  const tableBottom = drawBbsTable(page, bbs, font, fontB, bbsTop);
+  // the façonnage table (one row per distinct shape + a mini sketch) below the BBS table
+  const benchBottom = drawBendingTable(page, shop.bendingTable, font, fontB, tableBottom - 24);
   // review stamp on the fiche itself when WARN (§7.9/§7.12), in addition to the global cartouche stamp
   if (bbs.reviewRequired) {
     page.drawText(`(!) ${stamp.fr} — ${stamp.en}`, {
       x: MARGIN,
-      y: tableBottom - 14,
+      y: benchBottom - 14,
       size: 8,
       font: fontB,
       color: hex(stamp.color),
@@ -223,6 +301,7 @@ export async function buildPdf(result: SolveResult, meta: PdfMetadata = {}): Pro
     drawnBy: meta.drawnBy,
     date,
     coupes: meta.coupes ?? [],
+    ...(meta.supports ? { supports: meta.supports } : {}),
   });
   doc.setTitle(`${meta.projectName ?? "RebarConfig"} — ${result.element}`);
   return doc.save();
@@ -262,6 +341,8 @@ export async function buildProjectPdf(types: ProjectPdfType[], meta: PdfMetadata
       date,
       coupes: t.coupes ?? [],
       mark: t.mark,
+      quantity: t.quantity,
+      ...(meta.supports ? { supports: meta.supports } : {}),
     });
   }
   drawSummarySheet(doc, font, fontB, types, { projectName: meta.projectName, date });

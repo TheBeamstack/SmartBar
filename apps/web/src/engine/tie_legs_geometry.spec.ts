@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { computeBBS } from "@rebarconfig/exporters";
 import { placeBars } from "@rebarconfig/core";
 import { solveDoc } from "./solveDoc";
-import { defaultColumnDoc, type ColumnDoc } from "./document";
+import { defaultColumnDoc, defaultBeamDoc, type ColumnDoc } from "./document";
 import { autoCrossTies, migrateDoc } from "./crossTies";
 import { buildScene } from "../viewport/rebarProps";
 
@@ -73,5 +73,30 @@ describe("F2 cross-ties engage real bars", () => {
     expect(migrated.tie.crossTies.length).toBe(1); // (4−2)/2 = 1 épingle
     expect(migrated.tie.crossTieHookAngle).toBe(135);
     expect(solveDoc(migrated).groups.filter((g) => g.groupId.startsWith("T1_X")).length).toBe(1);
+  });
+});
+
+describe("G5 — épingle unification (one cross-tie model)", () => {
+  it("the default column + beam ship ZERO épingles (no phantom mid-length épingle)", () => {
+    expect(defaultColumnDoc().tie.crossTies).toEqual([]);
+    expect(defaultBeamDoc().stirrup.crossTies).toEqual([]);
+    expect(solveDoc(defaultColumnDoc()).groups.some((g) => g.groupId.startsWith("T1_X"))).toBe(false);
+  });
+
+  it("a legacy supplement-épingle migrates into the tie's cross-tie list (and leaves supplements)", () => {
+    const legacy: ColumnDoc = {
+      ...defaultColumnDoc(),
+      supplements: [
+        { instanceId: "e1", supplementId: "SUPP_EPINGLE_CROSSTIE", group: "L1", barIndices: [0, 2], diameter: 8 },
+      ],
+    };
+    const migrated = migrateDoc(legacy) as ColumnDoc;
+    // the épingle supplement is folded into the ONE cross-tie model and dropped from supplements
+    expect(migrated.supplements.some((s) => s.supplementId === "SUPP_EPINGLE_CROSSTIE")).toBe(false);
+    expect(migrated.tie.crossTies).toContainEqual({ barA: 0, barB: 2, diameter: 8 });
+    // it now renders as an anchored cross-tie group (not a centred supplement)
+    expect(solveDoc(migrated).groups.some((g) => g.groupId.startsWith("T1_X"))).toBe(true);
+    // migration is idempotent — re-running changes nothing
+    expect(migrateDoc(migrated)).toEqual(migrated);
   });
 });

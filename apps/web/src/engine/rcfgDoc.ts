@@ -45,7 +45,8 @@ function asReqOf(doc: ElementDoc): Record<string, number> {
     As_span_bottom: doc.span.asReq,
     Asw_shear: doc.stirrup.aswReqPerM,
   };
-  if (doc.chapeau.enabled) req["As_top_support"] = doc.chapeau.asReq;
+  if (doc.supports.left.chapeau.enabled) req["As_top_support_left"] = doc.supports.left.chapeau.asReq;
+  if (doc.supports.right.chapeau.enabled) req["As_top_support_right"] = doc.supports.right.chapeau.asReq;
   return req;
 }
 

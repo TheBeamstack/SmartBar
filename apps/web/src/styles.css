@@ -481,3 +481,16 @@ html, body, #root {
 .crosstie-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
 .crosstie-name { font-family: ui-monospace, monospace; }
 .crosstie-remove { margin-left: auto; font-size: 11px; }
+
+/* G2 addressable bars (bar-by-bar detailing) */
+.addressable { margin-top: 10px; }
+.addressable-bar { border: 1px solid #2c333d; border-radius: 6px; padding: 8px; margin: 8px 0; }
+.addressable-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.addressable-remove { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.addressable-reset { margin-top: 6px; font-size: 12px; padding: 3px 8px; }
+.addressable-add-extra { font-size: 12px; padding: 3px 8px; margin: 4px 0; }
+.addressable-list { list-style: none; padding: 0; margin: 6px 0 0; }
+.addressable-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
+.addressable-row span { font-family: ui-monospace, monospace; }
+.addressable-row button { margin-left: auto; }
+.addressable-extra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; padding: 4px 0; }

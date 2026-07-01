@@ -13,5 +13,6 @@ export * from "./bbs";
 export * from "./dxf";
 export * from "./export-lock";
 export * from "./fiche";
+export * from "./shopDrawing";
 export * from "./pdf";
 export * from "./rcfg";

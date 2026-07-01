@@ -167,32 +167,47 @@ export function placeBars(result: SolveResult): PlacedBar[] {
   const length = member.length;
   const out: PlacedBar[] = [];
 
-  const longGroups = groups.filter((g) => LONG_ROLES.has(g.role));
-  const byZone = new Map<string, SolvedGroup>();
-  for (const g of groups) if (g.zone) byZone.set(g.zone, g);
-  const mainLong = longGroups[0];
-  const topLong = longGroups[1] ?? longGroups[0];
+  // v1.0.3 G2 ([REF-SYS-530]): when the element has per-bar overrides / extra bars the pipeline emits
+  // an explicit `longBars[]` (each bar's own shape/Ø/axial start); render from it so a façonné /
+  // unique-length / independent bar appears here (and, via the shared placement, in the coupe + PDF +
+  // DXF). Absent → the grouped fast path below (byte-identical — every existing golden held).
+  if (result.longBars) {
+    for (const lb of result.longBars) {
+      if (lb.removed) continue;
+      const cl = lb.shape.centerline3D;
+      const points = cl.length >= 6
+        ? placeLongitudinal(cl, lb.position.u, lb.position.v, lb.axisStart)
+        : [lb.position.u, lb.axisStart, lb.position.v, lb.position.u, lb.axisStart + length, lb.position.v];
+      out.push({ groupId: lb.groupId, diameter: lb.diameter, role: lb.role, points, closed: false, barIndex: lb.barIndex });
+    }
+  } else {
+    const longGroups = groups.filter((g) => LONG_ROLES.has(g.role));
+    const byZone = new Map<string, SolvedGroup>();
+    for (const g of groups) if (g.zone) byZone.set(g.zone, g);
+    const mainLong = longGroups[0];
+    const topLong = longGroups[1] ?? longGroups[0];
 
-  // longitudinal bars render their real bent centreline (G1), oriented at (u, v) on the member axis
-  for (let bi = 0; bi < bars.length; bi++) {
-    const bp = bars[bi]!;
-    // slab-family bars carry the zone in faceTag → exact group match; else the rect convention
-    // (a TOP-face bar belongs to the second long group, e.g. a beam's chapeaux).
-    const g = byZone.get(bp.faceTag) ?? (bp.faceTag === "TOP" ? topLong : mainLong) ?? mainLong;
-    if (!g) continue;
-    const cl = g.shape.centerline3D;
-    // honour the group's bent shape; fall back to a straight full-length run if it has no polyline.
-    const points = cl.length >= 6
-      ? placeLongitudinal(cl, bp.position.u, bp.position.v, 0)
-      : [bp.position.u, 0, bp.position.v, bp.position.u, length, bp.position.v];
-    out.push({
-      groupId: g.groupId,
-      diameter: g.diameter,
-      role: g.role,
-      points,
-      closed: false,
-      barIndex: bi,
-    });
+    // longitudinal bars render their real bent centreline (G1), oriented at (u, v) on the member axis
+    for (let bi = 0; bi < bars.length; bi++) {
+      const bp = bars[bi]!;
+      // slab-family bars carry the zone in faceTag → exact group match; else the rect convention
+      // (a TOP-face bar belongs to the second long group, e.g. a beam's chapeaux).
+      const g = byZone.get(bp.faceTag) ?? (bp.faceTag === "TOP" ? topLong : mainLong) ?? mainLong;
+      if (!g) continue;
+      const cl = g.shape.centerline3D;
+      // honour the group's bent shape; fall back to a straight full-length run if it has no polyline.
+      const points = cl.length >= 6
+        ? placeLongitudinal(cl, bp.position.u, bp.position.v, 0)
+        : [bp.position.u, 0, bp.position.v, bp.position.u, length, bp.position.v];
+      out.push({
+        groupId: g.groupId,
+        diameter: g.diameter,
+        role: g.role,
+        points,
+        closed: false,
+        barIndex: bi,
+      });
+    }
   }
 
   // transverse sets: a continuous coil is placed ONCE (G1); discrete loops instance up the axis
@@ -220,10 +235,15 @@ export function placeBars(result: SolveResult): PlacedBar[] {
     }
   }
 
-  // supplements (presence only, centred) — anything that is neither a long bar nor a placed set
+  // supplements (presence only, centred) — anything that is neither a long bar nor a placed set.
+  // v1.0.3 G5 ([REF-SYS-756b], §5): an ÉPINGLE is NEVER centred — every épingle is an anchored
+  // cross-tie placed on the line between its two bars (above, via member.transverse + anchor). So
+  // an épingle-shape group is skipped here (the legacy centred-supplement path is removed); a
+  // genuine non-épingle supplement (skin bars, interior diamond tie) keeps its centred placement.
   const placedTransverse = new Set(member.transverse.map((t) => t.groupId));
   for (const g of groups) {
     if (LONG_ROLES.has(g.role) || g.role === "TRANSVERSE" || placedTransverse.has(g.groupId)) continue;
+    if (g.shape.archetypeId === "EPINGLE") continue; // anchored-only (G5); never render centred
     out.push({
       groupId: g.groupId,
       diameter: g.diameter,

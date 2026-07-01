@@ -13,6 +13,9 @@ import {
   type ColumnDoc,
   type BeamDoc,
   type CrossTie,
+  type SupplementEdit,
+  type SupportZone,
+  type ReleveZone,
   isColumnDoc,
   isBeamDoc,
 } from "./document";
@@ -88,9 +91,10 @@ export function columnLayoutBars(doc: ColumnDoc): BarPosition[] {
 /** Beam top face physically carries montage + chapeau bars (8b); a min of 2 keeps the cadre closed. */
 export function beamLayoutBars(doc: BeamDoc): BarPosition[] {
   const nMontage = doc.topBars.enabled ? doc.topBars.nTop : 0;
-  const nChapeau = doc.chapeau.enabled ? doc.chapeau.nTop : 0;
+  const supL = doc.supports.left, supR = doc.supports.right;
+  const nChapeau = (supL.chapeau.enabled ? supL.chapeau.nTop : 0) + (supR.chapeau.enabled ? supR.chapeau.nTop : 0);
   const nTop = Math.max(2, nMontage + nChapeau);
-  const phiL = Math.max(doc.span.diameter, doc.chapeau.enabled ? doc.chapeau.diameter : 0);
+  const phiL = Math.max(doc.span.diameter, supL.chapeau.enabled ? supL.chapeau.diameter : 0, supR.chapeau.enabled ? supR.chapeau.diameter : 0);
   return solveRectLayout({
     section: "RECT",
     geometry: { b: doc.geometry.b, h: doc.geometry.h },
@@ -118,25 +122,119 @@ interface LegacyTie {
   nLegs?: number;
 }
 
+/** v1.0.3 G5: the legacy supplement that WAS an épingle (now unified into the cross-tie model). */
+const EPINGLE_SUPPLEMENT_ID = "SUPP_EPINGLE_CROSSTIE";
+
+const sameTie = (a: CrossTie, b: CrossTie) =>
+  (a.barA === b.barA && a.barB === b.barB) || (a.barA === b.barB && a.barB === b.barA);
+
 /**
- * Normalise a loaded ElementDoc: a v1.0.1 file (tie/stirrup with `nLegs`, no `crossTies`) gains an
- * equivalent cross-tie list + default hook angle; the obsolete `nLegs` is dropped. Idempotent — a
- * v1.0.2 doc (already has `crossTies`) passes through untouched. Forward-compat (§0 invariant 3).
+ * v1.0.3 G5 ([REF-SYS-756b], §5): fold any legacy `SUPP_EPINGLE_CROSSTIE` *supplement* into the
+ * one cross-tie model. Each épingle supplement bound a bar PAIR (`barIndices = [barA, barB]`) and
+ * used to render centred; it now becomes a `CrossTie` on the tie/stirrup (anchored, hook visible).
+ * Idempotent — runs only when an épingle supplement is present; de-dupes against existing ties and
+ * drops the migrated entries from `supplements`. Bindings stay STABLE indices (D-P3-4).
+ */
+function foldEpingleSupplements(
+  supplements: SupplementEdit[],
+  existing: CrossTie[],
+): { crossTies: CrossTie[]; supplements: SupplementEdit[] } {
+  const epingles = supplements.filter((s) => s.supplementId === EPINGLE_SUPPLEMENT_ID);
+  if (epingles.length === 0) return { crossTies: existing, supplements };
+  const crossTies = [...existing];
+  for (const s of epingles) {
+    const [barA, barB] = s.barIndices;
+    if (barA === undefined || barB === undefined) continue;
+    const ct: CrossTie = { barA, barB, ...(s.diameter ? { diameter: s.diameter } : {}) };
+    if (!crossTies.some((e) => sameTie(e, ct))) crossTies.push(ct);
+  }
+  return { crossTies, supplements: supplements.filter((s) => s.supplementId !== EPINGLE_SUPPLEMENT_ID) };
+}
+
+/** A legacy (v1.0.2) beam `chapeau` field, folded into `supports` by `migrateBeamSupports`. */
+interface LegacyChapeau {
+  enabled: boolean;
+  shapeId?: string;
+  diameter: number;
+  nTop: number;
+  asReq: number;
+  supportZone: number;
+}
+
+/**
+ * v1.0.3 G3 ([REF-SYS-260], spec §3.3): migrate a legacy single-`chapeau` beam to the two-support
+ * model — a symmetric `left = right` SupportZone built from the old chapeau, with default anchorage +
+ * width and no relevé. Idempotent (a doc already carrying `supports` passes through). Must run BEFORE
+ * any code that reads `doc.supports` (e.g. `beamLayoutBars`).
+ */
+function migrateBeamSupports(doc: BeamDoc): BeamDoc {
+  const legacy = doc as unknown as {
+    chapeau?: LegacyChapeau;
+    supports?: BeamDoc["supports"];
+    chapeauShapeId?: string;
+    releves?: ReleveZone[];
+  };
+  if (legacy.supports) {
+    // already migrated — only backfill the shape id / releves if a partial doc lacks them.
+    return {
+      ...doc,
+      chapeauShapeId: doc.chapeauShapeId ?? legacy.chapeau?.shapeId ?? "CHAPEAU",
+      releves: doc.releves ?? [],
+    };
+  }
+  const ch = legacy.chapeau;
+  const sz = (): SupportZone => ({
+    chapeau: {
+      enabled: ch?.enabled ?? false,
+      diameter: ch?.diameter ?? 16,
+      nTop: ch?.nTop ?? 2,
+      asReq: ch?.asReq ?? 0,
+      length: ch?.supportZone ?? 1000,
+    },
+    anchorage: 400,
+    width: 300,
+  });
+  const { chapeau: _drop, ...rest } = legacy;
+  return {
+    ...(rest as unknown as BeamDoc),
+    supports: { left: sz(), right: sz() },
+    chapeauShapeId: ch?.shapeId ?? "CHAPEAU",
+    releves: legacy.releves ?? [],
+  };
+}
+
+/**
+ * Normalise a loaded ElementDoc to the current model. Three legacy migrations, all idempotent and
+ * lossless (forward-compat, §0 invariant 3):
+ *  - **v1.0.1 `nLegs`** (tie/stirrup with `nLegs`, no `crossTies`) → an equivalent cross-tie list +
+ *    a default hook angle; the obsolete `nLegs` is dropped.
+ *  - **v1.0.3 G5 supplement-épingles** (a `SUPP_EPINGLE_CROSSTIE` in `supplements`) → folded into
+ *    the tie/stirrup `crossTies` (one cross-tie model), dropped from `supplements`.
+ * A current doc (already `crossTies`, no épingle supplement) passes through untouched.
  */
 export function migrateDoc(doc: ElementDoc): ElementDoc {
   if (isColumnDoc(doc)) {
     const legacy = doc.tie as LegacyTie;
-    if (legacy.crossTies !== undefined) return doc;
-    const crossTies = legacyNLegsToCrossTies(legacy.nLegs ?? 2, columnLayoutBars(doc));
+    const baseTies = legacy.crossTies ?? legacyNLegsToCrossTies(legacy.nLegs ?? 2, columnLayoutBars(doc));
+    const folded = foldEpingleSupplements(doc.supplements, baseTies);
     const { nLegs: _drop, ...rest } = legacy;
-    return { ...doc, tie: { ...(rest as ColumnDoc["tie"]), crossTies, crossTieHookAngle: legacy.crossTieHookAngle ?? 135 } };
+    return {
+      ...doc,
+      tie: { ...(rest as ColumnDoc["tie"]), crossTies: folded.crossTies, crossTieHookAngle: legacy.crossTieHookAngle ?? 135 },
+      supplements: folded.supplements,
+    };
   }
   if (isBeamDoc(doc)) {
-    const legacy = doc.stirrup as LegacyTie;
-    if (legacy.crossTies !== undefined) return doc;
-    const crossTies = legacyNLegsToCrossTies(legacy.nLegs ?? 2, beamLayoutBars(doc));
+    const beam = migrateBeamSupports(doc); // G3: legacy chapeau → two supports (before beamLayoutBars)
+    const legacy = beam.stirrup as LegacyTie;
+    const baseTies = legacy.crossTies ?? legacyNLegsToCrossTies(legacy.nLegs ?? 2, beamLayoutBars(beam));
+    const folded = foldEpingleSupplements(beam.supplements, baseTies);
     const { nLegs: _drop, ...rest } = legacy;
-    return { ...doc, stirrup: { ...(rest as BeamDoc["stirrup"]), crossTies, crossTieHookAngle: legacy.crossTieHookAngle ?? 135 } };
+    return {
+      ...beam,
+      stirrup: { ...(rest as BeamDoc["stirrup"]), crossTies: folded.crossTies, crossTieHookAngle: legacy.crossTieHookAngle ?? 135 },
+      supplements: folded.supplements,
+    };
   }
   return doc;
 }

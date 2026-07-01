@@ -6,7 +6,7 @@
  * **supplements** (§5.5). It stays pure data (no engine objects), so it round-trips to `.rcfg`
  * later (P5). Units are SI internally (mm, mm², mm²/m); the UI converts at the edge.
  */
-import type { LayoutPrinciple, BarRole, TransverseRegion } from "@rebarconfig/core";
+import type { LayoutPrinciple, BarRole, TransverseRegion, Splice } from "@rebarconfig/core";
 import {
   GENERIC_SPECS,
   isGenericElement,
@@ -37,7 +37,7 @@ export interface CrossTie {
   diameter?: number;
 }
 
-export type { TransverseRegion };
+export type { TransverseRegion, Splice };
 
 /** F6 ([REF-DATA-520]) — a user end-hook choice on a longitudinal bar group (per end). */
 export type HookChoice = "none" | 90 | 135 | 180;
@@ -54,6 +54,70 @@ export interface BarFaconnage {
   shapeParams?: Record<string, number>;
   /** per-end hook override; absent → the shape manifest's own end hooks. */
   hooks?: BarHooks;
+}
+
+/**
+ * v1.0.3 G2 ([REF-DATA-530]) — a per-bar override on ONE bar of a longitudinal group. `index` is the
+ * STABLE solved-bar index (the same the F7 picker / cross-ties bind to, D-P3-4). Any subset of fields
+ * may change: a different shape + façonnage, a unique absolute `length` + `axialPos`, a different Ø,
+ * or `removed`. Absent list → the group is N identical bars (legacy byte-identical).
+ */
+export interface BarOverrideEdit {
+  index: number;
+  shapeId?: string;
+  faconnage?: BarFaconnage;
+  diameter?: number;
+  /** unique absolute length (mm) — overrides the group run. */
+  length?: number;
+  /** axial start station (mm) along the member. */
+  axialPos?: number;
+  removed?: boolean;
+}
+
+/**
+ * v1.0.3 G2 ([REF-DATA-530]) — an independent addressable bar, not part of any count-group. It owns
+ * its section position `(u,v)` (the `v` is its **section level**, incl. an intermediate U-bar level),
+ * shape + façonnage, Ø, and an optional unique length + axial position. A detailing add-on (rendered +
+ * scheduled, but it does NOT change the layout/As — like a supplement).
+ */
+export interface AddressableBar {
+  id: string;
+  /** section position (mm) in the u–v frame; `v` is the level/depth. */
+  u: number;
+  v: number;
+  shapeId: string;
+  faconnage?: BarFaconnage;
+  diameter: number;
+  length?: number;
+  axialPos?: number;
+}
+
+/**
+ * v1.0.3 G3 ([REF-DATA-260]) — one beam support (V1 left / V2 right) with its OWN steel: an
+ * over-support `chapeau` (top bars, with a support-zone `length` feeding the §7.7 curtailment), the
+ * bottom-bar `anchorage` length into the support, and the support `width` (bearing). The two supports
+ * may be asymmetric. A legacy single-`chapeau` beam migrates to symmetric `left = right` (migrateDoc).
+ */
+export interface SupportZone {
+  chapeau: { enabled: boolean; diameter: number; nTop: number; asReq: number; length: number };
+  /** bottom-bar anchorage length into this support (mm). */
+  anchorage: number;
+  /** support width / bearing (mm). */
+  width: number;
+}
+
+/**
+ * v1.0.3 G3 ([REF-DATA-260]) — a first-class bent-up bottom bar (relevé) near a support: a `RELEVE`
+ * shaped bar with its own count + Ø, bending up at the chosen support. Rendered + scheduled as an
+ * addressable bar (rides G2). Absent → no relevé (legacy byte-identical).
+ */
+export interface ReleveZone {
+  id: string;
+  /** which support the bar bends up at. */
+  support: "left" | "right";
+  count: number;
+  diameter: number;
+  asReq?: number;
 }
 
 /** One user-added supplemental add-on instance (§5.5), bound to base bars by STABLE indices. */
@@ -97,7 +161,15 @@ export interface ColumnDoc {
     asReq: number;
     /** F6 façonnage: user shape params + end hooks (absent → DROITE/computed default). */
     faconnage?: BarFaconnage;
+    /** G2 per-bar overrides on individual bars of this group (absent → N identical bars). */
+    barOverrides?: BarOverrideEdit[];
+    /** G4 lap/coupler splice points along the bars (absent → unspliced). */
+    splices?: Splice[];
+    /** G4 auto-split when the fabricated run exceeds the stock length (default 12 m). */
+    autoSplice?: boolean;
   };
+  /** G2 independent addressable bars / extra section levels on this column (absent → none). */
+  extraBars?: AddressableBar[];
   tie: {
     groupId: string;
     shapeId: string;
@@ -144,18 +216,25 @@ export interface BeamDoc {
     continuedToSupport: number;
     /** F6 façonnage: user shape params + end hooks (absent → DROITE/computed default). */
     faconnage?: BarFaconnage;
+    /** G2 per-bar overrides on individual span bars (absent → N identical bars). */
+    barOverrides?: BarOverrideEdit[];
+    /** G4 lap/coupler splice points along the span bars (absent → unspliced). */
+    splices?: Splice[];
+    /** G4 auto-split when the fabricated run exceeds the stock length (default 12 m). */
+    autoSplice?: boolean;
   };
-  /** top support steel (chapeaux); present only when the scheme includes it. */
-  chapeau: {
-    enabled: boolean;
-    groupId: string;
-    shapeId: string;
-    diameter: number;
-    nTop: number;
-    asReq: number;
-    /** support-zone length feeding the curtailment extension (§7.7). */
-    supportZone: number;
-  };
+  /** G2 independent addressable bars / extra section levels on this beam (absent → none). */
+  extraBars?: AddressableBar[];
+  /**
+   * v1.0.3 G3 ([REF-DATA-260]) — the two beam supports (V1 left / V2 right), each with its own
+   * chapeau + anchorage + width. Replaces the v1.0.2 single collapsed `chapeau`; a legacy doc migrates
+   * to symmetric `left = right` (migrateDoc). The chapeau shape id is shared for both supports.
+   */
+  supports: { left: SupportZone; right: SupportZone };
+  /** chapeau bar shape (shared by both supports). */
+  chapeauShapeId: string;
+  /** v1.0.3 G3 — bent-up bottom bars (relevés) near supports; absent → none. */
+  releves?: ReleveZone[];
   /** shear stirrups along the length. */
   stirrup: {
     groupId: string;
@@ -302,15 +381,12 @@ export function defaultBeamDoc(scheme = "BEAM_SPAN_CHAPEAUX_RELEVES"): BeamDoc {
     dg: 20,
     topBars: { enabled: false, groupId: "M1", diameter: 12, nTop: 2 },
     span: { groupId: "B1", shapeId: "DROITE", diameter: 20, nBottom: 3, asReq: 900, continuedToSupport: 1 },
-    chapeau: {
-      enabled: withChapeau,
-      groupId: "C1",
-      shapeId: "CHAPEAU",
-      diameter: 16,
-      nTop: 2,
-      asReq: 380,
-      supportZone: 1000,
+    supports: {
+      left: { chapeau: { enabled: withChapeau, diameter: 16, nTop: 2, asReq: 380, length: 1000 }, anchorage: 400, width: 300 },
+      right: { chapeau: { enabled: withChapeau, diameter: 16, nTop: 2, asReq: 380, length: 1000 }, anchorage: 400, width: 300 },
     },
+    chapeauShapeId: "CHAPEAU",
+    releves: [],
     stirrup: { groupId: "S1", shapeId: "ETRIER", diameter: 8, spacing: 200, aswReqPerM: 300, crossTies: [], crossTieHookAngle: 135 },
     supplements: [],
   };
