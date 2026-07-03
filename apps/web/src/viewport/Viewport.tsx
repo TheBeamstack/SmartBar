@@ -17,9 +17,10 @@ import { CoupeHandles } from "./CoupeOverlay";
 
 const MM_TO_SCENE = 0.01; // mm → scene units (a 3 m column ≈ 30 units)
 
-// crisp concrete outline edge (G8): a light line over the transparent volume so it reads as a block.
+// crisp concrete outline edge (G8): a mid-grey line over the transparent volume so it reads as a
+// block on the light background (dark enough to stay visible, lighter than the steel bars).
 const CONCRETE_COLOR = "#c8ccd2";
-const EDGE_COLOR = "#9aa3b2";
+const EDGE_COLOR = "#6b7280";
 
 /** The shared transparent concrete material (spec §8: transparent solid so the cage stays legible). */
 function concreteMaterial() {
@@ -229,7 +230,7 @@ export function Viewport() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas>
-        <color attach="background" args={["#11151c"]} />
+        <color attach="background" args={["#eef1f5"]} />
         <Scene />
       </Canvas>
       <ViewControls />

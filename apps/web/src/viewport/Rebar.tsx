@@ -9,9 +9,11 @@ import * as THREE from "three";
 import { Line } from "@react-three/drei";
 import type { BarInstance, RenderMode } from "./rebarProps";
 
-const STEEL = "#8a8f98";
-const FAIL = "#ff1e1e";
-const SELECTED = "#22d3ee";
+// Steel is a dark slate so the bars read clearly against the LIGHT viewport background + the pale
+// translucent concrete. FAIL red / SELECTED cyan stay saturated (distinct on light too).
+const STEEL = "#3d4653";
+const FAIL = "#e11d1d";
+const SELECTED = "#0891b2";
 
 function colorFor(bar: BarInstance): string {
   if (bar.failing) return FAIL;
