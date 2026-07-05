@@ -61,6 +61,8 @@ in the browser — no server, free hosting.**
 | **v1.0.3 P7 (G7)** — **shop-drawing PDF/DXF**: a pure `shopDrawing()` annotation model (leader lines `mark·nØd·l=`, per-element sequential marks, coupe markers A-A, stirrup-zone `count×spacing` notation, support labels V1/V2) + a **bending table** (one row per distinct shape · sketch · Ø · cut · count/element · ×quantity total), shared by PDF + DXF; existing render goldens held (structural); **support width/anchorage now wired into the app PDF/DXF exports** (D-V103-7b, Amer) | ✅ **CODE DONE + tested** (D-V103-7 · 7b) · ⏳ owner GPU pass | Zayd · Amer, 2026-07-01 |
 | **v1.0.3 P8 (G8)** — **3D fidelity**: transparent concrete now carries a crisp `<Edges>` outline (box + cylinder) so the volume reads as a solid block; **E-STR-01 renders a stepped stair** concrete (per-step boxes from `g`/`r`/`n_steps`/`flight_width`) instead of the flat rect box — viewport-only, no engine/core change | ✅ **CODE DONE + tested** (D-V103-8) · ⏳ owner GPU pass | Amer, 2026-07-01 |
 | **v1.0.3 P9 (G9)** — **camera fixes**: killed the ViewCube auto-spin (roll is now an on-demand effect, not a per-frame `useFrame` loop) + **roll auto-levels on orbit-start**; added a **toolbar hand-pan toggle** (`navMode`, LEFT-drag pans when active, orbit on RIGHT-drag, zoom always) — session-only, not in `.rcfg` | ✅ **CODE DONE + tested** (D-V103-9) · ⏳ owner GPU pass | Amer, 2026-07-01 |
+| **v1.0.4 spec (façonnage flow — correct & improve)** — `v1.0.4_spec.md` (H1–H19: crash/data-loss fixes, independent-bar UI gap, editor robustness) + `roadmap_directions.md` (8-track map for the specs after it) | 🟡 **SPEC DRAFTED** (docs only, no code, not pushed) | Zayd, 2026-07-03 |
+| **v1.0.4 prep phase (Part B) executed** — baseline+severity verified (H1 crash + H2 no-op confirmed live), adapter safety net (characterization + `coverage:adapter` 96%), manifest-data table, design spikes, fixture inventory, `v1.0.4_impl_plan.md` seeded | ✅ **PREP DONE** (agent tasks) · ⏳ P0.1 owner decisions on `[AGENT-DEFAULT]` · ⏳ Part A (v1.0.3 finalization: owner GPU, a11y, engineer sign-off) | Zayd, 2026-07-03 |
 
 **Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
 phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
@@ -354,6 +356,80 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-07-03 (later) — v1.0.4 prep phase (Part B) EXECUTED + spec accuracy re-pass — **TESTS/DOCS ONLY, no production code, not pushed** — by **Zayd** (Hetzner dev box)
+
+**What I did.** Executed the AGENT-doable prep tasks in `v1.0.4_prep_plan.md` (Part B) and re-analysed the spec for
+accuracy. Owner was away when I asked the P0.1 decisions → proceeded on **recommended defaults** (recorded in
+`v1.0.4_spec.md §6` as `[AGENT-DEFAULT — awaiting owner confirm]`; none irreversible at prep stage).
+
+- **Spec accuracy re-pass.** Corrected one wrong claim: H1.2's "skip regen when only Ø changes" is **wrong** — Ø
+  drives `bendDeduction(angle,Ø)` + hook ext (`≈10·Ø`) → `cutLength`, so Ø/`length` **must** regenerate; only
+  `axialPos`/`removed`-only overrides are geometry-neutral. Fixed H1.2 + cited the exact throw + H5's As source.
+- **P0.2 baseline + severity (VERIFIED LIVE).** `npm run check` GREEN **470/95**. **H1 crash CONFIRMED**: a
+  BAIONNETTE-façonné column + a **Ø-only** override on bar 0 throws `expr eval failed for "lower": Undefined
+  symbol lower` (DROITE doesn't). **H2 no-op CONFIRMED**: a bent shape ignores an injected `L`. Probe:
+  `apps/web/src/engine/faconnage_p02_verify.spec.ts` (asserts the current bug; flips at H1/H2).
+- **P0.3 safety net.** `faconnage_adapter_characterization.spec.ts` pins the adapter (legacy DROITE ⇒ no
+  `longBars`; override activates per-bar; removed drops from schedule not As `[WILL-CHANGE H5]`; extra ⇒ standalone;
+  bent `length` ignored `[WILL-CHANGE H2]`). Caught my wrong assumption: a default column has **6** long bars
+  (corner-shared), not 10. New additive `npm run coverage:adapter` (no enforced threshold; core gate untouched) =
+  **96.22% stmts**. 
+- **P0.4/P0.5/P0.6/P0.7.** Manifest-data table (defaults / `totalLengthParam` / per-leg mins — u_bar/zbar/stepped
+  `totalLengthParam` flagged ⚠ for owner/engineer); 3 design spikes confirmed (H2 leg-solver well-posed, H13
+  adapter-only, H1 store-guard safe); per-H-item fixture/golden inventory; and **`v1.0.4_impl_plan.md`** (6 phases)
+  seeded. All in `v1.0.4_prep_results.md`.
+
+**State now.** GREEN — full suite **481 tests / 97 files** (was 470/95; +11 from the 2 new prep specs); no golden
+moved; **no production core/adapter/UI code changed** (only 2 test files + a `package.json` script). Nothing pushed
+(policy §10). Files added: `v1.0.4_prep_results.md`, `v1.0.4_impl_plan.md`, the 2 web specs; edited
+`v1.0.4_spec.md`, `v1.0.4_prep_plan.md`, `roadmap_directions.md`, `package.json`, this file.
+
+**Open (blocks acceptance/next steps, not this prep):** (a) **P0.1 owner decisions** on the 4 `[AGENT-DEFAULT]`
+(H2.5 length semantic, H5/H14 non-gated scope, H13 EC2-separate, H1.3 banner UX) — confirm before coding Phase
+2/5/6. (b) **Part A — finalize v1.0.3**: V3.1 owner GPU pass, V3.2 a11y axe (agent, not yet done), V3.3 docs
+currency, V3.4 engineer sign-off program (owner nominate + agent suites). (c) the u_bar/zbar/stepped
+`totalLengthParam` convention.
+
+**→ Next agent / owner:** owner to answer P0.1 + nominate the engineer (V3.4). Agent can start **Phase 1 (H1/H3/H4)**
+now (no owner decision needed) and do **V3.2 a11y** in parallel. Pull before starting; append a §9 entry.
+
+### 2026-07-03 — v1.0.4 spec authored (façonnage flow — correcting & improving) + post-v1.0.4 roadmap directions — **DOCS ONLY, no code, not pushed** — by **Zayd** (Hetzner dev box)
+
+**What I did.** Pulled latest (`60e958c..a2fd386`, Amer's viewport/export supports work), read `cross_projects_policy.md`,
+`core_logic.md`, this file, and `v1.0.3_spec.md`/`_impl_plan.md`. Then, at the owner's direction, **deep-traced the whole
+façonnage flow** (the F6 editor + the G2 addressable-bar channel) end-to-end — the two UI files (`FaconnageEditor.tsx`,
+`AddressableBars.tsx`), the adapter (`solveDoc.ts`: `faconnageParams`/`buildLongOverrides`/`buildExtraBars`/`releveExtraBars`),
+the doc types (`document.ts`), core (`segment-grammar.ts` `generateBarShape` + `element.ts` `buildLongBars`), the BBS
+consumer, the store wiring, and all 9 open-shape manifests — to confirm the owner's 9 flagged concerns and find more.
+
+**Deliverable 1 — `v1.0.4_spec.md`** (repo root, 🟡 DRAFT): the façonnage-flow **hardening** spec. Assembles **19 items
+(H1–H19)** — the owner's 9 validated concerns + 10 new points found in the trace + the two capability checks — into four
+parts (I correctness/crash/data-loss · II capability gaps · III robustness · IV polish), each with *the defect (cited to
+file:line), the fix, testing, deliverables, and a legacy-no-op proof*. Highlights: **H1** — a per-bar Ø/length/axial
+override on a *façonné* group drops the group's params → `generateShape` throws → propagates through `withDoc`
+(`useStore.ts:196`, **no try/catch**) → **uncaught crash** (confirmed by call-chain trace; recommend a live repro before
+sign-off). **H2** — a "unique length" is a **silent no-op on every bent shape** (only `droite.json` has an `L` param).
+**H3** — the `cutLength>0` guard lives only in the editor, not the core generator. **H6** — the independent-bar UI exposes
+only `u/v/Ø` though the model/adapter/core already carry shape/façonnage/length/axial/hooks (**UI-only gap**, highest
+leverage). **H5/H14** are marked `[ENGINEER-GATE]`, scoped to their non-gated seams and handed off to the logged v1.0.4
+backlog items 1 (per-bar verification) & 2 (splice stagger).
+
+**Deliverable 2 — `roadmap_directions.md`** (repo root): ground directions for **all** specs after v1.0.4 — 8 tracks
+(A make "code-checked" true · B finish detailing depth · C site-ready output · D 3D fidelity · E data/interop · F
+platform quality · G breadth · H v1.1 vertical), each grounded in a cited gap. Core thesis: the machinery is built; the
+goal is blocked by the **truthfulness of the three promises** — the biggest being **A2 validation completeness** (every
+steel add/remove — supplements, cross-ties, relevés, overrides, extras, per-region stirrups — currently bypasses §7) and
+**A3 multi-code reachability** (the adapter is `BaelPack`-typed and **EC2 is unreachable from the UI**, though `core_logic
+§8` sells "pick a code, validation re-runs").
+
+**State now.** **No code touched, no gate run** (docs only). Nothing pushed (per policy §10, awaiting owner "push"). The
+v1.0.3 build is unchanged (still GREEN + pushed at `a2fd386`).
+
+**→ Next agent / owner:** review `v1.0.4_spec.md` (confirm the H2.5 length-semantic + the H5/H14 non-gated scope + that
+EC2-picker wiring is a separate item per H13); then a `v1.0.4_impl_plan.md` + phased build. Use `roadmap_directions.md`
+to sequence the specs after it (recommended: A2 → A3 → B1 → C1 → E1, with F1/F3 threaded early and A1 sign-off running in
+parallel). Pull before starting; append a §9 entry.
 
 ### 2026-07-01 — v1.0.3 Phase 8 (G8) + Phase 9 (G9) + P7b fix + full P1–P9 verification — **v1.0.3 FEATURE-COMPLETE, PUSHED** — by **Amer** (owner's Windows PC)
 

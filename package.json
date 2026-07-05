@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --project core --coverage",
+    "coverage:adapter": "vitest run --project web --coverage --coverage.provider=v8 --coverage.include=apps/web/src/engine/** --coverage.reporter=text-summary",
     "check:purity": "node scripts/check-engine-purity.mjs",
     "check:manifests": "tsx scripts/check-manifests.ts",
     "check": "npm run check:purity && npm run check:manifests && npm run typecheck && npm run typecheck:web && npm run test"
