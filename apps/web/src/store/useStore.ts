@@ -57,6 +57,8 @@ export interface AppState {
   debugPerf: boolean;
   /** wall-clock of the last solve (ms) — shown by the perf HUD behind the debug flag. */
   lastSolveMs: number;
+  /** H1 ([v1.0.4]): non-blocking solve-failure banner text; null when the last solve succeeded. */
+  solveError: string | null;
 
   /** user-placed coupes (§9.5); index 0 is always the auto-managed default representative coupe. */
   cuts: SectionCut[];
@@ -183,6 +185,8 @@ interface DocSlice {
   result: SolveResult;
   lastSolveMs: number;
   cuts: SectionCut[];
+  /** H1 ([v1.0.4]): a non-blocking solve-failure message (null = healthy). See `withDoc`. */
+  solveError: string | null;
 }
 
 /**
@@ -191,12 +195,27 @@ interface DocSlice {
  * Pass `prevCuts = []` (the default) to drop user cuts — correct when the element/scheme changes,
  * since a cut's world position is meaningless against a different member.
  */
-function withDoc(doc: ElementDoc, prevCuts: SectionCut[] = []): DocSlice {
+function withDoc(
+  doc: ElementDoc,
+  prevCuts: SectionCut[] = [],
+  prevGood?: { result: SolveResult; cuts: SectionCut[] },
+): DocSlice {
   const t0 = performance.now();
-  const result = solveDoc(doc);
+  let result: SolveResult;
+  try {
+    result = solveDoc(doc);
+  } catch (err) {
+    // H1 ([v1.0.4], owner A-6): a mid-edit solve failure must never blank the app. Keep the last
+    // good result + coupes and surface a non-blocking banner; the next successful solve clears it.
+    // The new (offending) `doc` is retained so the user's input stays on screen to be corrected.
+    // No prior good result ⇒ the failure is genuinely unrecoverable (init) → rethrow.
+    if (!prevGood) throw err;
+    const solveError = err instanceof Error ? err.message : String(err);
+    return { doc, result: prevGood.result, lastSolveMs: 0, cuts: prevGood.cuts, solveError };
+  }
   const lastSolveMs = performance.now() - t0;
   const userCuts = prevCuts.filter((c) => !c.isDefault);
-  return { doc, result, lastSolveMs, cuts: [defaultCoupeFor(result), ...userCuts] };
+  return { doc, result, lastSolveMs, cuts: [defaultCoupeFor(result), ...userCuts], solveError: null };
 }
 
 const asColumn = (doc: ElementDoc, fn: (d: ColumnDoc) => ColumnDoc): ElementDoc =>
@@ -209,14 +228,15 @@ const asGeneric = (doc: ElementDoc, fn: (d: GenericDoc) => GenericDoc): ElementD
 export const useStore = create<AppState>((set, get) => {
   const initial = withDoc(defaultColumnDoc());
   const firstInstance = makeInstance(initial.doc, initial.cuts, "P1");
-  /** Solve `doc`, preserving the current user cuts (call sites that switch element pass nothing). */
-  const edit = (doc: ElementDoc) => withDoc(doc, get().cuts);
+  /** Solve `doc`, preserving the current user cuts + keeping the last good result on a solve throw. */
+  const edit = (doc: ElementDoc) => withDoc(doc, get().cuts, { result: get().result, cuts: get().cuts });
   /** Check out an instance into the live editing slice (fresh solve + re-seeded default coupe). */
   const checkout = (inst: ElementInstance): DocSlice => withDoc(inst.doc, inst.cuts);
   return {
     doc: initial.doc,
     result: initial.result,
     lastSolveMs: initial.lastSolveMs,
+    solveError: initial.solveError,
     cuts: initial.cuts,
     activeCutId: initial.cuts[0]!.id,
     instances: [firstInstance],

@@ -61,8 +61,9 @@ in the browser — no server, free hosting.**
 | **v1.0.3 P7 (G7)** — **shop-drawing PDF/DXF**: a pure `shopDrawing()` annotation model (leader lines `mark·nØd·l=`, per-element sequential marks, coupe markers A-A, stirrup-zone `count×spacing` notation, support labels V1/V2) + a **bending table** (one row per distinct shape · sketch · Ø · cut · count/element · ×quantity total), shared by PDF + DXF; existing render goldens held (structural); **support width/anchorage now wired into the app PDF/DXF exports** (D-V103-7b, Amer) | ✅ **CODE DONE + tested** (D-V103-7 · 7b) · ⏳ owner GPU pass | Zayd · Amer, 2026-07-01 |
 | **v1.0.3 P8 (G8)** — **3D fidelity**: transparent concrete now carries a crisp `<Edges>` outline (box + cylinder) so the volume reads as a solid block; **E-STR-01 renders a stepped stair** concrete (per-step boxes from `g`/`r`/`n_steps`/`flight_width`) instead of the flat rect box — viewport-only, no engine/core change | ✅ **CODE DONE + tested** (D-V103-8) · ⏳ owner GPU pass | Amer, 2026-07-01 |
 | **v1.0.3 P9 (G9)** — **camera fixes**: killed the ViewCube auto-spin (roll is now an on-demand effect, not a per-frame `useFrame` loop) + **roll auto-levels on orbit-start**; added a **toolbar hand-pan toggle** (`navMode`, LEFT-drag pans when active, orbit on RIGHT-drag, zoom always) — session-only, not in `.rcfg` | ✅ **CODE DONE + tested** (D-V103-9) · ⏳ owner GPU pass | Amer, 2026-07-01 |
-| **v1.0.4 spec (façonnage flow — correct & improve)** — `v1.0.4_spec.md` (H1–H19: crash/data-loss fixes, independent-bar UI gap, editor robustness) + `roadmap_directions.md` (8-track map for the specs after it) | 🟡 **SPEC DRAFTED** (docs only, no code, not pushed) | Zayd, 2026-07-03 |
-| **v1.0.4 prep phase (Part B) executed** — baseline+severity verified (H1 crash + H2 no-op confirmed live), adapter safety net (characterization + `coverage:adapter` 96%), manifest-data table, design spikes, fixture inventory, `v1.0.4_impl_plan.md` seeded | ✅ **PREP DONE** (agent tasks) · ⏳ P0.1 owner decisions on `[AGENT-DEFAULT]` · ⏳ Part A (v1.0.3 finalization: owner GPU, a11y, engineer sign-off) | Zayd, 2026-07-03 |
+| **v1.0.4 spec — COMPLETE single-tenant product** — `v1.0.4_spec.md` restructured: façonnage (H1–H19) + Tracks A–E (A compliance truthfulness · B detailing depth · C site-ready output · D 3D fidelity · E data/interop). Vertical/multi-tenant (Track H) deferred. Split of duties: `v1.0.4_owner_tasks.md` (owner manual work) · `roadmap_directions.md` trimmed to F/G/H | 🟡 **SPEC DRAFTED** (docs only, not pushed) | Zayd, 2026-07-05 |
+| **v1.0.4 prep phase executed** — baseline+severity verified (H1 crash + H2 no-op confirmed live), adapter safety net (characterization + `coverage:adapter` 96%), manifest-data table, design spikes, fixture inventory, `v1.0.4_impl_plan.md` (façonnage phasing) | ✅ **PREP DONE** · ⏳ owner design decisions (`owner_tasks §A`) · ⏳ engineer sign-off program (`owner_tasks §B`) | Zayd, 2026-07-03/05 |
+| **v1.0.4 Phase 1 (H1, H3, H4)** — façonnage crash + data-loss fixes: per-bar override inherits the group façonnage (no more BAIONNETTE crash) + axial/removed-only edits skip regen; store `withDoc` keep-last-good guard + non-blocking solve-error banner (owner A-6); core-level `cutLength>0` guard in `generateBarShape` (BBS/DXF/splice protected); FaconnageEditor buffer resync on `[shapeId, memberLength, committedKey]`. Owner decisions A-2/A-4/A-5/A-6/A-7 recorded in `owner_tasks §A` | ✅ **CODE DONE + tested** (green gate below) · NOT pushed | Zayd, 2026-07-05 |
 
 **Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
 phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
@@ -356,6 +357,116 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-07-05 (later still) — v1.0.4 **Phase 1** (façonnage stability: H1, H3, H4) — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
+
+**Context.** First implementation slice of `v1.0.4_spec.md`, per `v1.0.4_impl_plan.md` Phase 1 ("stop the crash +
+the silent losses"). Started from a confirmed-green baseline. The owner answered the four §A design decisions up
+front (recorded in `v1.0.4_owner_tasks.md §A`): **A-2** symmetric-shape length legs = recommended (u_bar→`w`,
+zbar→`run2`, stepped→`run3`); **A-4** add the BAEL↔EC2 picker now; **A-5** impossible-bar tiers = *spacing tiered*
+(block outside/past-end; spacing block below the code minimum, warn if merely tight — uses `dg`/`k1`/`k2`, proceeds
+on `structural_data.md` defaults dg=20/k1=1/k2=5, owner-confirmable); **A-6** solve-error UX = non-blocking banner +
+keep-last-good; **A-7** DROITE length field = read-only+coupled (default). A-2/A-4/A-5 land in later phases; only
+A-6 was needed for Phase 1.
+
+**What I did (all in `apps/web` + `packages/core`; no manifest/`.rcfg`/schema change):**
+- **H1 (crash + guard).** `buildLongOverrides` (`solveDoc.ts`) now takes the group's *resolved façonnage params*
+  as the fallback (call sites pass `faconnageParams(doc.longitudinal|span.faconnage, {L})`) — a Ø-only (or any
+  partial) override on a bent group (BAIONNETTE…) inherits the group's legs instead of `{L:memberLen}`, so it
+  regenerates cleanly instead of throwing `Undefined symbol lower` (the P0.2 repro). An **axial-only / removed-only**
+  edit now *skips regen* (omits `shape` → the pipeline reuses the group's already-generated shape, byte-identical).
+  Store side: `withDoc` (`useStore.ts`) wraps `solveDoc` in try/catch — on throw it **keeps the last-good result +
+  coupes** and sets `solveError` (new `AppState`/`DocSlice` field, null when healthy); the next good solve clears it.
+  A **`SolveErrorBanner`** (new, `role=alert`, i18n `solveErrorBanner` FR/EN) renders it non-blocking under the navbar.
+- **H3 (core cutLength guard).** `generateBarShape` (`segment-grammar.ts`) throws on a non-finite / ≤0 `cutLength`
+  right after the `totalLengthExpr` cross-check, so BBS/DXF/splice are all protected (D-P1-1). Dropped the now-redundant
+  editor-level guard in `FaconnageEditor.tryGen`.
+- **H4 (editor resync).** `FaconnageEditor` resyncs its param buffer on `[shapeId, memberLength, committedKey]` via a
+  last-committed ref (was `[shapeId]` only) — fixes the geometry↔façonnage desync on import / geometry edit, without
+  clobbering an in-progress invalid edit.
+
+**Tests (all green).** New: `bar_override_inherits_faconnage` (3), `store_solve_guard` (3), `cutlength_positive_guard`
+(3), `faconnage_resync` (2). Flipped: `faconnage_p02_verify` H1 → **no-throw** (H2 cases stay, pending Phase 2).
+Held: `faconnage_adapter_characterization` all 7 (DROITE cases unaffected; the bent-group crash paths were a *fix*,
+not a golden move), plus every legacy golden.
+
+**Green gate (2026-07-05).** `npm run check` ✓ — **492 tests / 101 files** (+11 over the 481/97 prep baseline);
+`npm run coverage` core **93.76%** (≥90 ✓); `npm run coverage:adapter` **96.34%** (was 96.22% — no regression). No
+BBS/cutLength golden moved. Not pushed (awaiting owner's word, `cross_projects_policy §10`).
+
+**Next (Phase 2 — façonnage capability: H11 → H9 → H2).** H2 uses the A-2 legs just decided (u_bar→`w`, zbar→`run2`,
+stepped→`run3`); add `totalLengthParam` + per-param `default`/`min` to the 9 open manifests (P0.4 table), seed picks
+through `tryGen` (H9), invert the linear `totalLengthExpr` in the adapter so `length` drives the principal leg.
+Then Phase 3 (H6/H7/H15 independent-bar UI), Phase 4 (H8 validity — **A-5 tiered**), etc. Owner long-lead items
+still open: nominate the engineer (`owner_tasks §B-1`) and the RPS 2011 A/g table (`§C-1`).
+
+### 2026-07-05 (later) — "no provisional constants" policy + sourced structural data + effective-depth ruling — **DOCS ONLY, not pushed** — by **Zayd** (Hetzner dev box)
+
+**Owner directive.** *Don't ship provisional/guessed constants — source accurate published values*; and *effective
+depth `d` is measured to the bar cross-sections' geometric (area-weighted) centroid* (matches `D-P1-5`).
+
+**What I did.** Ran an advanced web search of the published standards and compiled the accurate constants into a new
+**`structural_data.md`** (cited): EC2 (EN 1992-1-1) mandrel 4Ø/7Ø, bond `fbd`, anchorage `lbd`, lap `l0` + α1–α6,
+clear spacing `max(k1Ø,dg+k2,20)` (k1=1,k2=5), cover-by-class, lap stagger ≤50 %/0.3·l0; BAEL 91-99
+`ls=Ø·fe/4τsu`, `τsu=0.6·ψs²·ftj`, `ftj=0.6+0.06fcj`, R≥5.5Ø/3Ø, 2Ø hook return (note: computed ≈44Ø vs tabulated
+40Ø — owner picks the default, `D-P1-2` resolved as sourced); RPS 2011 `lc=max(he/6,hc,45cm)`,
+`s=min(8ØL,0.25bc,15cm)`, ND1/2/3, velocity zones 0.07/0.10/0.13/0.17 m/s. **One gap:** the RPS **A/g acceleration
+table** — the official MHPV PDF 403s the fetcher and other copies are scanned; flagged **⛳ OPEN → owner** (he has
+the official doc).
+
+**Docs updated accordingly.** `v1.0.4_spec.md` §0.5 reframed (data spine = sourced, not provisional; `As`/`d` exact
+geometry, no placeholder), **A1** rewritten (fill packs from `structural_data.md` + a reference-case suite for
+professional validation), **A2/H5** now exact (area-weighted centroid; no engineer-gate), **B1** stagger sourced,
+`[ENGINEER-GATE]` tags dropped where the data is sourced, §7/§8 refreshed. `v1.0.4_owner_tasks.md` §B reframed from
+"ratify guesses" to "**professional validation** of sourced constants," §C is now a concrete **data request** (RPS
+A/g table, market/default code, BAEL `ls` default, diameters, materials, exposure/cover, `dg`, stock length, safety
+factors, cartouche, schemes). §A-1 marked DECIDED (cut length); §A-3 resolved by the centroid ruling.
+
+**State.** Docs only; no code changed; gate still green (481/97) from prep; nothing pushed since `5f7c51f`. New
+file: `structural_data.md`.
+
+**Open — owner data (see `owner_tasks §C`, most urgent first):** (1) **RPS 2011 A/g acceleration table** +
+soil/importance/K; (2) primary market + default code + BAEL `ls` 40Ø-vs-44Ø default; (3) nominate the engineer;
+(4) diameters/materials/exposure-cover/dg/stock-length/cartouche/schemes. **→ Next:** owner answers §C-1/2/3 + §B-1;
+Zayd can start façonnage Phase 1 (H1/H3/H4) meanwhile.
+
+### 2026-07-05 — v1.0.4 docs restructured into a COMPLETE-product spec + owner/Zayd task split — **DOCS ONLY, not pushed** — by **Zayd** (Hetzner dev box)
+
+**What I did.** At the owner's direction, deep-analysed then **restructured the v1.0.4 doc set** so there is a clean
+separation between what Zayd implements and what the owner supplies, and one authoritative spec for the *complete
+single-tenant product* (the vertical/multi-tenant arc stays for later).
+
+- **`v1.0.4_spec.md` — rewritten as the complete-product contract.** Now folds **façonnage (H1–H19)** + roadmap
+  **Tracks A–E** into one spec: **A** compliance truthfulness (A1 sign-off harness · A2 validation completeness —
+  every steel add/remove feeds §7 · A3 multi-code BAEL/EC2 reachability), **B** detailing depth (B1 per-bar splice
+  stagger · B2 beam-support precision · B3 add-on 3D fidelity), **C** site-ready output (C1 coupe exactness +
+  G-COUPE · C2 shop-drawing completeness), **D** 3D fidelity (D1 stair · D2 fidelity pass), **E** data/interop (E1
+  canonical `.rcfg reinforcement[]` · E2 migration hardening). Each item carries impl/testing/deliverables +
+  `[OWNER-DEP → owner_tasks §X]` flags; §0.4 makes tests+a11y+perf a per-feature invariant; §7 sequences the
+  macro-phases; §9 defines "complete". **Track H (vertical/multi-tenant) explicitly OUT of scope.**
+- **`v1.0.4_owner_tasks.md` — NEW, the owner's manual work.** §A design decisions (H2 semantic, gated scope,
+  code scope, validity tiers, error UX, DROITE coupling, symmetric-shape principal legs) · §B engineering
+  ratification (nominate the engineer; ratify BAEL/EC2/RPS/COUPE/TOL constants + reference cases; mixed-Ø As rule;
+  splice stagger fraction; anchorage; coupe conventions) · §C product/business (§14 items 1–13) · §D GPU/drawing
+  acceptance · §E final UAT. Each task: why-only-owner, which spec item it unblocks, priority (🔴 blocks coding /
+  🟠 blocks acceptance / 🟢 default).
+- **`roadmap_directions.md` — trimmed.** A–E removed (now in the spec); keeps **F** (platform-quality
+  *infrastructure* — enforced coverage gate + perf harness; per-feature a11y/tests absorbed into the spec), **G**
+  (breadth), **H** (vertical).
+- **Deleted `v1.0.4_prep_plan.md`** (superseded — owner parts → owner_tasks, done agent parts recorded in
+  `v1.0.4_prep_results.md`). Kept `prep_results` + `impl_plan` as execution artifacts; fixed their dangling refs.
+
+**State now.** Docs only; **no production code changed** (the spec/owner-doc restructure adds no code). Gate stands
+green from the prep session (**481 tests / 97 files**). Nothing pushed since `5f7c51f` (policy §10). Files:
+rewrote `v1.0.4_spec.md`, `roadmap_directions.md`; added `v1.0.4_owner_tasks.md`; deleted `v1.0.4_prep_plan.md`;
+touched `v1.0.4_impl_plan.md`/`v1.0.4_prep_results.md` (ref fixups) + this file.
+
+**Open / owner action.** The owner still owes the **§A design decisions** (🔴 A-1 length semantic + A-3 gated scope
+block the matching spec phases) and **§B-1 nominate the engineer** (long-lead). Zayd can start **façonnage Phase 1
+(H1/H3/H4)** + the **a11y pass** now — neither needs an owner decision.
+
+**→ Next agent / owner:** owner reads `v1.0.4_owner_tasks.md` (answer §A, start §B-1). Agent: begin façonnage
+Phase 1 per `v1.0.4_impl_plan.md`. Pull before starting; append a §9 entry.
 
 ### 2026-07-03 (later) — v1.0.4 prep phase (Part B) EXECUTED + spec accuracy re-pass — **TESTS/DOCS ONLY, no production code, not pushed** — by **Zayd** (Hetzner dev box)
 

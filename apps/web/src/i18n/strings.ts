@@ -8,6 +8,8 @@ export type Lang = "fr" | "en";
 
 export interface Strings {
   appTitle: string;
+  /** H1 ([v1.0.4]): non-blocking solve-failure banner; `{msg}` is replaced with the error detail. */
+  solveErrorBanner: string;
   element: string;
   code: string;
   language: string;
@@ -234,6 +236,7 @@ export interface Strings {
 
 const FR: Strings = {
   appTitle: "RebarConfig — Détaillage d'armatures",
+  solveErrorBanner: "Cette modification n'a pas pu être calculée — le dernier état valide est conservé. Corrigez la saisie. ({msg})",
   element: "Élément",
   code: "Code",
   language: "Langue",
@@ -460,6 +463,7 @@ const FR: Strings = {
 
 const EN: Strings = {
   appTitle: "RebarConfig — Rebar detailing",
+  solveErrorBanner: "This change couldn't be computed — the last valid state is kept. Fix the input. ({msg})",
   element: "Element",
   code: "Code",
   language: "Language",

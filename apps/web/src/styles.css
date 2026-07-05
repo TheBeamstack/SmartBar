@@ -55,6 +55,16 @@ html, body, #root {
   font-size: 12px;
 }
 
+/* ---- H1 solve-error banner (non-blocking, keep-last-good) ---- */
+.solve-error-banner {
+  padding: 6px 12px;
+  background: #fdecea;
+  color: #8a1c11;
+  border-bottom: 1px solid #f5b7b1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* ---- body ---- */
 .app-body { display: flex; flex: 1; min-height: 0; }
 

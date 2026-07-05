@@ -252,6 +252,15 @@ export function generateBarShape(
     );
   }
 
+  // --- H3 ([v1.0.4]): positive-finite cutLength guard. A degenerate/negative/NaN cut length is
+  // physically meaningless and would poison the BBS/DXF/splice downstream, so reject it here in the
+  // core generator (not just the editor) — every consumer is now protected (D-P1-1). ---
+  if (!Number.isFinite(cutLength) || cutLength <= 0) {
+    throw new Error(
+      `shape "${archetype.id}": non-positive cut length (${cutLength}) — check the params/legs`,
+    );
+  }
+
   // --- v1.0.3 G5 ([REF-SYS-756b], §5): render the end-hook (crochet) geometry on OPEN shapes so
   // the hook is VISIBLE in 3D/coupe/PDF/DXF (épingles especially — their hooks anchor the bar pair).
   // The hook is appended/prepended as a short return leg (the join becomes a filleted bend below);

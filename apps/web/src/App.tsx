@@ -9,6 +9,7 @@ import { Navbar } from "./ui/Navbar";
 import { Sidebar } from "./ui/Sidebar";
 import { RightColumn } from "./ui/RightColumn";
 import { BottomPanel } from "./ui/BottomPanel";
+import { SolveErrorBanner } from "./ui/SolveErrorBanner";
 import { Viewport } from "./viewport/Viewport";
 import { useAutosave } from "./ui/useAutosave";
 
@@ -17,6 +18,7 @@ export function App() {
   return (
     <div className="app">
       <Navbar />
+      <SolveErrorBanner />
       <div className="app-body">
         <Sidebar />
         <main className="viewport-pane">

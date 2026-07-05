@@ -7,7 +7,7 @@
  * set throws, which we catch and surface — and we **never commit invalid params** to the store, so
  * the solve only ever sees a valid shape.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { NumberField } from "./NumberField";
@@ -48,17 +48,26 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
   const hooks = faconnage?.hooks ?? { start: "none" as HookChoice, end: "none" as HookChoice };
 
   // local editing buffer: lets a (temporarily) invalid value stay in the field while we refuse to
-  // commit it to the store. Re-seeds whenever the chosen shape changes.
+  // commit it to the store.
   const committed = faconnage?.shapeParams && Object.keys(faconnage.shapeParams).length > 0 ? faconnage.shapeParams : seedParams(shape, memberLength);
   const [params, setParams] = useState<Record<string, number>>(committed);
-  useEffect(() => setParams(committed), [shapeId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // H4 ([v1.0.4]): resync the buffer to the committed params whenever the shape, the member length,
+  // or the committed params themselves change externally (import / geometry edit / undo) — keyed by a
+  // stable serialization + a last-committed ref so a self-triggered commit (or an unrelated re-render)
+  // never clobbers an in-progress invalid edit. Pre-H4 the buffer only re-seeded on `shapeId`, so an
+  // import or a geometry change left it stale (geometry↔façonnage desync).
+  const committedKey = JSON.stringify(committed);
+  const lastCommittedRef = useRef(committedKey);
+  useEffect(() => {
+    if (lastCommittedRef.current === committedKey) return;
+    lastCommittedRef.current = committedKey;
+    setParams(committed);
+  }, [shapeId, memberLength, committedKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Generate the shape or throw — also rejects a non-positive/non-finite cutLength (D-P1-1). */
-  const tryGen = (p: Record<string, number>, h: { start: HookChoice; end: HookChoice }) => {
-    const r = generateBarShape(shape, p, diameter, baelPack, { hooks: toUserHooks(h) });
-    if (!Number.isFinite(r.cutLength) || r.cutLength <= 0) throw new Error("non-positive cutLength");
-    return r;
-  };
+  /** Generate the shape or throw. The non-positive/non-finite cutLength guard now lives in the core
+   *  generator (H3, D-P1-1) so every consumer is protected; here we just surface its throw. */
+  const tryGen = (p: Record<string, number>, h: { start: HookChoice; end: HookChoice }) =>
+    generateBarShape(shape, p, diameter, baelPack, { hooks: toUserHooks(h) });
 
   let sketch: ReturnType<typeof generateBarShape> | null = null;
   let error: string | null = null;

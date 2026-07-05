@@ -171,14 +171,31 @@ function faconnageHooks(f: BarFaconnage | undefined): { start?: UserHook; end?: 
 function buildLongOverrides(
   edits: BarOverrideEdit[] | undefined,
   group: { shapeId: string; diameter: number },
-  defaultParams: Record<string, number>,
+  groupParams: Record<string, number>,
 ): LongBarOverride[] {
   if (!edits || edits.length === 0) return [];
   return edits.map((e) => {
+    // H1 ([v1.0.4]): an axial-only / removed-only edit does NOT change this bar's geometry — omit
+    // `shape`/`params` so the pipeline reuses the group's already-generated shape (byte-identical,
+    // no regen). A change to shape/façonnage/Ø/length DOES affect the geometry (Ø & length feed the
+    // cutLength invariant, D-P1-1) → regenerate.
+    const regen = e.shapeId !== undefined || e.faconnage !== undefined
+      || e.length !== undefined || e.diameter !== undefined;
+    if (!regen) {
+      return {
+        barIndex: e.index,
+        ...(e.axialPos !== undefined ? { axisStart: e.axialPos } : {}),
+        ...(e.removed ? { removed: true } : {}),
+      };
+    }
     const shapeId = e.shapeId ?? group.shapeId;
+    // H1 ([v1.0.4]): a partial override (e.g. Ø-only) inherits the GROUP's resolved façonnage params
+    // — NOT `{L:memberLen}`. Without this a bent group (BAIONNETTE, …) regenerated with its legs
+    // missing and threw `Undefined symbol …` (prep_results P0.2). `faconnageParams` prefers the
+    // edit's own params when present, else the group's.
     const params = e.length !== undefined
-      ? { ...faconnageParams(e.faconnage, defaultParams), L: e.length }
-      : faconnageParams(e.faconnage, defaultParams);
+      ? { ...faconnageParams(e.faconnage, groupParams), L: e.length }
+      : faconnageParams(e.faconnage, groupParams);
     const hooks = faconnageHooks(e.faconnage);
     return {
       barIndex: e.index,
@@ -262,7 +279,7 @@ function columnInput(
   const wTie = doc.geometry.b - 2 * doc.cover - phiT;
   const hTie = doc.geometry.h - 2 * doc.cover - phiT;
   const cfg = transverseConfig(doc);
-  const longOverrides = buildLongOverrides(doc.longitudinal.barOverrides, { shapeId: doc.longitudinal.shapeId, diameter: phiL }, { L: doc.geometry.H });
+  const longOverrides = buildLongOverrides(doc.longitudinal.barOverrides, { shapeId: doc.longitudinal.shapeId, diameter: phiL }, faconnageParams(doc.longitudinal.faconnage, { L: doc.geometry.H }));
   const extraBars = buildExtraBars(doc.extraBars, doc.geometry.H);
   return {
     element: "E-COL-01",
@@ -343,7 +360,7 @@ function beamInput(
   const hStir = doc.geometry.h - 2 * doc.cover - phiT;
   // single bottom layer ⇒ d = h − (cover + φ_t + φ_ℓ/2) exactly (§6.1)
   const dApprox = doc.geometry.h - (doc.cover + phiT + phiLInset / 2);
-  const longOverrides = buildLongOverrides(doc.span.barOverrides, { shapeId: doc.span.shapeId, diameter: phiSpan }, { L: doc.geometry.L });
+  const longOverrides = buildLongOverrides(doc.span.barOverrides, { shapeId: doc.span.shapeId, diameter: phiSpan }, faconnageParams(doc.span.faconnage, { L: doc.geometry.L }));
   // G3 ([REF-SYS-260]): relevés ride the G2 addressable-bar channel (a RELEVE-shaped bottom bar that
   // bends up near its support) — rendered + scheduled, the layout/As untouched (detailing add-on).
   const extraBars = [...buildExtraBars(doc.extraBars, doc.geometry.L), ...releveExtraBars(doc, phiT)];

@@ -9,8 +9,8 @@ import { defaultColumnDoc } from "./document";
 import { generateBarShape } from "@rebarconfig/core";
 import { loadShape } from "./manifests";
 
-describe("P0.2 — H1: Ø-only override on a façonné group crashes the solve", () => {
-  it("throws when a BAIONNETTE-façonné column has one bar's Ø overridden with no faconnage", () => {
+describe("P0.2 — H1 (LANDED): Ø-only override on a façonné group no longer crashes", () => {
+  it("does NOT throw when a BAIONNETTE-façonné column has one bar's Ø overridden with no faconnage", () => {
     const doc = defaultColumnDoc();
     // make the whole longitudinal group a façonné BAIONNETTE (valid params for a 3 m column)
     doc.longitudinal.shapeId = "BAIONNETTE";
@@ -19,8 +19,8 @@ describe("P0.2 — H1: Ø-only override on a façonné group crashes the solve",
     expect(() => solveDoc(doc)).not.toThrow();
     // now override ONLY the diameter of bar 0 — no shapeId, no faconnage
     doc.longitudinal.barOverrides = [{ index: 0, diameter: 25 }];
-    // EXPECTED (current bug): the adapter regenerates BAIONNETTE with {L:H} params → evalExpr throws
-    expect(() => solveDoc(doc)).toThrow();
+    // H1: the override inherits the GROUP's BAIONNETTE params → regenerates cleanly (was a crash).
+    expect(() => solveDoc(doc)).not.toThrow();
   });
 
   it("does NOT throw when the same override is on a DROITE group (the L-param case)", () => {
