@@ -63,7 +63,10 @@ in the browser — no server, free hosting.**
 | **v1.0.3 P9 (G9)** — **camera fixes**: killed the ViewCube auto-spin (roll is now an on-demand effect, not a per-frame `useFrame` loop) + **roll auto-levels on orbit-start**; added a **toolbar hand-pan toggle** (`navMode`, LEFT-drag pans when active, orbit on RIGHT-drag, zoom always) — session-only, not in `.rcfg` | ✅ **CODE DONE + tested** (D-V103-9) · ⏳ owner GPU pass | Amer, 2026-07-01 |
 | **v1.0.4 spec — COMPLETE single-tenant product** — `v1.0.4_spec.md` restructured: façonnage (H1–H19) + Tracks A–E (A compliance truthfulness · B detailing depth · C site-ready output · D 3D fidelity · E data/interop). Vertical/multi-tenant (Track H) deferred. Split of duties: `v1.0.4_owner_tasks.md` (owner manual work) · `roadmap_directions.md` trimmed to F/G/H | 🟡 **SPEC DRAFTED** (docs only, not pushed) | Zayd, 2026-07-05 |
 | **v1.0.4 prep phase executed** — baseline+severity verified (H1 crash + H2 no-op confirmed live), adapter safety net (characterization + `coverage:adapter` 96%), manifest-data table, design spikes, fixture inventory, `v1.0.4_impl_plan.md` (façonnage phasing) | ✅ **PREP DONE** · ⏳ owner design decisions (`owner_tasks §A`) · ⏳ engineer sign-off program (`owner_tasks §B`) | Zayd, 2026-07-03/05 |
-| **v1.0.4 Phase 1 (H1, H3, H4)** — façonnage crash + data-loss fixes: per-bar override inherits the group façonnage (no more BAIONNETTE crash) + axial/removed-only edits skip regen; store `withDoc` keep-last-good guard + non-blocking solve-error banner (owner A-6); core-level `cutLength>0` guard in `generateBarShape` (BBS/DXF/splice protected); FaconnageEditor buffer resync on `[shapeId, memberLength, committedKey]`. Owner decisions A-2/A-4/A-5/A-6/A-7 recorded in `owner_tasks §A` | ✅ **CODE DONE + tested** (green gate below) · NOT pushed | Zayd, 2026-07-05 |
+| **v1.0.4 Phase 1 (H1, H3, H4)** — façonnage crash + data-loss fixes: per-bar override inherits the group façonnage (no more BAIONNETTE crash) + axial/removed-only edits skip regen; store `withDoc` keep-last-good guard + non-blocking solve-error banner (owner A-6); core-level `cutLength>0` guard in `generateBarShape` (BBS/DXF/splice protected); FaconnageEditor buffer resync on `[shapeId, memberLength, committedKey]`. Owner decisions A-2/A-4/A-5/A-6/A-7 recorded in `owner_tasks §A` | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-05 |
+| **v1.0.4 Phase 2 (H11, H9, H2)** — façonnage capability: manifest `default`s for every open-shape param + shared `defaultParams` (drops the positional seed guess); guarded `pickShape` (validates the seed before committing); `totalLengthParam` (A-2 legs) on the 9 open shapes + adapter `applyUniqueLength` inverts `totalLengthExpr` so a unique `length` drives the principal leg → `cutLength == length` on EVERY open shape (was DROITE-only). New `ShapeArchetype.totalLengthParam` + integrity guard. | ✅ **CODE DONE + tested** · NOT pushed | Amer, 2026-07-06 |
+| **v1.0.4 Phase 3 partial (H15, H6)** — backend↔frontend parity: independent extra bars now expose the full model (shape + reused FaconnageEditor + length + axial pos, not just u/v/Ø); collision-free `x{n}` extra-bar ids. Audit confirmed splices/supports/relevés/ties/regions/seismic all already wired — remaining gaps are H7 (extras on picker/coupe) + A3/H13 (EC2 picker). | ✅ **CODE DONE + tested** · NOT pushed | Amer, 2026-07-06 |
+| **v1.0.4 Phase 3 done (H7) + A3/H13** — extras selectable on the SectionPicker (distinct marker + keyboard list) via a new `selectedExtraId` channel, editor highlights on pick; coupe already showed them (confirmed). **EC2 now reachable:** `doc.codePack` (BAEL/EC2, additive + `.rcfg` round-trip), `packFor()` threads the active pack through solveDoc/applyUniqueLength/FaconnageEditor, BAEL↔EC2 picker in the Projet/Code tab. BAEL↔EC2 = same structure, different numbers (tie-Ø verdict flips). Closes the last backend-ahead-of-frontend gaps. | ✅ **CODE DONE + tested** (green gate below) · NOT pushed | Amer, 2026-07-06 |
 
 **Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
 phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
@@ -118,6 +121,12 @@ elements / 10 schemes / 7 supplements), core+web typecheck ✓, **470 tests / 95
 baseline of 463/93 — the new `nav_mode` + `export_supports` web suites); `npm run build:web` ✓ (35.7s); `npm run
 coverage` **93.88% stmts** (≥90% threshold; core-only scope — P8/P9/P7b are `apps/web`+`exporters` code, outside
 the core-only coverage include). **PUSHED to `origin/feat/p1-m1-engine`.**
+
+**Current green gate (v1.0.4 through Phase 3 + A3/H13, 2026-07-06 — NOT yet pushed past `c430534`):** `npm run
+check` ✓ — **543 tests / 110 files**; `npm run coverage` core **93.65%** (≥90); `npm run coverage:adapter`
+**96.62%** (no regression); `npm run build:web` ✓. Landed since the last push: v1.0.4 Phase 1 (H1/H3/H4, `c430534`,
+pushed) then **local-only** Phase 2 (H11/H9/H2), Phase 3 (H15/H6/H7), A3/H13 (EC2 reachable) — all by Amer. See the
+§9 entries. No golden moved.
 The standing engineer sign-offs (G-BAEL/EC2/RPS/COUPE/TOL) + the owner GPU/visual passes remain open (acceptance,
 not code).
 **The headless gate can't see WebGL** — the ViewCube/persp⇄ortho/coupe handle (v1.0.1) **and the new F7 3D bar
@@ -357,6 +366,161 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-07-06 (evening) — v1.0.4 **Phase 3 complete (H7)** + **A3/H13 (EC2 reachable)** — **CODE DONE, tested, green — NOT pushed** — by **Amer** (owner's local Windows PC)
+
+**Context.** Owner: "continue and fully finalize" the backend↔frontend parity gaps. The two open items were H7
+(extras on the picker/coupe) and A3/H13 (EC2 pack built but unreachable). Both now closed.
+
+**H7 — extras on the section picker + coupe.**
+- Store: new `selectedExtraId: string | null` + `setSelectedExtraId`, mutually exclusive with `selectedBars`
+  (reset clears both).
+- `SectionPicker` gained optional `onPickExtra` / `selectedExtraId` props: when provided it renders the standalone
+  `result.longBars` (not in the layout `bars`) as distinct square markers + a dashed keyboard-list entry, pickable by
+  their stable id.
+- `AddressableBars` wires the two picks mutually exclusively and highlights the selected extra's editor `<li>`
+  (`aria-current` + `.addressable-extra-selected`).
+- The **coupe already shows extras** — `sectionAt` builds over `placeBars(result)` which includes standalone bars;
+  pinned by a confirmation test (no code change needed there).
+
+**A3/H13 — BAEL↔EC2 reachable.**
+- `doc.codePack?: "BAEL" | "EC2"` (additive, default BAEL) on all three doc types; `.rcfg` canonical `codePack`
+  follows it (BAEL→"BAEL-FR", EC2→"EC2") and the lossless `meta.app_document` carry round-trips it.
+- Adapter: `packFor(id)` returns one of two packs built once (`makeEc2Pack()` is structurally `CodePack &
+  PackExtras` — identical shape to `BaelPack`, so the whole adapter stays typed against `BaelPack` and **the engine
+  is untouched**, D-P1-3). `solveDoc` defaults `code = packFor(doc.codePack)`; the pack is threaded through
+  `buildLongOverrides`/`buildExtraBars`/`applyUniqueLength`.
+- `FaconnageEditor` previews with `packFor(doc.codePack)` — same pack as the solve (H13).
+- UI: a **BAEL/EC2 picker** in the Projet/Code tab (`setCodePack`), typed i18n `codePack` (FR/EN).
+- **Note on current EC2 data:** the provisional EC2 pack still shares BAEL's mandrel/bendDeduction, so a bar's
+  cutLength is pack-independent *today* (expected — EC2 constants are filled by A1 from `structural_data.md`). What
+  already differs and is checked: `codeRef`, `tieDiameterMin` (φℓ/3 vs φℓ/4) → the `tie_diameter` verdict **flips**
+  BAEL(FAIL)↔EC2(PASS) for long Ø25 + tie Ø7, proving the pick is threaded end-to-end.
+
+**Tests (all green).** New: `picker_shows_extras` (2), `coupe_extras` (2), `code_picker` (3, doc+rcfg round-trip +
+legacy default), `bael_ec2_structure_identical` (2, structure invariant + packs distinct), `active_pack_consistency`
+(3, editor==solve + verdict flip). Held: all legacy goldens + characterization (default docs → BAEL, byte-identical).
+
+**Green gate (2026-07-06).** `npm run check` ✓ — **543 tests / 110 files** (+12 over Phase-3-partial's 531/105);
+`npm run coverage` core **93.65%** (≥90 ✓); `npm run coverage:adapter` **96.62%** (was 96.46% — up); `build:web` ✓.
+No golden moved. Not pushed.
+
+**Backend↔frontend parity: CLOSED.** Every model field the adapter/core supports is now exposed + wired in the UI.
+Remaining v1.0.4 work is net-new capability, not parity: Phase 4 **H8** (addressable validity tiers, owner A-5),
+A2 steel accounting, B/C/D/E tracks, and Phase-6 polish (H10/H12/H16/H17/H18/H19) — plus the tracked `withDoc`
+checkout/import guard. Owner long-lead items unchanged (engineer nomination §B-1; RPS zone→ND §C-1).
+
+### 2026-07-06 (later still) — backend↔frontend parity audit + v1.0.4 **Phase 3 partial** (H15, H6) — **CODE DONE, tested, green — NOT pushed** — by **Amer** (owner's local Windows PC)
+
+**Context.** Owner asked to "ensure the codebase is fully consistent, beginning with features present in the backend
+(model/adapter/core) but not finalized in the frontend." I audited the ElementDoc model vs the store actions vs the
+UI components.
+
+**Audit result — the codebase is consistent; the only backend-ahead-of-frontend gaps are the tracked v1.0.4 items:**
+- ✅ Per-bar overrides (shape/hooks/Ø/length/axial/remove) — full UI in `AddressableBars`. Splices+autoSplice — full
+  UI (`SpliceEditor` in `Sidebar`, wired via `setLongitudinal`/`setSpan`; **not** a gap as I first suspected). Beam
+  two-supports, relevés, topBars, cross-ties, regions, seismic, generic flags — all wired (every store setter is
+  referenced by a UI component).
+- ❌ **H6** — independent extra bars exposed only u/v/Ø though `AddressableBar` carries shapeId/faconnage/length/
+  axialPos. **FIXED this session.**
+- ❌ **H15** — `addExtra` used `X${length+1}` → id collision after a middle remove+add. **FIXED this session.**
+- ❌ **H7** (still open) — standalone extras live in `result.longBars` (with `standalone:true`); the `SectionPicker`
+  renders only `result.bars` (the layout set), so extras aren't selectable on the picker / shown in the coupe.
+- ❌ **A3/H13** (still open) — `makeEc2Pack` exists in `packages/codepacks` but `solveDoc` hardcodes `baelPack`;
+  there's no store `activePack` and no BAEL↔EC2 code picker in the UI.
+
+**What I did (UI-only, `AddressableBars.tsx` + 2 specs; no model/adapter/core change):**
+- **H15.** `freshExtraId` assigns the first free `x{n}` — collision-free, reuses a freed slot.
+- **H6.** Each independent extra now renders its full editor: shape select + reused `FaconnageEditor` (params/hooks/
+  live sketch) + length (drives the principal leg via the Phase-2 H2 inversion) + axial position, on top of u/v/Ø.
+  The adapter's `buildExtraBars` already threaded all of this, so it flows to 3D/coupe/BBS/DXF immediately.
+
+**Tests (all green).** New: `extra_bar_ids` (H15, 1), `independent_bar_full_ui` (H6, 2 — UI exposure + the shaped
+extra solves to a standalone bar with cutLength==length). Held: `addressable_bars_ui`, `faconnage_editor`.
+
+**Green gate (2026-07-06).** `npm run check` ✓ — **531 tests / 105 files** (+3 over Phase 2's 528/103); `build:web`
+✓ (33s). Core/adapter coverage untouched (UI-only change). Not pushed.
+
+**Next.** Finish Phase 3 with **H7** (render standalone extras on the `SectionPicker` + confirm the coupe shows them
+at level `v`; select-by-id opens the extra's editor — needs a small extra-selection channel distinct from the
+layout-bar `selectedBars`). Then **Phase 3.5 = A3+H13**: a store `activePack` (BAEL/EC2) threaded into `solveDoc` +
+`FaconnageEditor`, and a code picker in the Projet/Code tab (`.rcfg` additive). Owner long-lead items unchanged.
+
+### 2026-07-06 (later) — v1.0.4 **Phase 2** (façonnage capability: H11, H9, H2) — **CODE DONE, tested, green — NOT pushed** — by **Amer** (owner's local Windows PC)
+
+**Context.** Second implementation slice, per `v1.0.4_impl_plan.md` Phase 2 (order H11 → H9 → H2). Owner decisions
+A-1 (length = fabricated cut length) + A-2 (principal legs: u_bar→`w`, zbar→`run2`, stepped→`run3`, others per
+P0.4) were already recorded. Built on Phase 1's green baseline.
+
+**What I did (manifests + `packages/core` type/integrity + adapter + UI; no `.rcfg`/schema change):**
+- **H11 (valid seeds).** Authored a `default` for every open-shape length param missing one (crochet_l a=1000/b=200,
+  u_bar h=300/w=1500, baionnette lower=2000/crank=150/upper=800, releve bottom=2000/incline=600/top=800,
+  attente foot=300/h=800; zbar/double_crank/stepped already had them). New shared **`defaultParams(shape,
+  memberLength)`** in `solveDoc.ts` — reads manifest defaults, drops the old positional `i===0 ? memberLength :
+  memberLength/6` guess; only DROITE's `L` (intentionally undefaulted) tracks the member length (H12 coupling). The
+  FaconnageEditor UI now imports it (single source of truth for seeds).
+- **H9 (guarded pick).** `pickShape` runs the seed through `generateBarShape` before committing — never switches the
+  store to a shape whose default sketch is invalid (belt-and-suspenders over H11).
+- **H2 (unique length → principal leg).** Added **`ShapeArchetype.totalLengthParam`** (core type) + a manifest value
+  on all 9 open shapes (A-2 legs), plus an integrity check that it names a real param key. Adapter **`applyUniqueLength`**
+  inverts the linear `totalLengthExpr`: since cutLength = `Σ legs + hookAllowances − bendDeductions`, the principal
+  leg appears once with unit coefficient, and hooks/deductions depend only on Ø+angle, the inversion is exactly
+  `principalLeg += length − cutLength_current` (computed with the same Ø+hooks). Wired into `buildLongOverrides` +
+  `buildExtraBars`, replacing the DROITE-only `{...,L:length}` hack. A too-short length drives the leg ≤0 → the core
+  H3 guard rejects it → Phase-1 keep-last-good banner. Result: `cutLength == length` (±<0.01) on every open shape.
+
+**Tests (all green).** New: `manifest_defaults_valid` (19 — every default seeds valid + totalLengthParam is real +
+no positional guess), `unique_length_semantics` (12 — length==cutLength on all 9 shapes + per-bar + hook-absorbing +
+extra bar), `pickshape_guard` (9 — every shape picks to a valid committed seed). Flipped: characterization H2 case
+`[WILL-CHANGE H2] → [H2 LANDED]` (length now sets cutLength). **Deleted** the temporary `faconnage_p02_verify` probe
+(H1+H2 both landed; its cases are now covered by `bar_override_inherits_faconnage` + `unique_length_semantics`), per
+the impl-plan standing rule.
+
+**Green gate (2026-07-06).** `npm run check` ✓ — **528 tests / 103 files** (+36 over Phase 1's 492/101);
+`npm run coverage` core **93.65%** (≥90 ✓); `npm run coverage:adapter` **96.46%** (was 96.34% — no regression);
+`npm run build:web` ✓ (27s). No BBS/cutLength golden moved (legacy DROITE docs seed L=memberLength exactly as before).
+Not pushed (awaiting owner's word, `cross_projects_policy §10`).
+
+**Next (Phase 3 — independent-bar UI: H15 → H6 → H7).** H6 reuses the FaconnageEditor + adds the length (H2, now
+real) + axial fields per extra bar; H7 renders standalone `longBars` on the SectionPicker + coupe. H2's UI half —
+"disable the length field where no `totalLengthParam` is authored" — is trivially satisfied today (all 9 open shapes
+author one) but should be honoured when the H6 length field is built. Owner long-lead items unchanged: engineer
+nomination (`owner_tasks §B-1`), RPS zone→ND mapping (`§C-1`, re-scoped 2026-07-06).
+
+### 2026-07-06 — v1.0.4 review pass (Zayd's Phase 1 + the two v1.0.4 docs) — **DOCS ONLY, not pushed** — by **Amer** (owner's local Windows PC)
+
+**Context.** Owner asked me to review Zayd's Phase 1 (H1/H3/H4, commit `c430534`) and the two companion docs
+(`v1.0.4_spec.md`, `v1.0.4_owner_tasks.md`) for possible improvements *before* resuming the v1.0.4 build. Pulled
+`5f7c51f..c430534` first (fast-forward, clean).
+
+**Phase 1 verdict — solid, correct, genuinely green.** `buildLongOverrides` inheritance + `regen` skip (H1), the
+core `cutLength>0` guard placement (H3), and the `committedKey`/`lastCommittedRef` editor resync (H4) all match the
+spec/impl-plan intent; tests assert behaviour not just non-throw; no golden moved. Good base for Phase 2.
+
+**Finding 1 (acted — doc correction). The RPS 2011 A/g acceleration table is NOT needed by the engine.** Verified:
+a repo-wide grep for `acceleration|baseShear|a_g|Amax` in `packages/` returns nothing in code; the RPS overlay
+(`codepacks/src/seismic/index.ts`) emits only *detailing* outputs (critical-zone length, tie spacing/Ø, confinement,
+engagement, lap tier, `longRatioUplift`) — none multiply by an acceleration; the `zones`/`a_g` map in `rps-2011.json`
+is dead data (`types/seismic.ts` calls the zone an *"opaque key"*). This follows the product premise (`core_logic`):
+the engineer supplies `As,req`; SmartBar detail-checks, it does **not** compute seismic demand. So `owner_tasks §C-1`
+— listed as the single *most urgent* owner ask — was mis-scoped. **Re-scoped** `§C-1` to the **zone→ductility-class
+(ND1/2/3) mapping** (what the engine actually consumes) and demoted the A/g table to "only if demand calc is ever
+added (Track G/H)". Propagated to: `owner_tasks §C-1`, `§B-4`, the "short version" ordering; `structural_data.md §4`
++ `§6.1`; `spec §8` owner-dep table + dependency notes.
+
+**Finding 2 (acted — spec sharpening). A2 tension-face convention.** A2's "which bars count per zone" was
+under-specified for columns (bending-direction-dependent tension face). Added a note in `spec A2 §0.5` to **reuse the
+existing per-zone `ZoneGeometry.tensionCentroid`/`d` convention (`D-P1-5`, `pipeline/element.ts`)** — A2 extends it to
+the full placed set, it does not re-derive the tension face. Removes an ambiguity before A2 is coded.
+
+**Finding 3 (logged, not fixed — tracked robustness item). `withDoc` keep-last-good doesn't cover `checkout`/import.**
+`checkout(inst)` and the `.rcfg` load path call `withDoc(doc)` with **no** `prevGood`, so a malformed import or an
+old doc that now trips the H3 guard **rethrows and blanks the app** instead of showing the non-blocking banner
+(against owner A-6's spirit). Low likelihood, real edge. Tracked as a Phase-6 follow-up in `v1.0.4_impl_plan.md`.
+
+**State.** Docs only; no production code changed; gate untouched (still 492/101 green from Zayd's Phase 1). Nothing
+pushed. **Next:** resume the build at **Phase 2 (H11 → H9 → H2)** per `v1.0.4_impl_plan.md` (awaiting the go-ahead).
+
 
 ### 2026-07-05 (later still) — v1.0.4 **Phase 1** (façonnage stability: H1, H3, H4) — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
 

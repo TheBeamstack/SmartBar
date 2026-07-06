@@ -14,6 +14,13 @@ import {
   type GenericSection,
 } from "./elementSpecs";
 
+/**
+ * A3/H13 ([v1.0.4]) — the active code pack for this element. Additive + optional so every prior
+ * `.rcfg` / doc loads as BAEL (default). BAEL↔EC2 swaps only the numbers behind the same `code.*`
+ * names (D-P1-3); the structure is identical. The RPS seismic overlay composes on either base.
+ */
+export type CodePackId = "BAEL" | "EC2";
+
 /** Seismic regime picked in the UI (§7.10); `null` = gravity-only. */
 export interface SeismicEdit {
   /** overlay code, e.g. "RPS-2011". */
@@ -147,6 +154,8 @@ export interface ColumnDoc {
   exposure: string;
   fire?: string;
   dg: number;
+  /** active code pack (BAEL default); absent → BAEL (A3/H13). */
+  codePack?: CodePackId;
   /** seismic regime (§7.10); absent/undefined = gravity-only. */
   seismic?: SeismicEdit;
   longitudinal: {
@@ -196,6 +205,8 @@ export interface BeamDoc {
   exposure: string;
   fire?: string;
   dg: number;
+  /** active code pack (BAEL default); absent → BAEL (A3/H13). */
+  codePack?: CodePackId;
   /** seismic regime (§7.10); absent/undefined = gravity-only. */
   seismic?: SeismicEdit;
   /** dedicated full-length top (montage/compression) bars, separate from the chapeaux (8b). */
@@ -290,6 +301,8 @@ export interface GenericDoc {
   exposure: string;
   fire?: string;
   dg: number;
+  /** active code pack (BAEL default); absent → BAEL (A3/H13). */
+  codePack?: CodePackId;
   zones: ZoneEdit[];
   /** two-way slab: a restrained discontinuous corner is present. */
   restrainedCorner?: boolean;

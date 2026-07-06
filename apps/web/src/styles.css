@@ -462,6 +462,9 @@ html, body, #root {
 .sp-concrete { fill: rgba(200, 204, 210, 0.10); stroke: #3a434f; stroke-width: 2; }
 .sp-bar { cursor: pointer; outline: none; }
 .sp-bar:focus-visible circle { stroke: #22d3ee; }
+/* H7: independent extra bars — square marker + focus ring on the rect. */
+.sp-extra:focus-visible rect { stroke: #22d3ee; }
+.sp-list-extra { border-style: dashed; }
 .sp-label { fill: #0b0d10; font-weight: 700; pointer-events: none; }
 .sp-hint { margin: 2px 0 4px; font-size: 12px; }
 .sp-list { list-style: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 0; margin: 6px 0 0; }
@@ -504,3 +507,5 @@ html, body, #root {
 .addressable-row span { font-family: ui-monospace, monospace; }
 .addressable-row button { margin-left: auto; }
 .addressable-extra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; padding: 4px 0; }
+/* H7: the extra selected on the section picker gets a highlighted editor. */
+.addressable-extra-selected { outline: 1px solid #22d3ee; outline-offset: 2px; border-radius: 4px; }

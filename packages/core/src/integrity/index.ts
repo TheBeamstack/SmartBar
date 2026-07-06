@@ -91,6 +91,12 @@ function checkShapeExprs(shape: any): string[] {
     }
   };
   flag("totalLengthExpr", shape.totalLengthExpr);
+  // H2 ([v1.0.4]): the principal-leg hint must name a real param (the adapter writes `params[tlp]`).
+  if (shape.totalLengthParam !== undefined && !allowed.has(shape.totalLengthParam)) {
+    errors.push(
+      `shape "${shape.id}": totalLengthParam "${shape.totalLengthParam}" is not a declared param key`,
+    );
+  }
   for (const seg of shape.segments ?? []) {
     if (typeof seg.line === "string") flag("segment.line", seg.line);
     if (typeof seg.turn === "string") flag("segment.turn", seg.turn);

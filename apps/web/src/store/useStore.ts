@@ -20,6 +20,7 @@ import {
   type GenericDoc,
   type ZoneEdit,
   type SeismicEdit,
+  type CodePackId,
   type ElementId,
   type SupplementEdit,
   type CrossTie,
@@ -141,6 +142,8 @@ export interface AppState {
 
   // seismic regime (§7.10) — applies to the column + beam (plastic-hinge members)
   setSeismic: (seismic: SeismicEdit | null) => void;
+  // A3/H13 ([v1.0.4]) — the active code pack (BAEL/EC2), stored on the doc + persisted in .rcfg
+  setCodePack: (id: CodePackId) => void;
 
   // cross-ties (F2) — apply to the active column tie OR beam stirrup (same model)
   setCrossTies: (crossTies: CrossTie[]) => void;
@@ -153,6 +156,10 @@ export interface AppState {
   // 2D section picker (F7): selected longitudinal bar indices (into result.bars), synced to 3D
   selectedBars: number[];
   setSelectedBars: (indices: number[]) => void;
+  // H7 ([v1.0.4]): the selected INDEPENDENT extra bar (by its stable id), mutually exclusive with
+  // `selectedBars`; picking an extra on the section picker opens its editor. null = none selected.
+  selectedExtraId: string | null;
+  setSelectedExtraId: (id: string | null) => void;
 
   // supplements (§5.5)
   addSupplement: (edit: SupplementEdit) => void;
@@ -244,6 +251,7 @@ export const useStore = create<AppState>((set, get) => {
     dragMode: false,
     selectedGroupIds: [],
     selectedBars: [],
+    selectedExtraId: null,
     expert: false,
     lang: "fr",
     showSection: false,
@@ -389,6 +397,7 @@ export const useStore = create<AppState>((set, get) => {
       else if (isBeamDoc(doc)) set(edit({ ...doc, extraBars: bars }));
     },
     setSelectedBars: (indices) => set({ selectedBars: indices }),
+    setSelectedExtraId: (id) => set({ selectedExtraId: id }),
 
     setBeamGeometry: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, geometry: { ...d.geometry, ...patch } })))),
@@ -445,6 +454,8 @@ export const useStore = create<AppState>((set, get) => {
         : { ...doc, seismic };
       set(edit(next as ElementDoc));
     },
+
+    setCodePack: (id) => set(edit({ ...get().doc, codePack: id })),
 
     addSupplement: (edit2) =>
       set(edit({ ...get().doc, supplements: [...get().doc.supplements, edit2] })),
@@ -522,6 +533,8 @@ export const useStore = create<AppState>((set, get) => {
         instances: [inst],
         activeInstanceId: inst.id,
         selectedGroupIds: [],
+        selectedBars: [],
+        selectedExtraId: null,
         expert: false,
         projection: "perspective",
         viewRequest: null,

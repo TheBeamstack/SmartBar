@@ -30,8 +30,10 @@ import {
   type JoistSolveInput,
   type LongBarOverride,
   type ExtraLongBar,
+  generateBarShape,
+  type ShapeArchetype,
 } from "@rebarconfig/core";
-import { makeBaelPack, makeRpsOverlay, type BaelPack } from "@rebarconfig/codepacks";
+import { makeBaelPack, makeEc2Pack, makeRpsOverlay, type BaelPack } from "@rebarconfig/codepacks";
 import {
   type ElementDoc,
   type ColumnDoc,
@@ -44,14 +46,27 @@ import {
   type BarFaconnage,
   type BarOverrideEdit,
   type AddressableBar,
+  type CodePackId,
   isColumnDoc,
   isGenericDoc,
 } from "./document";
 import type { UserHook } from "@rebarconfig/core";
 import { loadShape, supplementManifest } from "./manifests";
 
-/** The active code pack. v1.0 = BAEL-FR only (EC2 is P4); built once, it is pure data+fns. */
+/** The BAEL-FR pack — the default. Built once; pure data+fns. */
 export const baelPack: BaelPack = makeBaelPack();
+
+/**
+ * A3/H13 ([v1.0.4]): the two reachable code packs, built once. `makeEc2Pack()` returns `Ec2Pack`
+ * which is structurally `CodePack & PackExtras` — the SAME shape as `BaelPack` (identical `code.*` +
+ * `PackExtras` members, only the numbers differ, D-P1-3) — so the whole adapter stays typed against
+ * `BaelPack` and the engine (which never imports a pack) is untouched. `packFor` maps the doc's
+ * `codePack` (default BAEL) to the active pack; a single seam threads it into every generator call.
+ */
+const PACKS: Record<CodePackId, BaelPack> = { BAEL: baelPack, EC2: makeEc2Pack() };
+export function packFor(id: CodePackId | undefined): BaelPack {
+  return PACKS[id ?? "BAEL"];
+}
 
 // ---------------------------------------------------------------------------
 // seismic overlay (§7.10) — composed on top of the base profile when a regime is set
@@ -161,6 +176,45 @@ function faconnageHooks(f: BarFaconnage | undefined): { start?: UserHook; end?: 
   return { start: toHook(f.hooks.start), end: toHook(f.hooks.end) };
 }
 
+/**
+ * H11 ([v1.0.4]): seed a shape's params from the manifest `default`s — no positional guessing. A
+ * length param with no authored default (only DROITE's `L`) tracks the member length (H12 coupling);
+ * everything else is 0. Shared by the adapter (extra-bar fallback) and the FaconnageEditor UI so the
+ * seed a picked shape gets and the seed the solve computes are identical.
+ */
+export function defaultParams(shape: ShapeArchetype, memberLength: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of shape.params) {
+    out[p.key] = p.default ?? (p.type === "length" ? memberLength : 0);
+  }
+  return out;
+}
+
+/**
+ * H2 ([v1.0.4], owner A-1/A-2): map a user "unique length" onto the shape's principal leg
+ * (`totalLengthParam`) so the fabricated `cutLength == length`. Every open shape's cutLength is
+ * `Σ legs + hookAllowances − bendDeductions`; the principal leg appears once with unit coefficient and
+ * hookAllowances/bendDeductions depend only on Ø+angle (prep P0.5), so the linear inversion is exactly
+ * `principalLeg_target = principalLeg_current + (length − cutLength_current)`. Computing the current
+ * cutLength with the SAME Ø + hooks the pipeline will use makes it exact. A shape with no
+ * `totalLengthParam` (or a missing leg value) falls back to the legacy `L` slot (DROITE) so nothing
+ * regresses. If `length` is shorter than the shape's fixed part the target leg goes ≤0 and the core H3
+ * guard rejects it downstream (surfaced by the store's keep-last-good banner).
+ */
+function applyUniqueLength(
+  shape: ShapeArchetype,
+  params: Record<string, number>,
+  diameter: number,
+  hooks: { start?: UserHook; end?: UserHook } | undefined,
+  length: number,
+  pack: BaelPack,
+): Record<string, number> {
+  const tlp = shape.totalLengthParam;
+  if (!tlp || params[tlp] === undefined) return { ...params, L: length };
+  const base = generateBarShape(shape, params, diameter, pack, hooks ? { hooks } : undefined);
+  return { ...params, [tlp]: params[tlp] + (length - base.cutLength) };
+}
+
 // ---------------------------------------------------------------------------
 // G2 addressable bars ([REF-SYS-530]): per-bar overrides + independent extra bars flow into the
 // engine's `longOverrides`/`extraBars` channels (the pipeline emits a per-bar `longBars[]` that the
@@ -172,6 +226,7 @@ function buildLongOverrides(
   edits: BarOverrideEdit[] | undefined,
   group: { shapeId: string; diameter: number },
   groupParams: Record<string, number>,
+  code: BaelPack,
 ): LongBarOverride[] {
   if (!edits || edits.length === 0) return [];
   return edits.map((e) => {
@@ -189,19 +244,24 @@ function buildLongOverrides(
       };
     }
     const shapeId = e.shapeId ?? group.shapeId;
+    const shapeArch = loadShape(shapeId);
+    const diameter = e.diameter ?? group.diameter;
+    const hooks = faconnageHooks(e.faconnage);
     // H1 ([v1.0.4]): a partial override (e.g. Ø-only) inherits the GROUP's resolved façonnage params
     // — NOT `{L:memberLen}`. Without this a bent group (BAIONNETTE, …) regenerated with its legs
     // missing and threw `Undefined symbol …` (prep_results P0.2). `faconnageParams` prefers the
     // edit's own params when present, else the group's.
+    const baseParams = faconnageParams(e.faconnage, groupParams);
+    // H2 ([v1.0.4]): a unique `length` drives the shape's principal leg (`totalLengthParam`) so the
+    // fabricated cutLength == length on EVERY open shape — not a raw `L` symbol a bent shape ignores.
     const params = e.length !== undefined
-      ? { ...faconnageParams(e.faconnage, groupParams), L: e.length }
-      : faconnageParams(e.faconnage, groupParams);
-    const hooks = faconnageHooks(e.faconnage);
+      ? applyUniqueLength(shapeArch, baseParams, diameter, hooks, e.length, code)
+      : baseParams;
     return {
       barIndex: e.index,
-      shape: loadShape(shapeId),
+      shape: shapeArch,
       params,
-      diameter: e.diameter ?? group.diameter,
+      diameter,
       ...(hooks ? { hooks } : {}),
       ...(e.axialPos !== undefined ? { axisStart: e.axialPos } : {}),
       ...(e.removed ? { removed: true } : {}),
@@ -209,16 +269,22 @@ function buildLongOverrides(
   });
 }
 
-function buildExtraBars(bars: AddressableBar[] | undefined, memberLen: number): ExtraLongBar[] {
+function buildExtraBars(bars: AddressableBar[] | undefined, memberLen: number, code: BaelPack): ExtraLongBar[] {
   if (!bars || bars.length === 0) return [];
   return bars.map((eb) => {
+    const shapeArch = loadShape(eb.shapeId);
     const hooks = faconnageHooks(eb.faconnage);
-    const base = faconnageParams(eb.faconnage, { L: eb.length ?? memberLen });
+    // H11 ([v1.0.4]): an extra bar with no explicit façonnage seeds from the manifest defaults (not a
+    // bare `{L}`, which a bent shape would ignore). H2: a unique length drives the principal leg.
+    const base = faconnageParams(eb.faconnage, defaultParams(shapeArch, memberLen));
+    const params = eb.length !== undefined
+      ? applyUniqueLength(shapeArch, base, eb.diameter, hooks, eb.length, code)
+      : base;
     return {
       id: eb.id,
       position: { u: eb.u, v: eb.v },
-      shape: loadShape(eb.shapeId),
-      params: eb.length !== undefined ? { ...base, L: eb.length } : base,
+      shape: shapeArch,
+      params,
       diameter: eb.diameter,
       ...(hooks ? { hooks } : {}),
       ...(eb.axialPos !== undefined ? { axisStart: eb.axialPos } : {}),
@@ -279,8 +345,8 @@ function columnInput(
   const wTie = doc.geometry.b - 2 * doc.cover - phiT;
   const hTie = doc.geometry.h - 2 * doc.cover - phiT;
   const cfg = transverseConfig(doc);
-  const longOverrides = buildLongOverrides(doc.longitudinal.barOverrides, { shapeId: doc.longitudinal.shapeId, diameter: phiL }, faconnageParams(doc.longitudinal.faconnage, { L: doc.geometry.H }));
-  const extraBars = buildExtraBars(doc.extraBars, doc.geometry.H);
+  const longOverrides = buildLongOverrides(doc.longitudinal.barOverrides, { shapeId: doc.longitudinal.shapeId, diameter: phiL }, faconnageParams(doc.longitudinal.faconnage, { L: doc.geometry.H }), code);
+  const extraBars = buildExtraBars(doc.extraBars, doc.geometry.H, code);
   return {
     element: "E-COL-01",
     profile: "BAEL_COLUMN",
@@ -360,10 +426,10 @@ function beamInput(
   const hStir = doc.geometry.h - 2 * doc.cover - phiT;
   // single bottom layer ⇒ d = h − (cover + φ_t + φ_ℓ/2) exactly (§6.1)
   const dApprox = doc.geometry.h - (doc.cover + phiT + phiLInset / 2);
-  const longOverrides = buildLongOverrides(doc.span.barOverrides, { shapeId: doc.span.shapeId, diameter: phiSpan }, faconnageParams(doc.span.faconnage, { L: doc.geometry.L }));
+  const longOverrides = buildLongOverrides(doc.span.barOverrides, { shapeId: doc.span.shapeId, diameter: phiSpan }, faconnageParams(doc.span.faconnage, { L: doc.geometry.L }), code);
   // G3 ([REF-SYS-260]): relevés ride the G2 addressable-bar channel (a RELEVE-shaped bottom bar that
   // bends up near its support) — rendered + scheduled, the layout/As untouched (detailing add-on).
-  const extraBars = [...buildExtraBars(doc.extraBars, doc.geometry.L), ...releveExtraBars(doc, phiT)];
+  const extraBars = [...buildExtraBars(doc.extraBars, doc.geometry.L, code), ...releveExtraBars(doc, phiT)];
 
   const longitudinal: ElementSolveInput["longitudinal"] = [
     {
@@ -791,7 +857,7 @@ function resolveDocSupplements(
   return { inputs, warnings };
 }
 
-export function solveDoc(doc: ElementDoc, code: BaelPack = baelPack): SolveResult {
+export function solveDoc(doc: ElementDoc, code: BaelPack = packFor(doc.codePack)): SolveResult {
   if (isGenericDoc(doc)) return solveGeneric(doc, code);
   const cfg = transverseConfig(doc);
   // pass 1: base layout (no supplements, no anchored cross-ties) → stable bar positions to bind to.

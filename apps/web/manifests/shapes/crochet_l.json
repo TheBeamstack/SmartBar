@@ -5,8 +5,8 @@
   "plane": "2D",
   "closed": false,
   "params": [
-    { "key": "a", "label_fr": "Branche principale", "label_en": "Main leg", "type": "length", "min": 0 },
-    { "key": "b", "label_fr": "Retour d'ancrage", "label_en": "Anchorage return", "type": "length", "min": 0 }
+    { "key": "a", "label_fr": "Branche principale", "label_en": "Main leg", "type": "length", "min": 0, "default": 1000 },
+    { "key": "b", "label_fr": "Retour d'ancrage", "label_en": "Anchorage return", "type": "length", "min": 0, "default": 200 }
   ],
   "segments": [
     { "line": "a", "dir": "u+" },
@@ -16,5 +16,6 @@
   "endHooks": { "start": "none", "end": "none" },
   "mandrelRule": "code.mandrelMin(diameter)",
   "totalLengthExpr": "a + b + hookAllowances - bendDeductions",
+  "totalLengthParam": "a",
   "bendDeductionRule": "code.bendDeduction"
 }

@@ -16,7 +16,7 @@ import { RegionEditor } from "./RegionEditor";
 import { FaconnageEditor } from "./FaconnageEditor";
 import { AddressableBars } from "./AddressableBars";
 import { cm2, perZoneReadout } from "./derived";
-import { isColumnDoc, isGenericDoc, isBeamDoc, type Splice } from "../engine/document";
+import { isColumnDoc, isGenericDoc, isBeamDoc, type Splice, type CodePackId } from "../engine/document";
 import { GENERIC_SPECS, type GenericElementId } from "../engine/elementSpecs";
 
 type Tab = "scheme" | "geometry" | "project";
@@ -478,11 +478,20 @@ function ProjectTab() {
   const doc = useStore((s) => s.doc);
   const setMaterial = useStore((s) => s.setMaterial);
   const setExposure = useStore((s) => s.setExposure);
+  const setCodePack = useStore((s) => s.setCodePack);
   const s = t(lang);
 
   return (
     <div className="tab-body">
       <h3>{s.material.title}</h3>
+      {/* A3/H13 ([v1.0.4]): pick the design code — BAEL↔EC2 swaps only the numbers (D-P1-3). */}
+      <label className="field">
+        <span className="field-label">{s.codePack}</span>
+        <select value={doc.codePack ?? "BAEL"} aria-label={s.codePack} onChange={(e) => setCodePack(e.target.value as CodePackId)}>
+          <option value="BAEL">BAEL 91-99</option>
+          <option value="EC2">Eurocode 2</option>
+        </select>
+      </label>
       <NumberField label={s.material.concrete} value={doc.material.f_c28} min={20} max={60} step={1} onChange={(v) => setMaterial({ f_c28: v })} />
       <NumberField label={s.material.steel} value={doc.material.f_e} min={400} max={600} step={50} onChange={(v) => setMaterial({ f_e: v })} />
       <label className="field">

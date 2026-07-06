@@ -83,6 +83,14 @@ export interface ShapeArchetype {
   mandrelRule: string;
   /** fabrication-length expression (segment sum ± bend deductions + hook allowances). */
   totalLengthExpr: string;
+  /**
+   * H2 ([v1.0.4]): the "principal leg" a user-supplied unique length drives. Every open shape's
+   * cutLength is `Σ legs + hookAllowances − bendDeductions` and this leg appears once with unit
+   * coefficient, so the adapter can invert `totalLengthExpr` to make `cutLength == length` by
+   * setting `params[totalLengthParam]`. Must name a real `params[].key`. Absent ⇒ the shape has no
+   * length-driven leg (the length field is disabled for it).
+   */
+  totalLengthParam?: string;
   /** per-bend allowance rule from the active pack, e.g. "code.bendDeduction". */
   bendDeductionRule?: string;
   label_fr?: string;

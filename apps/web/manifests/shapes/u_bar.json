@@ -5,8 +5,8 @@
   "plane": "2D",
   "closed": false,
   "params": [
-    { "key": "h", "label_fr": "Hauteur des branches", "label_en": "Leg height", "type": "length", "min": 0 },
-    { "key": "w", "label_fr": "Largeur entre branches", "label_en": "Inner width", "type": "length", "min": 0 }
+    { "key": "h", "label_fr": "Hauteur des branches", "label_en": "Leg height", "type": "length", "min": 0, "default": 300 },
+    { "key": "w", "label_fr": "Largeur entre branches", "label_en": "Inner width", "type": "length", "min": 0, "default": 1500 }
   ],
   "segments": [
     { "line": "h", "dir": "v+" },
@@ -18,5 +18,6 @@
   "endHooks": { "start": "none", "end": "none" },
   "mandrelRule": "code.mandrelMin(diameter)",
   "totalLengthExpr": "2*h + w + hookAllowances - bendDeductions",
+  "totalLengthParam": "w",
   "bendDeductionRule": "code.bendDeduction"
 }

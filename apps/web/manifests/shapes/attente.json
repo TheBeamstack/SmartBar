@@ -5,8 +5,8 @@
   "plane": "2D",
   "closed": false,
   "params": [
-    { "key": "foot", "label_fr": "Retour d'ancrage", "label_en": "Anchorage foot", "type": "length", "min": 0 },
-    { "key": "h", "label_fr": "Hauteur en attente", "label_en": "Protruding height", "type": "length", "min": 0 }
+    { "key": "foot", "label_fr": "Retour d'ancrage", "label_en": "Anchorage foot", "type": "length", "min": 0, "default": 300 },
+    { "key": "h", "label_fr": "Hauteur en attente", "label_en": "Protruding height", "type": "length", "min": 0, "default": 800 }
   ],
   "segments": [
     { "line": "foot", "dir": "u+" },
@@ -16,5 +16,6 @@
   "endHooks": { "start": "none", "end": "none" },
   "mandrelRule": "code.mandrelMin(diameter)",
   "totalLengthExpr": "foot + h + hookAllowances - bendDeductions",
+  "totalLengthParam": "h",
   "bendDeductionRule": "code.bendDeduction"
 }

@@ -12,21 +12,13 @@ import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { NumberField } from "./NumberField";
 import { loadShape, SHAPES } from "../engine/manifests";
-import { baelPack } from "../engine/solveDoc";
-import type { BarFaconnage, HookChoice } from "../engine/document";
-import { generateBarShape, type UserHook, type ShapeArchetype } from "@rebarconfig/core";
+import { packFor, defaultParams } from "../engine/solveDoc";
+import type { BarFaconnage, HookChoice, CodePackId } from "../engine/document";
+import { generateBarShape, type UserHook } from "@rebarconfig/core";
 
 /** Open, polyline shapes a longitudinal bar may take (closed ties/spirals/mesh excluded). */
 const LONGITUDINAL_SHAPES = ["DROITE", "CROCHET_L", "U_BAR", "BAIONNETTE", "RELEVE", "ATTENTE", "Z_BAR", "DOUBLE_CRANK", "STEPPED"];
 const HOOK_CHOICES: HookChoice[] = ["none", 90, 135, 180];
-
-function seedParams(shape: ShapeArchetype, memberLength: number): Record<string, number> {
-  const out: Record<string, number> = {};
-  shape.params.forEach((p, i) => {
-    out[p.key] = p.default ?? (p.type === "length" ? (i === 0 ? memberLength : Math.round(memberLength / 6)) : 0);
-  });
-  return out;
-}
 
 function toUserHooks(h: { start: HookChoice; end: HookChoice }): { start?: UserHook; end?: UserHook } {
   const one = (c: HookChoice): UserHook => (c === "none" ? "none" : { angle: c });
@@ -43,13 +35,17 @@ interface Props {
 
 export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, onChange }: Props) {
   const lang = useStore((s) => s.lang);
+  // H13 ([v1.0.4]): the editor preview uses the SAME active code pack as the solve, so the sketch's
+  // cutLength/bend deductions match what the pipeline computes (BAEL vs EC2 mandrels differ).
+  const codePack = useStore((s) => (s.doc as { codePack?: CodePackId }).codePack);
+  const pack = packFor(codePack);
   const s = t(lang);
   const shape = loadShape(shapeId);
   const hooks = faconnage?.hooks ?? { start: "none" as HookChoice, end: "none" as HookChoice };
 
   // local editing buffer: lets a (temporarily) invalid value stay in the field while we refuse to
   // commit it to the store.
-  const committed = faconnage?.shapeParams && Object.keys(faconnage.shapeParams).length > 0 ? faconnage.shapeParams : seedParams(shape, memberLength);
+  const committed = faconnage?.shapeParams && Object.keys(faconnage.shapeParams).length > 0 ? faconnage.shapeParams : defaultParams(shape, memberLength);
   const [params, setParams] = useState<Record<string, number>>(committed);
   // H4 ([v1.0.4]): resync the buffer to the committed params whenever the shape, the member length,
   // or the committed params themselves change externally (import / geometry edit / undo) — keyed by a
@@ -67,7 +63,7 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
   /** Generate the shape or throw. The non-positive/non-finite cutLength guard now lives in the core
    *  generator (H3, D-P1-1) so every consumer is protected; here we just surface its throw. */
   const tryGen = (p: Record<string, number>, h: { start: HookChoice; end: HookChoice }) =>
-    generateBarShape(shape, p, diameter, baelPack, { hooks: toUserHooks(h) });
+    generateBarShape(shape, p, diameter, pack, { hooks: toUserHooks(h) });
 
   let sketch: ReturnType<typeof generateBarShape> | null = null;
   let error: string | null = null;
@@ -78,7 +74,16 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
   }
 
   const pickShape = (id: string) => {
-    const seeded = seedParams(loadShape(id), memberLength);
+    const nextShape = loadShape(id);
+    const seeded = defaultParams(nextShape, memberLength);
+    // H9 ([v1.0.4]): validate the seed through the generator BEFORE committing — never switch the store
+    // to a shape whose default sketch is invalid. H11 keeps every manifest default valid, so this is a
+    // guard against a future bad default rather than an expected path.
+    try {
+      generateBarShape(nextShape, seeded, diameter, pack, { hooks: toUserHooks(hooks) });
+    } catch {
+      return;
+    }
     setParams(seeded);
     onChange({ shapeId: id, faconnage: { ...faconnage, shapeParams: seeded } });
   };

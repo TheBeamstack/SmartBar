@@ -18,6 +18,8 @@ export function AddressableBars() {
   const result = useStore((s) => s.result);
   const selectedBars = useStore((s) => s.selectedBars);
   const setSelectedBars = useStore((s) => s.setSelectedBars);
+  const selectedExtraId = useStore((s) => s.selectedExtraId);
+  const setSelectedExtraId = useStore((s) => s.setSelectedExtraId);
   const setBarOverrides = useStore((s) => s.setBarOverrides);
   const setExtraBars = useStore((s) => s.setExtraBars);
   const tr = (fr: string, en: string) => (lang === "fr" ? fr : en);
@@ -45,8 +47,16 @@ export function AddressableBars() {
     if (target !== undefined) upsert(target, patch);
   };
 
+  // H15 ([v1.0.4]): a stable, collision-free id — the first free `x{n}`. The old `X${length+1}` reused
+  // an id after a middle bar was removed (two bars → same React key / same schedule id).
+  const freshExtraId = (existing: typeof extras): string => {
+    const used = new Set(existing.map((e) => e.id));
+    let n = 1;
+    while (used.has(`x${n}`)) n++;
+    return `x${n}`;
+  };
   const addExtra = () =>
-    setExtraBars([...extras, { id: `X${extras.length + 1}-${Math.floor(memberLen)}`, u: 0, v: 0, shapeId: "DROITE", diameter: group.diameter, length: memberLen }]);
+    setExtraBars([...extras, { id: freshExtraId(extras), u: 0, v: 0, shapeId: "DROITE", diameter: group.diameter, length: memberLen }]);
   const patchExtra = (id: string, patch: Partial<(typeof extras)[number]>) =>
     setExtraBars(extras.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   const removeExtra = (id: string) => setExtraBars(extras.filter((e) => e.id !== id));
@@ -55,7 +65,11 @@ export function AddressableBars() {
     <div className="addressable">
       <h3>{tr("Détail barre par barre", "Bar-by-bar detailing")}</h3>
       <p className="muted sp-hint">{tr("Sélectionnez une barre à façonner", "Pick a bar to shape")}</p>
-      <SectionPicker onPick={(i) => setSelectedBars([i])} />
+      <SectionPicker
+        onPick={(i) => { setSelectedBars([i]); setSelectedExtraId(null); }}
+        onPickExtra={(id) => { setSelectedExtraId(id); setSelectedBars([]); }}
+        selectedExtraId={selectedExtraId}
+      />
 
       {target !== undefined && (
         <div className="addressable-bar">
@@ -108,11 +122,29 @@ export function AddressableBars() {
       </button>
       <ul className="addressable-list" aria-label={tr("Barres indépendantes", "Independent bars")}>
         {extras.map((e) => (
-          <li key={e.id} className="addressable-extra">
-            <NumberField label="u (mm)" value={e.u} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { u: v })} />
-            <NumberField label={tr("v / niveau (mm)", "v / level (mm)")} value={e.v} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { v })} />
-            <NumberField label="Ø (mm)" value={e.diameter} min={6} max={40} step={1} onChange={(v) => patchExtra(e.id, { diameter: v })} />
-            <button type="button" onClick={() => removeExtra(e.id)} aria-label={tr("Retirer", "Remove")}>×</button>
+          <li key={e.id} className={`addressable-extra ${e.id === selectedExtraId ? "addressable-extra-selected" : ""}`} aria-current={e.id === selectedExtraId || undefined}>
+            {/* H6 ([v1.0.4]): expose the FULL model an independent bar already carries (shape/façonnage/
+                length/axial pos), not just u/v/Ø — the adapter (buildExtraBars) threads all of it.
+                H7: the section-picker selects an extra by id → highlight its editor here. */}
+            <div className="addressable-head">
+              <strong>{tr("Barre", "Bar")} {e.id}</strong>
+              <button type="button" onClick={() => removeExtra(e.id)} aria-label={tr(`Retirer ${e.id}`, `Remove ${e.id}`)}>×</button>
+            </div>
+            <div className="addressable-extra-pos">
+              <NumberField label="u (mm)" value={e.u} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { u: v })} />
+              <NumberField label={tr("v / niveau (mm)", "v / level (mm)")} value={e.v} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { v })} />
+              <NumberField label="Ø (mm)" value={e.diameter} min={6} max={40} step={1} onChange={(v) => patchExtra(e.id, { diameter: v })} />
+            </div>
+            <NumberField label={tr("Longueur (mm)", "Length (mm)")} value={e.length ?? memberLen} min={0} max={20000} step={10} onChange={(v) => patchExtra(e.id, { length: v })} />
+            <NumberField label={tr("Position axiale (mm)", "Axial position (mm)")} value={e.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => patchExtra(e.id, { axialPos: v })} />
+            <FaconnageEditor
+              key={`extra-${e.id}`}
+              shapeId={e.shapeId}
+              diameter={e.diameter}
+              faconnage={e.faconnage}
+              memberLength={e.length ?? memberLen}
+              onChange={(patch) => patchExtra(e.id, patch)}
+            />
           </li>
         ))}
       </ul>

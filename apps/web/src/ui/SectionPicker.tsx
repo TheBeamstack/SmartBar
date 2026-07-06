@@ -16,10 +16,24 @@ const FACE_FILL: Record<string, string> = {
   CIRC: "#64748b",
 };
 
-export function SectionPicker({ onPick, height = 220 }: { onPick: (index: number) => void; height?: number }) {
+export function SectionPicker({
+  onPick,
+  onPickExtra,
+  selectedExtraId = null,
+  height = 220,
+}: {
+  onPick: (index: number) => void;
+  /** H7 ([v1.0.4]): when provided, standalone extra bars are rendered + pickable by their stable id. */
+  onPickExtra?: (id: string) => void;
+  selectedExtraId?: string | null;
+  height?: number;
+}) {
   const result = useStore((s) => s.result);
   const selectedBars = useStore((s) => s.selectedBars);
   const bars = labeledBars(result.bars);
+  // H7: independent extra bars live in `result.longBars` (not the layout `bars`), so render them here
+  // at their own `(u,v)` with a distinct square marker + id label. Only when the host handles picks.
+  const extras = onPickExtra ? (result.longBars ?? []).filter((lb) => lb.standalone) : [];
 
   const m = result.member;
   const b = m.b ?? m.D ?? 400;
@@ -62,6 +76,32 @@ export function SectionPicker({ onPick, height = 220 }: { onPick: (index: number
             </g>
           );
         })}
+        {extras.map((e) => {
+          const sel = e.groupId === selectedExtraId;
+          return (
+            <g
+              key={e.groupId}
+              role="button"
+              tabIndex={0}
+              aria-pressed={sel}
+              aria-label={e.groupId}
+              data-extra-id={e.groupId}
+              className={`sp-bar sp-extra ${sel ? "sp-bar-selected" : ""}`}
+              onClick={() => onPickExtra!(e.groupId)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" || ev.key === " ") {
+                  ev.preventDefault();
+                  onPickExtra!(e.groupId);
+                }
+              }}
+            >
+              <rect x={e.position.u - dotR} y={-e.position.v - dotR} width={dotR * 2} height={dotR * 2} fill="#e11d48" stroke={sel ? "#22d3ee" : "#0b0d10"} strokeWidth={sel ? dotR * 0.5 : dotR * 0.18} />
+              <text x={e.position.u} y={-e.position.v} className="sp-label" dominantBaseline="central" textAnchor="middle" fontSize={dotR * 1.2}>
+                {e.groupId}
+              </text>
+            </g>
+          );
+        })}
       </svg>
       {/* keyboard / a11y fallback: the same bars as a labelled button row (identical onPick) */}
       <ul className="sp-list" aria-label="Barres (liste)">
@@ -74,6 +114,18 @@ export function SectionPicker({ onPick, height = 220 }: { onPick: (index: number
               onClick={() => onPick(bar.index)}
             >
               {bar.label}
+            </button>
+          </li>
+        ))}
+        {extras.map((e) => (
+          <li key={e.groupId}>
+            <button
+              type="button"
+              className={`sp-list-btn sp-list-extra ${e.groupId === selectedExtraId ? "sp-list-btn-sel" : ""}`}
+              aria-pressed={e.groupId === selectedExtraId}
+              onClick={() => onPickExtra!(e.groupId)}
+            >
+              {e.groupId}
             </button>
           </li>
         ))}

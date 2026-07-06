@@ -120,6 +120,7 @@ export interface Strings {
   material: { title: string; concrete: string; steel: string };
   cover: string;
   exposure: string;
+  codePack: string;
   diameter: string;
   spacing: string;
   legs: string;
@@ -347,6 +348,7 @@ const FR: Strings = {
   material: { title: "Matériaux", concrete: "Béton f_c28 (MPa)", steel: "Acier f_e (MPa)" },
   cover: "Enrobage (mm)",
   exposure: "Exposition",
+  codePack: "Code de calcul",
   diameter: "Ø (mm)",
   spacing: "Espacement (mm)",
   legs: "Brins",
@@ -574,6 +576,7 @@ const EN: Strings = {
   material: { title: "Materials", concrete: "Concrete f_c28 (MPa)", steel: "Steel f_e (MPa)" },
   cover: "Cover (mm)",
   exposure: "Exposure",
+  codePack: "Design code",
   diameter: "Ø (mm)",
   spacing: "Spacing (mm)",
   legs: "Legs",

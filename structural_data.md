@@ -87,10 +87,12 @@ practice uses the aggregate size dg → `⛳ OPEN` default dg.
 column's (halved when 4 beams frame the node).
 **Velocity zones Vmax (10 %/50 yr, 475-yr return):** Zone 0 = 0.00, **Zone 1 = 0.07, Zone 2 = 0.10, Zone 3 = 0.13,
 Zone 4 = 0.17 m/s**.
-**Acceleration zones Amax (A/g):** five zones Za = 0…4 — **⛳ OPEN → owner** (the exact A/g per zone must come from
-the official RPS 2011 document; scanned sources didn't yield a clean table, and a seismic acceleration table must
-be exact). *Also OPEN:* the site/soil coefficients, the importance/priority classes → ND mapping, and the
-behaviour factor K per structure type + ND.
+**Acceleration zones Amax (A/g):** five zones Za = 0…4. **Not consumed by SmartBar** (verified 2026-07-06: no code
+path reads an acceleration; the seismic zone is an *opaque key*, `types/seismic.ts`) — the app checks *detailing*,
+not seismic **demand** (`As,req` is an engineer input, `core_logic`). The A/g table / soil coefficients / behaviour
+factor K become relevant only if demand calculation is ever added (Track G/H) → deferred, not a v1.0.4 blocker.
+**What v1.0.4 *does* need from the owner:** the **importance/priority-class → ND1/2/3 mapping** per zone (the
+detailing regime selector) — `⛳ OPEN → owner` (`owner_tasks §C-1`).
 
 *Sources:* [RPS zones (Dlubal)](https://www.dlubal.com/fr/zones-de-neige-de-vent-et-de-sismicite/sismicite-rps.html) ·
 [RPS 2011 critical-zone spacing (CivilMania)](https://www.civilmania.com/topic/24402-espacement-des-cadre-zone-nodale-poteaux/) ·
@@ -107,7 +109,9 @@ behaviour factor K per structure type + ND.
   typically 12 m (also 6 m); confirm the default.
 
 ## 6. Data still needed to reach a complete, accurate SmartBar (→ `v1.0.4_owner_tasks.md §B/§C`)
-1. **RPS 2011 acceleration table** (A/g per zone 0–4) + soil coefficients + importance→ND mapping + K factors.
+1. **RPS 2011 zone → ductility-class (ND) mapping** (importance/priority class → ND1/2/3) — the only RPS input the
+   engine consumes. *(The A/g acceleration table + soil coefficients + K factors are **not** needed — SmartBar
+   detail-checks, it doesn't compute seismic demand; deferred to Track G/H. Re-scoped 2026-07-06.)*
 2. **Default code** (BAEL vs EC2) + **primary market** (Morocco/France) → the National-Annex choices (EC2 k1/k2,
    cover classes) and the BAEL `ls` default (computed 44Ø vs tabulated 40Ø).
 3. **Diameter set** offered (HA range, e.g. 6/8/10/12/14/16/20/25/32/40).

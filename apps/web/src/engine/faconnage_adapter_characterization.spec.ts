@@ -66,8 +66,8 @@ describe("adapter characterization — addressable channel activates on override
   });
 });
 
-describe("adapter characterization — H2 known no-op on the length field", () => {
-  it("[WILL-CHANGE H2] a `length` on a bent override is ignored (bar keeps the group cutLength)", () => {
+describe("adapter characterization — H2 LANDED: length drives the principal leg on a bent shape", () => {
+  it("[H2 LANDED] a `length` on a bent override sets the fabricated cutLength (was a silent no-op)", () => {
     const doc = defaultColumnDoc();
     doc.longitudinal.shapeId = "BAIONNETTE";
     doc.longitudinal.faconnage = { shapeParams: { lower: 2000, crank: 200, upper: 800, angle: 11 } };
@@ -77,8 +77,7 @@ describe("adapter characterization — H2 known no-op on the length field", () =
     ];
     const bars = long(solveDoc(doc))!;
     const b1 = bars.find((b) => b.barIndex === 1)!;
-    // today: cutLength ≈ 3000 (2000+200+800), NOT 1234 — length is a silent no-op on a bent shape.
-    expect(b1.shape.cutLength).toBeGreaterThan(2900);
-    expect(b1.shape.cutLength).not.toBeCloseTo(1234, 0);
+    // H2: the length now drives the `lower` principal leg so cutLength == 1234 (±0.01), not ≈ 3000.
+    expect(Math.abs(b1.shape.cutLength - 1234)).toBeLessThan(0.01);
   });
 });

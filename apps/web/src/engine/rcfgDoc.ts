@@ -29,7 +29,9 @@ import { migrateDoc } from "./crossTies";
 export const APP_DOCUMENT_KEY = "app_document";
 
 const REGION = "FR";
-const CODE_PACK = "BAEL-FR"; // v1.0 = BAEL only (EC2 is wired engine-side; UI picker is P6)
+/** A3/H13 ([v1.0.4]): the canonical code-pack id follows the doc's picker (default BAEL). The full
+ *  ElementDoc — including `codePack` — also rides `meta.app_document`, so the SPA reload is lossless. */
+const codePackId = (doc: ElementDoc): string => ((doc.codePack ?? "BAEL") === "EC2" ? "EC2" : "BAEL-FR");
 
 /** Per-zone required steel (mm² for longitudinal, mm²/m for transverse) — the canonical `As_req`. */
 function asReqOf(doc: ElementDoc): Record<string, number> {
@@ -62,7 +64,7 @@ export function docToRcfg(
   return {
     rcfg_version: "1.0",
     region: REGION,
-    codePack: CODE_PACK,
+    codePack: codePackId(doc),
     seismic: null, // gravity (no seismic regime picker in the UI yet — D-P4b-5)
     units: { length: "mm", area: "mm2" },
     element: {
