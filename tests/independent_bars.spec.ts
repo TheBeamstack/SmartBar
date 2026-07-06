@@ -1,7 +1,10 @@
 /**
  * v1.0.3 G2 ([REF-SYS-530], spec §2.3) — independent extra bars. A standalone bar (its own section
- * position, shape, length, Ø) is rendered + scheduled like a real bar, but it is a DETAILING add-on:
- * it does NOT enter the layout/As (the validation count-group is untouched, like a supplement).
+ * position, shape, length, Ø) is rendered + scheduled like a real bar.
+ *
+ * v1.0.4 A2 (owner decision 2026-07-06): an extra is real steel — it now **contributes** π/4·Ø² to the
+ * As,prov of the zone whose tension region it sits in (region rule, `structural_data.md §1`), and it
+ * enters the area-weighted `d`. (Superseded the v1.0.3 "detailing-only / As untouched" simplification.)
  */
 import { describe, it, expect } from "vitest";
 import { solveElement, placeBars } from "@rebarconfig/core";
@@ -18,9 +21,11 @@ describe("G2 — independent extra bars", () => {
     expect(computeBBS(r).lines.some((l) => l.diameter === 16)).toBe(true);
   });
 
-  it("the extra bar does NOT alter the validation layout / provided area", () => {
+  it("an extra bar CONTRIBUTES π/4·Ø² to the zone's provided area (A2, owner 2026-07-06)", () => {
     const provided = (res: ReturnType<typeof solveElement>) =>
-      res.validation.find((v) => v.rule === "provided_area")?.value;
-    expect(provided(solveElement(column({ extra: [extra] })))).toBe(provided(solveElement(column())));
+      res.validation.find((v) => v.rule === "provided_area")?.value as number;
+    const without = provided(solveElement(column()));
+    const withExtra = provided(solveElement(column({ extra: [extra] })));
+    expect(withExtra).toBeCloseTo(without + (Math.PI / 4) * 16 * 16, 1); // +201.06 mm² (Ø16)
   });
 });

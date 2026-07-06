@@ -143,18 +143,26 @@ export function solveRectLayout(d: LayoutDescriptor): RectLayoutResult {
 
 export type TensionFace = "TOP" | "BOTTOM" | "LEFT" | "RIGHT";
 
+/** A placed bar for the weighted geometry: its section position, cross-area, and resolved face. */
+export interface WeightedBar {
+  position: { u: number; v: number };
+  /** cross-section area (π/4·Ø²) — the weight in the area-weighted centroid. */
+  area: number;
+  faceTag: FaceTag;
+}
+
 /**
- * Computed effective depth `d` / `d'` for a flexural zone ([REF-SYS-611]).
- * `d = D_F − ȳ_t`, ȳ_t = area-weighted centroid of the tension bars measured from the
- * compression fibre opposite the tension face. All bars share `barArea` (single ø) here;
- * the area weighting still matters across layers at different depths.
+ * Computed effective depth `d` / `d'` for a flexural zone ([REF-SYS-611]) over an arbitrary placed
+ * set, area-weighted by each bar's cross-section — exact for MIXED diameters and MIXED levels (owner
+ * ruling 2026-07-05, `structural_data.md §1`; v1.0.4 A2). `d = D_F − ȳ_t`, ȳ_t = area-weighted
+ * centroid of the tension bars measured from the compression fibre opposite the tension face.
+ * `computeZoneGeometry` (uniform-Ø) delegates here, so the grouped path stays byte-identical.
  */
-export function computeZoneGeometry(
+export function computeZoneGeometryWeighted(
   zone: string,
-  bars: BarPosition[],
+  bars: WeightedBar[],
   section: { b: number; h: number },
   tensionFace: TensionFace,
-  barArea: number,
 ): ZoneGeometry {
   const tensionBars = bars.filter((bp) => bp.faceTag === tensionFace);
   // depth axis: BOTTOM/TOP → vertical (v); LEFT/RIGHT → horizontal (u)
@@ -162,34 +170,33 @@ export function computeZoneGeometry(
   const D = vertical ? section.h : section.b; // section depth in the bending direction
   const half = D / 2;
   // distance of a bar from the compression fibre (opposite the tension face)
-  const distFromCompFibre = (bp: BarPosition): number => {
+  const distFromCompFibre = (bp: WeightedBar): number => {
     const c = vertical ? bp.position.v : bp.position.u;
-    // compression fibre at +half for tensionFace BOTTOM/LEFT? define per face:
     switch (tensionFace) {
       case "BOTTOM":
         return half - c; // comp fibre at +h/2 (top)
       case "TOP":
         return half + c; // comp fibre at −h/2 (bottom)
       case "LEFT":
-        return half + c; // comp fibre at +b/2 (right)... c at −b/2 → half + (−)
+        return half + c;
       case "RIGHT":
         return half - c;
     }
   };
   let sumA = 0;
   let sumAd = 0;
+  let sumAu = 0;
+  let sumAv = 0;
   for (const bp of tensionBars) {
-    sumA += barArea;
-    sumAd += barArea * distFromCompFibre(bp);
+    sumA += bp.area;
+    sumAd += bp.area * distFromCompFibre(bp);
+    sumAu += bp.area * bp.position.u;
+    sumAv += bp.area * bp.position.v;
   }
   const d = sumA > 0 ? sumAd / sumA : 0;
-  // tension centroid back in the section frame
-  const yt = vertical
-    ? tensionBars.reduce((s, bp) => s + bp.position.v, 0) / (tensionBars.length || 1)
-    : 0;
-  const ut = !vertical
-    ? tensionBars.reduce((s, bp) => s + bp.position.u, 0) / (tensionBars.length || 1)
-    : 0;
+  // tension centroid back in the section frame (area-weighted; uniform-Ø → plain mean)
+  const yt = vertical && sumA > 0 ? sumAv / sumA : 0;
+  const ut = !vertical && sumA > 0 ? sumAu / sumA : 0;
   // compression-side inset d' = depth of the nearest opposite-face bars from their fibre
   const oppFace: TensionFace =
     tensionFace === "BOTTOM" ? "TOP" : tensionFace === "TOP" ? "BOTTOM" : tensionFace === "LEFT" ? "RIGHT" : "LEFT";
@@ -200,4 +207,23 @@ export function computeZoneGeometry(
       : 0;
 
   return { zone, d, dPrime, tensionCentroid: { u: ut, v: yt } };
+}
+
+/**
+ * Computed effective depth `d` / `d'` for a flexural zone ([REF-SYS-611]).
+ * Uniform-ø convenience over the layout bars; delegates to `computeZoneGeometryWeighted`.
+ */
+export function computeZoneGeometry(
+  zone: string,
+  bars: BarPosition[],
+  section: { b: number; h: number },
+  tensionFace: TensionFace,
+  barArea: number,
+): ZoneGeometry {
+  return computeZoneGeometryWeighted(
+    zone,
+    bars.map((bp) => ({ position: bp.position, area: barArea, faceTag: bp.faceTag })),
+    section,
+    tensionFace,
+  );
 }

@@ -14,7 +14,7 @@
  */
 import type { ShapeArchetype } from "../types/shape";
 import type { BarRole } from "../types/reinforcing-element";
-import type { BarPosition, ZoneGeometry, LayoutDescriptor, MemberPlacement, TransverseRegion } from "../types/layout";
+import type { BarPosition, ZoneGeometry, LayoutDescriptor, MemberPlacement, TransverseRegion, FaceTag } from "../types/layout";
 import type { RectLayout } from "../types/placement";
 import type { MaterialContext, ValidationStatus } from "../types/codepack";
 import type { SeismicOverlay, CritZoneSegment, LapExtent } from "../types/seismic";
@@ -24,6 +24,7 @@ import { spliceBar, autoSplices, type Splice, type SpliceResult } from "../geome
 import {
   solveRectLayout,
   computeZoneGeometry,
+  computeZoneGeometryWeighted,
   type TensionFace,
 } from "../layout/rect";
 import {
@@ -33,6 +34,10 @@ import {
   type ExtendedCodePack,
 } from "../validation/index";
 import { applySeismicOverlay } from "../validation/seismic";
+import {
+  validateAddressableBars,
+  type AddressableBarView,
+} from "../validation/predicates";
 import {
   getValidationProfile,
   type SolvedLongZone,
@@ -123,8 +128,9 @@ export interface LongBarOverride {
 /**
  * v1.0.3 G2 ([REF-SYS-530]) — an independent addressable bar, not part of any count-group: its own
  * section position `(u,v)` (the `v` IS its section level, incl. an intermediate U-bar level), shape,
- * length/axial position and Ø. Rendered + scheduled like a real bar; it does NOT enter the layout/As
- * (a detailing add-on, like a supplement). Absent → none (legacy byte-identical).
+ * length/axial position and Ø. Rendered + scheduled like a real bar. **v1.0.4 A2 (owner 2026-07-06):**
+ * it is real steel — it contributes π/4·Ø² to the As,prov of the zone whose tension region its `(u,v)`
+ * lies in, and enters the area-weighted `d` (was: detailing-only). Absent → none (legacy byte-identical).
  */
 export interface ExtraLongBar {
   id: string;
@@ -249,6 +255,23 @@ const FACES: TensionFace[] = ["TOP", "BOTTOM", "LEFT", "RIGHT"];
 
 /** Roles whose bars are individually rendered longitudinal members (G2 addressable bars). */
 const LONG_ROLES = new Set<BarRole>(["PRIMARY_LONGITUDINAL", "DISTRIBUTION"]);
+
+/**
+ * H8 helper: the developed extent of a shape's centreline along its run axis (local-frame u = index
+ * 0 of the flat `[x,y,z,…]` centreline). This is the along-member footprint the axial-extent validity
+ * predicate measures against the member length. Pure.
+ */
+function runExtent(centerline3D: number[]): number {
+  if (centerline3D.length < 3) return 0;
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < centerline3D.length; i += 3) {
+    const x = centerline3D[i]!;
+    if (x < min) min = x;
+    if (x > max) max = x;
+  }
+  return max - min;
+}
 
 /**
  * v1.0.3 G2 ([REF-SYS-530]): build the explicit per-bar longitudinal list when the element has
@@ -454,6 +477,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       nLegs: tz.nLegs,
       aswReqPerM: tz.aswReqPerM,
       ...(tz.userMandrel !== undefined ? { userMandrel: tz.userMandrel } : {}),
+      ...(tz.regions !== undefined ? { regions: tz.regions } : {}), // A2: per-region Asw
     });
   }
 
@@ -467,6 +491,52 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       count: sup.count,
       shape,
     });
+  }
+
+  // --- v1.0.4 A2 ([owner ruling 2026-07-05], structural_data §1): reconcile per-zone As,prov +
+  // effective depth `d` over the REAL placed set — per-bar Ø overrides, removed bars, and standalone
+  // extras/supplements assigned by region — so EVERY steel add/remove feeds §7 (was: count×area over
+  // the layout). Exact for mixed Ø + mixed levels via the area-weighted centroid. Only runs when the
+  // addressable channel is active (`longBars` present); a grouped doc keeps the byte-identical
+  // count-based As (extras count toward the zone they reinforce — owner decision 2026-07-06). ---
+  const longBars = buildLongBars(input, groups, layout.bars, code);
+  if (longBars !== undefined && solvedLong.length > 0) {
+    const section = { b: geometry.b, h: geometry.h };
+    const nearestFace = (p: { u: number; v: number }): TensionFace => {
+      const dist: Record<TensionFace, number> = {
+        TOP: section.h / 2 - p.v,
+        BOTTOM: p.v + section.h / 2,
+        LEFT: p.u + section.b / 2,
+        RIGHT: section.b / 2 - p.u,
+      };
+      return (["TOP", "BOTTOM", "LEFT", "RIGHT"] as TensionFace[]).reduce((a, b) => (dist[b] < dist[a] ? b : a));
+    };
+    // a standalone extra reinforces the zone whose tension face it sits nearest (region rule); if no
+    // zone owns that face, it falls to the first zone (A1 review confirms the edge conventions).
+    const zoneForExtra = (p: { u: number; v: number }): string | undefined => {
+      const face = nearestFace(p);
+      return (solvedLong.find((z) => z.tensionFace === face) ?? solvedLong[0])?.groupId;
+    };
+    const faceTagOf = (pb: PlacedLongBar): FaceTag =>
+      pb.standalone ? nearestFace(pb.position) : layout.bars[pb.barIndex]?.faceTag ?? nearestFace(pb.position);
+
+    for (let i = 0; i < solvedLong.length; i++) {
+      const sl = solvedLong[i]!;
+      const placed = longBars.filter(
+        (pb) =>
+          !pb.removed &&
+          (pb.standalone ? zoneForExtra(pb.position) === sl.groupId : pb.groupId === sl.groupId),
+      );
+      sl.asProv = placed.reduce((s, pb) => s + barArea(pb.diameter), 0);
+      sl.providedCount = placed.length;
+      sl.geometry = computeZoneGeometryWeighted(
+        sl.zone,
+        placed.map((pb) => ({ position: pb.position, area: barArea(pb.diameter), faceTag: faceTagOf(pb) })),
+        section,
+        sl.tensionFace,
+      );
+      zones[i] = sl.geometry; // keep SolveResult.zones in sync with the reconciled geometry
+    }
   }
 
   // --- validation via the profile registry (no element branching) ---
@@ -550,7 +620,38 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     })),
   };
 
-  const longBars = buildLongBars(input, groups, layout.bars, code);
+  // --- H8 ([v1.0.4], owner A-5): geometric validity of the ADDRESSABLE channel (overrides + extra
+  // bars). Only runs when `longBars` exists (else the grouped fast path — no addressable content),
+  // and the predicate self-gates to real addressable bars, so a legacy doc is byte-identical. ---
+  if (longBars !== undefined) {
+    // A2 clear-spacing fold: a bar is a spacing FOCUS if it is a standalone extra or a per-bar Ø
+    // override (its real Ø crowds the grid the face-based check never re-measures).
+    const ovDiameter = new Set(
+      (input.longOverrides ?? []).filter((o) => o.diameter !== undefined).map((o) => o.barIndex),
+    );
+    const views: AddressableBarView[] = longBars.map((b) => ({
+      barIndex: b.barIndex,
+      groupId: b.groupId,
+      position: b.position,
+      diameter: b.diameter,
+      axisStart: b.axisStart,
+      axialRun: runExtent(b.shape.centerline3D),
+      removed: b.removed,
+      standalone: b.standalone,
+      focus: b.standalone || ovDiameter.has(b.barIndex),
+    }));
+    validation.push(
+      ...validateAddressableBars(views, {
+        b: geometry.b,
+        h: geometry.h,
+        cover: input.cover,
+        memberLength: geometry.H ?? geometry.L ?? geometry.h,
+        dg,
+        codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+        spacingBand: (code.warnBands?.spacing) ?? 0.05,
+      }),
+    );
+  }
 
   return {
     element: input.element,

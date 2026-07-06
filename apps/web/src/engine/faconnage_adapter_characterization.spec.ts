@@ -44,15 +44,16 @@ describe("adapter characterization — addressable channel activates on override
     expect(bars.find((b) => b.barIndex === 0)!.removed).toBe(true);
   });
 
-  it("[WILL-CHANGE H5] removing a bar does NOT change As,prov today (count-group drives §7)", () => {
+  it("[H5 LANDED] removing a bar reduces As,prov by that bar's area (A2 steel accounting)", () => {
     const base = solveDoc(defaultColumnDoc());
     const doc = defaultColumnDoc();
     doc.longitudinal.barOverrides = [{ index: 0, removed: true }];
     const withRemoval = solveDoc(doc);
     const areaOf = (r: ReturnType<typeof solveDoc>) =>
-      r.validation.find((v) => v.rule === "provided_area")?.value;
-    // As,prov unchanged despite one fewer rendered/scheduled bar — the H5 gap.
-    expect(areaOf(withRemoval)).toEqual(areaOf(base));
+      r.validation.find((v) => v.rule === "provided_area")?.value as number;
+    // A2/H5: As,prov now drops by exactly the removed bar's π/4·Ø² (was a silent no-op pre-v1.0.4).
+    const phi = withRemoval.longBars!.find((b) => b.barIndex === 0)!.diameter;
+    expect(areaOf(base) - areaOf(withRemoval)).toBeCloseTo((Math.PI / 4) * phi * phi, 1);
   });
 
   it("[MUST-HOLD] an extra bar appears as a standalone longBar at its (u,v)", () => {

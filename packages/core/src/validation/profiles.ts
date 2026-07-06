@@ -11,7 +11,7 @@
  * Pure + deterministic; pack-agnostic (all limits via `code.*`).
  */
 import type { MaterialContext, ValidationStatus } from "../types/codepack";
-import type { ZoneGeometry, SectionKind } from "../types/layout";
+import type { ZoneGeometry, SectionKind, TransverseRegion } from "../types/layout";
 import type { RectLayoutResult, TensionFace } from "../layout/rect";
 import type { CircularLayoutResult } from "../layout/circular";
 import { CIRCULAR_MIN_BARS } from "../layout/circular";
@@ -97,6 +97,19 @@ export interface SolvedTransZone {
   nLegs: number;
   aswReqPerM: number;
   userMandrel?: number;
+  /**
+   * v1.0.4 A2 ([REF-SYS-757], D-V102-5): per-region spacing along the member. When present, the
+   * provided Asw/m is checked on the **governing (widest) region** — the sparsest stretch gives the
+   * least steel — instead of the single representative `spacing`. Absent → the uniform `spacing`.
+   */
+  regions?: TransverseRegion[];
+}
+
+/** The governing (widest) transverse spacing (mm): the sparsest region drives the minimum Asw/m. */
+export function governingAswSpacing(tz: SolvedTransZone): number {
+  return tz.regions && tz.regions.length > 0
+    ? Math.max(...tz.regions.map((r) => r.spacing))
+    : tz.spacing;
 }
 
 export interface ProfileContext {
@@ -154,6 +167,10 @@ export function validateColumnProfile(ctx: ProfileContext): ValidationItem[] {
       nLegs: tz.nLegs,
       aswReqPerM: tz.aswReqPerM,
       ...(tz.userMandrel !== undefined ? { userTieMandrel: tz.userMandrel } : {}),
+      // A2: exact As over the placed set (grouped path → identical to N·barArea, byte-identical).
+      asProvExact: lz.asProv,
+      // A2: Asw checked on the governing (widest) tie region (uniform set → tieSpacing, identical).
+      aswSpacing: governingAswSpacing(tz),
     },
     code: ctx.code,
   });
@@ -323,7 +340,10 @@ export function validateBeamProfile(ctx: ProfileContext): ValidationItem[] {
     );
 
     if (tz.aswReqPerM > 0) {
-      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, tz.spacing);
+      // A2: the sparsest (widest) region governs the minimum Asw/m (uniform set → tz.spacing).
+      const aswSpacing = governingAswSpacing(tz);
+      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, aswSpacing);
+      const regionNote = tz.regions && tz.regions.length > 1 ? ` @ région ${round(aswSpacing)} mm` : "";
       const aswStatus: ValidationStatus =
         aswProv < tz.aswReqPerM
           ? "FAIL"
@@ -338,11 +358,11 @@ export function validateBeamProfile(ctx: ProfileContext): ValidationItem[] {
           round(tz.aswReqPerM),
           ref,
           aswStatus === "FAIL"
-            ? `Asw fourni ${round(aswProv)} mm²/m < requis ${round(tz.aswReqPerM)} mm²/m (${tz.nLegs} brins)`
-            : `Asw fourni ${round(aswProv)} mm²/m (${tz.nLegs} brins)`,
+            ? `Asw fourni ${round(aswProv)} mm²/m < requis ${round(tz.aswReqPerM)} mm²/m (${tz.nLegs} brins${regionNote})`
+            : `Asw fourni ${round(aswProv)} mm²/m (${tz.nLegs} brins${regionNote})`,
           aswStatus === "FAIL"
-            ? `Provided Asw ${round(aswProv)} mm²/m < required ${round(tz.aswReqPerM)} mm²/m (${tz.nLegs} legs)`
-            : `Provided Asw ${round(aswProv)} mm²/m (${tz.nLegs} legs)`,
+            ? `Provided Asw ${round(aswProv)} mm²/m < required ${round(tz.aswReqPerM)} mm²/m (${tz.nLegs} legs${regionNote})`
+            : `Provided Asw ${round(aswProv)} mm²/m (${tz.nLegs} legs${regionNote})`,
           [tz.groupId],
         ),
       );
@@ -545,7 +565,7 @@ export function validateCircularColumnProfile(ctx: ProfileContext): ValidationIt
     );
 
     if (tz.aswReqPerM > 0) {
-      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, tz.spacing);
+      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, governingAswSpacing(tz)); // A2: governing region
       const aswStatus: ValidationStatus =
         aswProv < tz.aswReqPerM ? "FAIL" : aswProv < tz.aswReqPerM * (1 + bands.spacing) ? "WARN" : "PASS";
       out.push(

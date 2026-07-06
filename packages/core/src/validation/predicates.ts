@@ -14,6 +14,207 @@ import { item, type ValidationItem } from "./index";
 import { mm2 } from "./index";
 
 /**
+ * H8 ([v1.0.4], owner A-5) — geometric validity for ADDRESSABLE bars (per-bar overrides + independent
+ * extra bars), the one class of steel the grouped face-based `clear_spacing` never sees. Three pure
+ * predicates over the resolved `longBars[]`, tiered per the owner's A-5 ruling:
+ *   • `addressable_axial_extent` — a bar whose `[axisStart, axisStart+run]` leaves the member → 🔴 FAIL.
+ *   • `addressable_section_bounds` — a standalone extra whose `(u,v)` breaks the cover envelope
+ *     (`cover + Ø/2` off a face — i.e. the bar pokes out of / through the concrete cover) → 🔴 FAIL.
+ *   • `addressable_clear_spacing` — a standalone extra closer than the code minimum
+ *     `max(k1·Ø, dg+k2, 20)` (k1=1, k2=5 defaults) to a coexisting bar → 🔴 FAIL below the minimum,
+ *     🟠 WARN if merely tight (within the pack spacing band).
+ *
+ * Legacy-safe by construction: emitted only when there is real addressable content (a standalone
+ * extra, or a bar carried off-station by `axisStart`, or an actual violation) — a doc with no
+ * addressable bars never reaches here (the grouped fast path emits no `longBars`), and a benign
+ * Ø-only override adds no item. A2 later folds the spacing predicate into the general validator so
+ * grouped bars are judged over the same real placed set.
+ */
+export interface AddressableBarView {
+  barIndex: number;
+  groupId: string;
+  position: { u: number; v: number };
+  diameter: number;
+  /** axial start station along the member (mm). */
+  axisStart: number;
+  /** developed extent of the bar's centreline along its run axis (mm). */
+  axialRun: number;
+  removed: boolean;
+  standalone: boolean;
+  /**
+   * A2 clear-spacing fold: this bar's real spacing must be judged against its neighbours — a
+   * standalone extra OR a per-bar Ø override (its enlarged Ø crowds the grid the face-based check
+   * never re-measures). A plain grouped/base bar (`false`) is only a spacing *neighbour*, judged by
+   * the grouped `clear_spacing`, so a legacy grid is never re-reported here.
+   */
+  focus: boolean;
+}
+
+export interface AddressableSectionCtx {
+  /** section width (u) / height (v) in mm; frame origin at the centre. */
+  b: number;
+  h: number;
+  cover: number;
+  /** member length (mm) the bars run along. */
+  memberLength: number;
+  /** max aggregate size (mm) for the clear-spacing minimum. */
+  dg: number;
+  codeRef: string;
+  /** pack WARN band above the spacing minimum (fraction, e.g. 0.05). */
+  spacingBand: number;
+}
+
+const TOL = 1; // mm slack so a full-length bar (run == memberLength) never false-fails.
+
+/** Clear-spacing minimum (mm): max(k1·Ø, dg+k2, 20) with the sourced k1=1, k2=5 defaults (§2). */
+function clearSpacingMin(phi: number, dg: number): number {
+  return Math.max(phi, dg + 5, 20);
+}
+
+/** Do two bars share any axial station (so their clear spacing is a real clash)? */
+function axialOverlap(a: AddressableBarView, b: AddressableBarView): boolean {
+  const a0 = a.axisStart;
+  const a1 = a.axisStart + a.axialRun;
+  const b0 = b.axisStart;
+  const b1 = b.axisStart + b.axialRun;
+  return a0 < b1 - TOL && b0 < a1 - TOL;
+}
+
+export function validateAddressableBars(
+  bars: AddressableBarView[],
+  ctx: AddressableSectionCtx,
+): ValidationItem[] {
+  const out: ValidationItem[] = [];
+  const live = bars.filter((b) => !b.removed);
+  const extras = live.filter((b) => b.standalone);
+  const hasAddressable =
+    extras.length > 0 || live.some((b) => Math.abs(b.axisStart) > TOL);
+
+  // --- axial extent: any live bar must sit within [0, memberLength] ---
+  let worstOver = 0;
+  let overBar: AddressableBarView | undefined;
+  for (const b of live) {
+    const end = b.axisStart + b.axialRun;
+    const over = Math.max(-b.axisStart, end - ctx.memberLength);
+    if (over > worstOver + 1e-6) {
+      worstOver = over;
+      overBar = b;
+    }
+  }
+  if (overBar && (hasAddressable || worstOver > TOL)) {
+    const fail = worstOver > TOL;
+    const end = Math.round(overBar.axisStart + overBar.axialRun);
+    out.push(
+      item(
+        "addressable_axial_extent",
+        fail ? "FAIL" : "PASS",
+        overBar.axisStart < 0 ? Math.round(overBar.axisStart) : end,
+        ctx.memberLength,
+        ctx.codeRef,
+        fail
+          ? `Barre ${overBar.groupId} hors membre (${overBar.axisStart < 0 ? `début ${Math.round(overBar.axisStart)} mm` : `fin ${end} mm > longueur ${ctx.memberLength} mm`})`
+          : `Barres adressables dans les limites du membre (${ctx.memberLength} mm)`,
+        fail
+          ? `Bar ${overBar.groupId} outside the member (${overBar.axisStart < 0 ? `start ${Math.round(overBar.axisStart)} mm` : `end ${end} mm > length ${ctx.memberLength} mm`})`
+          : `Addressable bars within the member length (${ctx.memberLength} mm)`,
+        [overBar.groupId],
+      ),
+    );
+  }
+
+  // --- section bounds: an extra bar's (u,v) must stay inside the cover envelope ---
+  let worstBreach = 0;
+  let breachBar: AddressableBarView | undefined;
+  for (const e of extras) {
+    const envU = ctx.b / 2 - ctx.cover - e.diameter / 2;
+    const envV = ctx.h / 2 - ctx.cover - e.diameter / 2;
+    const breach = Math.max(Math.abs(e.position.u) - envU, Math.abs(e.position.v) - envV);
+    if (breach > worstBreach) {
+      worstBreach = breach;
+      breachBar = e;
+    }
+  }
+  if (extras.length > 0) {
+    const fail = breachBar !== undefined && worstBreach > TOL;
+    const ref = breachBar ?? extras[0]!;
+    const envU = Math.round(ctx.b / 2 - ctx.cover - ref.diameter / 2);
+    const envV = Math.round(ctx.h / 2 - ctx.cover - ref.diameter / 2);
+    out.push(
+      item(
+        "addressable_section_bounds",
+        fail ? "FAIL" : "PASS",
+        `(${Math.round(ref.position.u)}, ${Math.round(ref.position.v)})`,
+        `±(${envU}, ${envV})`,
+        ctx.codeRef,
+        fail
+          ? `Barre ${ref.groupId} hors du béton/enrobage (position (${Math.round(ref.position.u)}, ${Math.round(ref.position.v)}) mm)`
+          : `Barres indépendantes dans le béton (enrobage respecté)`,
+        fail
+          ? `Bar ${ref.groupId} outside the concrete/cover envelope (position (${Math.round(ref.position.u)}, ${Math.round(ref.position.v)}) mm)`
+          : `Independent bars inside the concrete (cover respected)`,
+        [ref.groupId],
+      ),
+    );
+  }
+
+  return finishSpacing(out, live, ctx);
+}
+
+/**
+ * A2 clear-spacing fold: judge every FOCUS bar (standalone extra OR Ø-override) against its coexisting
+ * neighbours over the REAL placed set with the sourced limit `max(k1·Ø, dg+k2, 20)` — so an extra
+ * crammed between grid bars, or an override whose enlarged Ø crowds its neighbour, is no longer exempt
+ * from the grouped face-based check. Split out so the section-bounds early-return still reaches it.
+ */
+function finishSpacing(
+  out: ValidationItem[],
+  live: AddressableBarView[],
+  ctx: AddressableSectionCtx,
+): ValidationItem[] {
+  const focus = live.filter((b) => b.focus);
+  let worstClear = Infinity;
+  let worstMin = 0;
+  let clearPair: [AddressableBarView, AddressableBarView] | undefined;
+  for (const e of focus) {
+    for (const o of live) {
+      if (o === e || !axialOverlap(e, o)) continue;
+      const du = e.position.u - o.position.u;
+      const dv = e.position.v - o.position.v;
+      const clear = Math.hypot(du, dv) - (e.diameter + o.diameter) / 2;
+      const sMin = clearSpacingMin(Math.max(e.diameter, o.diameter), ctx.dg);
+      // rank by how far below its own minimum the pair sits (worst margin wins)
+      if (clear - sMin < worstClear - worstMin) {
+        worstClear = clear;
+        worstMin = sMin;
+        clearPair = [e, o];
+      }
+    }
+  }
+  if (clearPair) {
+    const status: "FAIL" | "WARN" | "PASS" =
+      worstClear < worstMin ? "FAIL" : worstClear < worstMin * (1 + ctx.spacingBand) ? "WARN" : "PASS";
+    out.push(
+      item(
+        "addressable_clear_spacing",
+        status,
+        Math.round(worstClear * 100) / 100,
+        Math.round(worstMin * 100) / 100,
+        ctx.codeRef,
+        status === "PASS"
+          ? `Espacement libre barre indépendante ${Math.round(worstClear)} mm (min ${Math.round(worstMin)} mm)`
+          : `Espacement libre barre indépendante ${Math.round(worstClear)} mm ${status === "FAIL" ? "<" : "≈"} min ${Math.round(worstMin)} mm (${clearPair[0].groupId})`,
+        status === "PASS"
+          ? `Independent-bar clear spacing ${Math.round(worstClear)} mm (min ${Math.round(worstMin)} mm)`
+          : `Independent-bar clear spacing ${Math.round(worstClear)} mm ${status === "FAIL" ? "<" : "≈"} min ${Math.round(worstMin)} mm (${clearPair[0].groupId})`,
+        [clearPair[0].groupId],
+      ),
+    );
+  }
+
+  return out;
+}
+
+/**
  * `slab_distribution_min` (§7.13, §7.4) — secondary/distribution steel must be ≥ a fraction of
  * the main steel (EC2 §9.3.1.1(2): 0.20·As,main). Below → tier-1 FAIL.
  */

@@ -67,6 +67,8 @@ in the browser — no server, free hosting.**
 | **v1.0.4 Phase 2 (H11, H9, H2)** — façonnage capability: manifest `default`s for every open-shape param + shared `defaultParams` (drops the positional seed guess); guarded `pickShape` (validates the seed before committing); `totalLengthParam` (A-2 legs) on the 9 open shapes + adapter `applyUniqueLength` inverts `totalLengthExpr` so a unique `length` drives the principal leg → `cutLength == length` on EVERY open shape (was DROITE-only). New `ShapeArchetype.totalLengthParam` + integrity guard. | ✅ **CODE DONE + tested** · NOT pushed | Amer, 2026-07-06 |
 | **v1.0.4 Phase 3 partial (H15, H6)** — backend↔frontend parity: independent extra bars now expose the full model (shape + reused FaconnageEditor + length + axial pos, not just u/v/Ø); collision-free `x{n}` extra-bar ids. Audit confirmed splices/supports/relevés/ties/regions/seismic all already wired — remaining gaps are H7 (extras on picker/coupe) + A3/H13 (EC2 picker). | ✅ **CODE DONE + tested** · NOT pushed | Amer, 2026-07-06 |
 | **v1.0.4 Phase 3 done (H7) + A3/H13** — extras selectable on the SectionPicker (distinct marker + keyboard list) via a new `selectedExtraId` channel, editor highlights on pick; coupe already showed them (confirmed). **EC2 now reachable:** `doc.codePack` (BAEL/EC2, additive + `.rcfg` round-trip), `packFor()` threads the active pack through solveDoc/applyUniqueLength/FaconnageEditor, BAEL↔EC2 picker in the Projet/Code tab. BAEL↔EC2 = same structure, different numbers (tie-Ø verdict flips). Closes the last backend-ahead-of-frontend gaps. | ✅ **CODE DONE + tested** (green gate below) · NOT pushed | Amer, 2026-07-06 |
+| **v1.0.4 Phase 4 (H8)** — geometric validity for the **addressable channel** (per-bar overrides + independent extra bars), core-only: pure `validateAddressableBars` (`validation/predicates.ts`) with three tiered predicates over the resolved `longBars[]` — `addressable_axial_extent` 🔴 (bar leaves `[0, memberLength]`), `addressable_section_bounds` 🔴 (extra `(u,v)` breaks the `cover+Ø/2` envelope → out of concrete), `addressable_clear_spacing` 🔴 below `max(Ø, dg+5, 20)` / 🟠 if merely tight (owner **A-5 tiered**, dg=20/k1=1/k2=5). Wired in `pipeline/element.ts` after `buildLongBars` (a `runExtent` reads the local-frame run); self-gates to real addressable content so a legacy doc + a benign Ø-only override are byte-identical. **Note:** the (outdated) `impl_plan` Phase 4 said spacing WARN-only; as-built follows the owner's A-5 **tiered** ruling. | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-06 |
+| **v1.0.4 A2 steel accounting (+H5)** — every steel add/remove now feeds §7. `pipeline/element.ts` reconciles each longitudinal zone's **As,prov = Σ(π/4)·Øᵢ²** and area-weighted-centroid **d** over the REAL placed set (per-bar Ø overrides, removed bars, standalone extras) via new `computeZoneGeometryWeighted` (`layout/rect.ts`); exact for mixed Ø + mixed levels. **Owner decision 2026-07-06:** an independent extra is real steel — it contributes to As,prov of the zone whose tension region it sits in (region rule) + enters `d` (re-baselined `independent_bars` + `addressable_bars` intentionally). Column threads exact As via optional `ColumnZoneInputs.asProvExact` (grouped → byte-identical). **A2 finalized:** per-region **Asw** checked on the governing (widest) tie/stirrup region (`governingAswSpacing`, D-V102-5) + clear-spacing **fold** (H8's predicate now judges every FOCUS bar — standalone extra OR Ø-override — vs the real placed set, so an override's enlarged Ø crowding the grid FAILs where the face check passed). `per_region_asw` + `clear_spacing_addons` green. | ✅ **A2 COMPLETE + tested** · NOT pushed | Zayd, 2026-07-06 |
 
 **Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
 phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
@@ -122,11 +124,13 @@ baseline of 463/93 — the new `nav_mode` + `export_supports` web suites); `npm 
 coverage` **93.88% stmts** (≥90% threshold; core-only scope — P8/P9/P7b are `apps/web`+`exporters` code, outside
 the core-only coverage include). **PUSHED to `origin/feat/p1-m1-engine`.**
 
-**Current green gate (v1.0.4 through Phase 3 + A3/H13, 2026-07-06 — NOT yet pushed past `c430534`):** `npm run
-check` ✓ — **543 tests / 110 files**; `npm run coverage` core **93.65%** (≥90); `npm run coverage:adapter`
+**Current green gate (v1.0.4 through Phase 4 / H8 + A2 COMPLETE, 2026-07-06 — NOT yet pushed past `c430534`):**
+`npm run check` ✓ — **563 tests / 115 files**; `npm run coverage` core **94.15%** (≥90); `npm run coverage:adapter`
 **96.62%** (no regression); `npm run build:web` ✓. Landed since the last push: v1.0.4 Phase 1 (H1/H3/H4, `c430534`,
-pushed) then **local-only** Phase 2 (H11/H9/H2), Phase 3 (H15/H6/H7), A3/H13 (EC2 reachable) — all by Amer. See the
-§9 entries. No golden moved.
+pushed) then **local-only** Phase 2 (H11/H9/H2), Phase 3 (H15/H6/H7), A3/H13 (EC2 reachable) — all by Amer — and
+Phase 4 (H8 addressable validity) + **A2 (steel accounting As/d/H5 + per-region Asw + clear-spacing fold)** by Zayd.
+See the §9 entries. Two goldens re-baselined **intentionally** (extras now count toward As — owner decision); no
+other golden moved.
 The standing engineer sign-offs (G-BAEL/EC2/RPS/COUPE/TOL) + the owner GPU/visual passes remain open (acceptance,
 not code).
 **The headless gate can't see WebGL** — the ViewCube/persp⇄ortho/coupe handle (v1.0.1) **and the new F7 3D bar
@@ -366,6 +370,109 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-07-06 (night, later) — v1.0.4 **A2 COMPLETE — steel accounting (+H5) + per-region Asw + clear-spacing fold** — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
+
+**Context.** Owner directed "continue to A2 steel accounting" after H8. A2 makes *"change a bar → the verdict
+updates"* true: every steel add/remove must feed §7, not just the grouped count.
+
+**Owner design decision (2026-07-06).** Asked whether independent **extras/supplements** count toward As or stay
+detailing-only (they conflicted: the v1.0.3 model + `independent_bars` test pinned "extras don't change As", but A2
++ `structural_data §1` say count them by region). **Owner chose: count them** — an extra is real steel; it
+contributes π/4·Ø² to the As,prov of the zone whose tension region its `(u,v)` sits in, and enters the
+area-weighted `d`. This intentionally **re-baselines** two pinned tests (called out below).
+
+**What I did (core-only — `layout/rect.ts`, `validation/index.ts` + `profiles.ts`, `pipeline/element.ts`).**
+- **`computeZoneGeometryWeighted`** (`layout/rect.ts`): area-weighted centroid `d`/`d'` over an arbitrary placed
+  set (per-bar area), exact for **mixed Ø + mixed levels**. `computeZoneGeometry` (uniform-Ø) now delegates to it
+  → the grouped path is byte-identical.
+- **Steel-accounting pass** (`element.ts`, after `buildLongBars`, before validation — `buildLongBars` hoisted up):
+  when the addressable channel is active (`longBars` present), each longitudinal zone's `asProv`, `providedCount`
+  and `geometry` (d) are recomputed from the real placed set: base/override bars mapped by `groupId` (Ø from the
+  override, `removed` excluded), standalone extras assigned to a zone by the **nearest-tension-face region rule**
+  (`structural_data §1`; edge conventions confirmed in the A1 engineer review). `SolveResult.zones` kept in sync.
+- **Column threading**: `validateColumn` recomputes As internally, so I added optional `ColumnZoneInputs.asProvExact`
+  (the profile passes `lz.asProv`); absent → the grouped `N·barArea` path, byte-identical. Beam/circular/slab
+  already read `lz.asProv`/`lz.geometry.d`, so they picked up the exact values with no signature change.
+- **H5** folds in as the removal slice (removing a bar drops As,prov by that bar's area).
+- **Scope note:** `min_bars`/`face_min` still count the layout bars (not reduced by a removal) — deliberately out of
+  the As-focused slice (a removal changes As, not the minimum-bar-count rule).
+
+**Per-region Asw (D-V102-5).** `SolvedTransZone.regions` now threads the F5 region list into the profiles;
+`governingAswSpacing(tz)` returns the **widest** region's spacing (the sparsest stretch = least steel/m), and
+`asw_leg_count` is checked on it (beam/circular directly; column via the new optional `ColumnZoneInputs.aswSpacing`).
+The tie/stirrup **spacing-max** check still uses the representative `tz.spacing` (per-region max-spacing there would
+collide with the seismic `region_crit_spacing` overlay's intent). Uniform/no-region set → `tz.spacing`, byte-identical.
+
+**Clear-spacing fold.** H8's `addressable_clear_spacing` predicate now judges every **FOCUS** bar — a standalone
+extra OR a per-bar Ø override — against the real placed set (was: standalone extras only). So an override whose
+enlarged Ø crowds its grid neighbour FAILs where the grouped face-based `clear_spacing` (which only knows the group
+Ø) still passes. `AddressableBarView.focus` set in `element.ts` (`standalone || Ø-override`); still self-gated →
+legacy docs (no `longBars`) untouched.
+
+**Tests (all green).** New core: `tests/steel_accounting.spec.ts` (4), `tests/removal_reconciles_as.spec.ts` (2),
+`tests/per_region_asw.spec.ts` (3 — governing region FAILs where representative passes; single region byte-identical),
+`tests/clear_spacing_addons.spec.ts` (3 — grouped grid passes, Ø-override + crammed-extra FAIL). **Re-baselined
+intentionally (owner decision — extras count):** `tests/independent_bars.spec.ts`, `apps/web/.../addressable_bars.spec.ts`.
+**Flipped (sanctioned):** characterization `[WILL-CHANGE H5] → [H5 LANDED]`. H8 `addressable_validity` Ø-only-override
+case updated (the fold now spacing-checks it → PASS on the wide grid). Held: `bar_overrides`, `transverse_regions`,
+all grouped goldens byte-identical.
+
+**Green gate (2026-07-06).** `npm run check` ✓ — **563 tests / 115 files** (+12 net over H8's 551/111); `npm run
+coverage` core **94.15%** (≥90 ✓); `npm run coverage:adapter` **96.62%** (unchanged); `npm run build:web` ✓. Two
+intentional golden re-baselines (extras→As); no other golden moved. **NOT pushed** (`cross_projects_policy §10`).
+
+**Next.** A2 is complete. Per spec §7: **B2** (beam two-support precise placement + per-support anchorage), **B3**
+(supplement/add-on 3D anchoring), **C2** (shop-drawing completeness), **C1** (coupe station-aware — needs the
+`[§B/§D]` G-COUPE conventions), then **B1** (per-bar splice stagger), **E1/E2** (canonical `.rcfg` + migration),
+**D1/D2** (viewport). **A1** (fill packs from `structural_data.md` + reference-case suite) runs in parallel — it is
+the long-lead engineer-sign-off enabler. Owner long-lead items unchanged (engineer nomination §B-1; RPS zone→ND §C-1).
+
+### 2026-07-06 (night) — v1.0.4 **Phase 4 (H8 — addressable-bar validity)** — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
+
+**Context.** Owner resumed the v1.0.4 build after pulling Amer's local Phase 2/3 + A3/H13 work. Baseline verified
+green on pull (543/110). Owner drove the next phase = **Phase 4 (H8)**, and confirmed the spacing constants
+(dg=20, k1=1.0, k2=5, from `structural_data.md §2`).
+
+**H8 — geometric validity for the ADDRESSABLE channel (per-bar overrides + independent extra bars).** This is the
+one class of steel the grouped, face-based `clear_spacing` never sees. Three pure predicates over the resolved
+`longBars[]`, tiered per the owner's **A-5** ruling:
+- `addressable_axial_extent` — a live bar whose `[axisStart, axisStart+run]` leaves `[0, memberLength]` → 🔴 FAIL
+  (past-end or negative start). `run` = the developed extent of the centreline along the local-frame run axis
+  (`u` = index 0 of the flat `[x,y,z,…]`), computed by a new `runExtent` helper in `element.ts`.
+- `addressable_section_bounds` — a standalone extra whose `(u,v)` breaks the **cover envelope** (`cover + Ø/2` off a
+  face, i.e. the bar pokes out of the concrete/cover) → 🔴 FAIL. (Section frame: origin at centre, `u`∈±b/2,
+  `v`∈±h/2 per `layout/rect.ts`.)
+- `addressable_clear_spacing` — a standalone extra closer than `max(k1·Ø, dg+k2, 20) = max(Ø, dg+5, 20)` to any
+  **axially-overlapping** bar (base or extra) → 🔴 FAIL below the minimum, 🟠 WARN if merely tight (within the pack
+  spacing band). **Divergence from the (outdated) `impl_plan` Phase 4**, which said spacing WARN-only: the as-built
+  follows the owner's **A-5 tiered** decision (block below the code minimum, warn if tight).
+
+**Where.** All in `packages/core` — `validation/predicates.ts` (`validateAddressableBars` + `AddressableBarView`/
+`AddressableSectionCtx` types, decoupled from `PlacedLongBar` to avoid a pipeline↔validation import cycle) and
+`pipeline/element.ts` (wiring after `buildLongBars`, before the status rollup, + `runExtent`). **No adapter/UI/
+`.rcfg` change.**
+
+**Legacy-safe by construction.** The predicates run only when `longBars` exists (overrides/extras present — a plain
+doc keeps the grouped fast path, no `longBars`), and self-gate to real addressable content: a benign **Ø-only**
+override (no standalone extra, `axisStart` 0, no violation) emits **zero** addressable items. So every legacy golden
++ the adapter characterization hold byte-identical. **A2 will fold this spacing predicate into the general validator**
+so grouped bars are judged over the same real placed set (spec A2).
+
+**Tests (all green).** New `tests/addressable_validity.spec.ts` (8, core): valid extra PASS + no export block;
+out-of-concrete extra FAIL + `status==FAIL` (export-lock); past-end + negative-start axial FAIL; two extras
+merely-tight WARN; two extras below-min FAIL + export-lock; legacy doc (no `longBars`) emits no addressable rule;
+Ø-only override emits no addressable rule.
+
+**Green gate (2026-07-06).** `npm run check` ✓ — **551 tests / 111 files** (+8 over Phase-3/A3's 543/110);
+`npm run coverage` core **93.88%** (≥90 ✓); `npm run coverage:adapter` **96.62%** (unchanged — core-only change);
+`npm run build:web` ✓. No golden moved. **NOT pushed** (awaiting owner's word, `cross_projects_policy §10`).
+
+**Next (owner-directed).** **A2 — steel accounting** (the systemic validation-completeness win): one pass that
+reconciles *every* placed bar (group/override/extra/relevé/supplement) into per-zone `As,prov = Σ(π/4)·Øᵢ²` (exact,
+mixed-Ø) + area-weighted-centroid `d`, per-region `Asw`, and clear-spacing over the real placed set (absorbing H8's
+predicate). Uses the same dg/k1/k2 just confirmed. H5 is A2's first slice. Owner long-lead items unchanged
+(engineer nomination §B-1; RPS zone→ND §C-1).
 
 ### 2026-07-06 (evening) — v1.0.4 **Phase 3 complete (H7)** + **A3/H13 (EC2 reachable)** — **CODE DONE, tested, green — NOT pushed** — by **Amer** (owner's local Windows PC)
 

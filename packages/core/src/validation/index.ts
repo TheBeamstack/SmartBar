@@ -110,8 +110,21 @@ export interface ColumnZoneInputs {
   /** legs crossing the confinement plane (CADRE_RECT=2 + cross-ties). */
   nLegs: number;
   aswReqPerM: number; // mm²/m
+  /**
+   * v1.0.4 A2: governing (widest-region) spacing for the Asw check, when the tie set has per-region
+   * spacing (D-V102-5). Absent → `tieSpacing` (uniform set, byte-identical). The `tie_spacing` max
+   * check still uses `tieSpacing` (the representative), only Asw provision uses the governing region.
+   */
+  aswSpacing?: number;
   /** optional user-set tie bend mandrel ø (mm); checked vs code min + enclosed-bar clearance. */
   userTieMandrel?: number;
+  /**
+   * v1.0.4 A2: exact provided steel area (mm²) = Σ(π/4)·Øᵢ² over the REAL placed set (overrides +
+   * removed + assigned extras), replacing the count×area shortcut for `provided_area`/`ratio_limits`.
+   * Absent → the grouped `N·barArea(phiL)` path (byte-identical to pre-A2). `min_bars` still counts
+   * the layout bars.
+   */
+  asProvExact?: number;
 }
 
 export interface ColumnValidationContext {
@@ -137,7 +150,7 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
   const out: ValidationItem[] = [];
   const Ac = geometry.b * geometry.h;
   const N = layout.count;
-  const asProv = N * barArea(inputs.phiL);
+  const asProv = inputs.asProvExact ?? N * barArea(inputs.phiL);
   const bands = code.warnBands ?? { spacing: 0.05, anchorage: 0.05, cover: 0.1 };
 
   // 7.1 provided area
@@ -345,9 +358,9 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
     );
   }
 
-  // 7.5 leg-counted Asw/m vs required
+  // 7.5 leg-counted Asw/m vs required (A2: governing region spacing when set)
   if (inputs.aswReqPerM > 0) {
-    const aswProv = aswProvidedPerMetre(inputs.nLegs, inputs.phiT, inputs.tieSpacing);
+    const aswProv = aswProvidedPerMetre(inputs.nLegs, inputs.phiT, inputs.aswSpacing ?? inputs.tieSpacing);
     const aswStatus: ValidationStatus =
       aswProv < inputs.aswReqPerM
         ? "FAIL"

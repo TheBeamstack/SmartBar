@@ -34,7 +34,7 @@ describe("G2 adapter — addressable bars", () => {
     expect(placeBars(solveDoc(doc)).some((b) => b.barIndex === 0)).toBe(false);
   });
 
-  it("an independent extra bar renders + schedules without changing the layout/As", () => {
+  it("an independent extra bar renders + schedules AND contributes to As (A2, owner 2026-07-06)", () => {
     const doc: ColumnDoc = {
       ...defaultColumnDoc(),
       extraBars: [{ id: "U1", u: 0, v: 0, shapeId: "DROITE", diameter: 16 }],
@@ -42,9 +42,9 @@ describe("G2 adapter — addressable bars", () => {
     const r = solveDoc(doc);
     expect(placeBars(r).some((b) => b.groupId === "U1")).toBe(true);
     expect(computeBBS(r).lines.some((l) => l.diameter === 16)).toBe(true);
-    // provided area unchanged vs the plain column (extra bars are detailing add-ons)
-    const pa = (d: ColumnDoc) => solveDoc(d).validation.find((v) => v.rule === "provided_area")?.value;
-    expect(pa(doc)).toBe(pa(defaultColumnDoc()));
+    // A2: an extra is real steel — As,prov grows by the extra's π/4·Ø² (was: detailing-only no-op).
+    const pa = (d: ColumnDoc) => solveDoc(d).validation.find((v) => v.rule === "provided_area")?.value as number;
+    expect(pa(doc) - pa(defaultColumnDoc())).toBeCloseTo((Math.PI / 4) * 16 * 16, 1);
   });
 
   it("overrides + extra bars round-trip through .rcfg (ride meta.app_document)", () => {
