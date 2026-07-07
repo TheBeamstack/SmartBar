@@ -157,6 +157,11 @@ export function generateBarShape(
       heading = headingFromDir(op.dir, heading);
       if (firstHeading === undefined) firstHeading = heading;
       const len = evalExpr(op.line, baseScope);
+      // H19 ([v1.0.4]): reject a degenerate (non-positive) straight leg — a 0/negative body run is
+      // unbuildable and would otherwise slip past the cutLength>0 guard when the other legs compensate.
+      if (!(len > 0)) {
+        throw new Error(`shape "${archetype.id}": non-positive leg length (${len}) — every straight run must be > 0`);
+      }
       legs.push(len);
       pos = advance(pos, heading, len);
       vertices.push({ ...pos });

@@ -70,6 +70,9 @@ in the browser — no server, free hosting.**
 | **v1.0.4 Phase 4 (H8)** — geometric validity for the **addressable channel** (per-bar overrides + independent extra bars), core-only: pure `validateAddressableBars` (`validation/predicates.ts`) with three tiered predicates over the resolved `longBars[]` — `addressable_axial_extent` 🔴 (bar leaves `[0, memberLength]`), `addressable_section_bounds` 🔴 (extra `(u,v)` breaks the `cover+Ø/2` envelope → out of concrete), `addressable_clear_spacing` 🔴 below `max(Ø, dg+5, 20)` / 🟠 if merely tight (owner **A-5 tiered**, dg=20/k1=1/k2=5). Wired in `pipeline/element.ts` after `buildLongBars` (a `runExtent` reads the local-frame run); self-gates to real addressable content so a legacy doc + a benign Ø-only override are byte-identical. **Note:** the (outdated) `impl_plan` Phase 4 said spacing WARN-only; as-built follows the owner's A-5 **tiered** ruling. | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-06 |
 | **v1.0.4 A2 review + verdict-fixes + B2 + B3(first slice)** — Amer's adversarial review of A2/H8 found two reachable wrong-🟢 in the addressable channel + fixed them: **Finding 1** (removals below the column minimum now FAIL `min_bars`/`face_min_bars` — real placed count/faces threaded, corner-aware; was: nominal layout → a 3-bar column exported green) + **Finding 2** (`addressable_section_bounds` now judges Ø-overrides, so an oversized override that eats the cover → 🔴; was: extras-only). **B2** (beam two supports): per-support **axial placement** (right chapeau at `L−extension` via `ElementLongInput.axisStart`) + per-support **anchorage** (`support_anchorage:left/right` vs hooked `l_bd`; `hooked?` on `AnchorageArgs`, BAEL 0.4 / EC2 0.7). **B3** (supplement anchoring, first slice): `resolveSupplement` now anchors SIDE_FACES/CORNER_DIAGONAL/INTERIOR_DIAMOND (+`angleDeg`) → `placeBars` renders them in-position (skin/diagonal longitudinal, diamond rotated 45°) instead of centred at origin; SKIN multi-bar fanout + supplement→A2 accounting deferred to the next slice. All legacy byte-identical; extra→zone convention + supplement 3D fidelity flagged for A1/owner-GPU. | ✅ **CODE DONE + tested** · NOT pushed | Amer, 2026-07-07 |
 | **v1.0.4 A2 steel accounting (+H5)** — every steel add/remove now feeds §7. `pipeline/element.ts` reconciles each longitudinal zone's **As,prov = Σ(π/4)·Øᵢ²** and area-weighted-centroid **d** over the REAL placed set (per-bar Ø overrides, removed bars, standalone extras) via new `computeZoneGeometryWeighted` (`layout/rect.ts`); exact for mixed Ø + mixed levels. **Owner decision 2026-07-06:** an independent extra is real steel — it contributes to As,prov of the zone whose tension region it sits in (region rule) + enters `d` (re-baselined `independent_bars` + `addressable_bars` intentionally). Column threads exact As via optional `ColumnZoneInputs.asProvExact` (grouped → byte-identical). **A2 finalized:** per-region **Asw** checked on the governing (widest) tie/stirrup region (`governingAswSpacing`, D-V102-5) + clear-spacing **fold** (H8's predicate now judges every FOCUS bar — standalone extra OR Ø-override — vs the real placed set, so an override's enlarged Ø crowding the grid FAILs where the face check passed). `per_region_asw` + `clear_spacing_addons` green. | ✅ **A2 COMPLETE + tested** · NOT pushed | Zayd, 2026-07-06 |
+| **v1.0.4 B3 (2nd slice) + C2 + C1 (station-aware slice)** — **B3:** SKIN multi-bar **fanout** (`resolveSupplement` → `anchors[]` = `count_per_side` × both lateral faces; adapter emits one input/anchor → N rendered+scheduled skin bars) + supplements now feed **A2 accounting** (a SKIN bar's steel joins the zone's As,prov; an interior DIAMANT tie adds Asw/m to the transverse zones at the derived `cos(45°)` orientation factor — ⚠ leg-crossing convention flagged G-BAEL/EC2). **C2:** spliced-segment BBS rows now draw the segment's OWN centreline (`segmentArcBounds` + `sliceCenterline2D`, not the whole-bar fallback) + robust leader anti-overlap (rail stretched to a legible min-pitch, no stacking at density); flows through pdf/dxf unchanged. **C1:** `defaultCoupeFor` **station-aware** — seeds the default cut at the richest station (most longitudinal bars), gated to the addressable channel so grouped docs keep mid-length byte-identical; new pure `suggestCoupeStations`. All legacy byte-identical (no golden moved). | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-07 |
+| **v1.0.4 façonnage Phase-6 (H16/H17/H18/H19/H12) + H14 + B1** — **Phase-6 UI batch:** H16 FaconnageEditor honours manifest `max`/`step` (new `ShapeParam.step`); H17 rich invalid feedback (real reason + retained last-valid sketch + `aria-invalid`); H18 AddressableBars on the shared i18n bundle (`t(lang).addressable`, not inline `tr()`); H19 per-leg `min>0` (core generator rejects a non-positive leg + UI floors at 1 mm); H12 DROITE length coupled to member (read-only) with a custom-length toggle (owner **A-7**). **H14+B1 (per-bar splices):** overrides/extras carry `splices?`/`autoSplice?`; `buildLongBars` computes each bar's `SpliceResult` (explicit + H14 auto-split at PROVISIONAL 12000 stock); BBS schedules segments + shop-drawing slices each; new pure `evaluateLapStagger` (sourced EC2 §8.7.2 ≤½/section within 0.3·l0) → per-zone `lap_stagger` PASS/WARN; per-bar seismic laps. UI auto-split toggle. Two pre-existing test assertions updated (H3↔H19 message; the new H12 checkbox); no golden moved. | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-07 |
+| **v1.0.4 B3 (3rd slice) + E1 + E2 (canonical `.rcfg` + migration)** — **B3:** the A2 supplement-accounting fold now credits an OPEN along-member add-on — SKIN **or** CORNER-DIAGONAL — to the zone's As (was skin-only); closed diamond → Asw unchanged. **E1:** new `reinforcementFromResult(result)` (exporters) maps the solved `groups[]` → canonical §10 `ReinforcingElement[]` (element-agnostic: role→distribution/placement); `SolvedGroup` carries `params`/`supplementId`; `docToRcfg` now **populates** `baseGroups`/`supplementalGroups` (was empty) by solving the doc (try/catch → empty fallback); `.rcfg` bumped to **v1.2** (additive, idempotent version migration). **E2:** `migration_chain` corpus (every fixture migrates + idempotent + future-version pass-through + unknown-kind survival). **Validated all 8 elements** doc→rcfg→recover round-trip (backend↔frontend lossless). **C1 slab-exactness DEFERRED** (needs a geometry re-model + G-COUPE acceptance — flagged). No golden moved. | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-07 |
 
 **Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
 phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
@@ -125,14 +128,16 @@ baseline of 463/93 — the new `nav_mode` + `export_supports` web suites); `npm 
 coverage` **93.88% stmts** (≥90% threshold; core-only scope — P8/P9/P7b are `apps/web`+`exporters` code, outside
 the core-only coverage include). **PUSHED to `origin/feat/p1-m1-engine`.**
 
-**Current green gate (v1.0.4 through A2 + A2-review-fixes + B2 + B3-first-slice, 2026-07-07 — local, pending owner push):**
-`npm run check` ✓ — **578 tests / 117 files**; `npm run coverage` core **93.32%** (≥90); `npm run coverage:adapter`
-**96.72%** (no regression); `npm run build:web` ✓. History: v1.0.4 Phase 1 (H1/H3/H4) then Phase 2 (H11/H9/H2),
+**Current green gate (v1.0.4 through B3-3rd-slice + E1 + E2, 2026-07-07 — local, pending owner push):**
+`npm run check` ✓ — **625 tests / 124 files**; `npm run coverage` core **94.91%** (≥90); `npm run coverage:adapter`
+**96.76%** (no regression); `npm run build:web` ✓. Backend↔frontend validated: all 8 elements round-trip
+doc→`.rcfg`(canonical + `app_document`)→recover losslessly. History: v1.0.4 Phase 1 (H1/H3/H4) then Phase 2 (H11/H9/H2),
 Phase 3 (H15/H6/H7), A3/H13 (EC2 reachable) — Amer — Phase 4 (H8) + **A2** (steel accounting As/d/H5 + per-region
-Asw + clear-spacing fold) — Zayd — then the **A2 adversarial review + two verdict-fixes (min_bars/face_min removals;
-section_bounds for Ø-overrides) + B2 (beam two-support precision) + B3 (supplement anchoring, first slice)** — Amer,
-2026-07-07. See the §9 entries. Two goldens re-baselined **intentionally** at A2 (extras count toward As — owner
-decision); **no other golden moved** (the review-fixes + B2 + B3 are all legacy byte-identical).
+Asw + clear-spacing fold) — Zayd — then the **A2 adversarial review + two verdict-fixes + B2 (beam two-support
+precision) + B3 (supplement anchoring, first slice)** — Amer — then **B3 2nd slice (SKIN fanout + supplements→A2
+As/Asw) + C2 (segment-row sketches + robust leaders) + C1 (station-aware default coupe + `suggestCoupeStations`)** —
+Zayd, 2026-07-07. See the §9 entries. Two goldens re-baselined **intentionally** at A2 (extras count toward As —
+owner decision); **no other golden moved** (the review-fixes + B2 + B3 + C2 + C1 are all legacy byte-identical).
 The standing engineer sign-offs (G-BAEL/EC2/RPS/COUPE/TOL) + the owner GPU/visual passes remain open (acceptance,
 not code).
 **The headless gate can't see WebGL** — the ViewCube/persp⇄ortho/coupe handle (v1.0.1) **and the new F7 3D bar
@@ -372,6 +377,190 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-07-07 (evening) — v1.0.4 **B3 (3rd slice) + E1 + E2** + backend↔frontend validation — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
+
+**Context.** Owner directed "continue for 3, 4, 5 [of the finalization checklist], validate for inconsistencies +
+backend↔frontend compat, update docs, then list owner actions." Items 4 (B3 corner-diagonal) + 5 (E1/E2) landed;
+item 3 (C1 slab-exactness) deferred with rationale (below). All self-gated → **no golden moved**.
+
+**Item 4 — B3 corner-diagonal → As (`pipeline/element.ts`).** The supplement-accounting fold generalised: an **OPEN**
+anchored add-on (SKIN bar OR CORNER-DIAGONAL, both run along the member) now credits its area to the As,prov + count
+of the zone it reinforces (was `role === "SKIN"` only); a **CLOSED** tie (diamond) still credits Asw. Scope is exact:
+only the 3 anchored archetypes (skin/diagonal/diamond) get an `anchor`, so head-hoops/double-stirrup/relevé add-ons
+are untouched (the `!sup.anchor` guard). +1 test in `supplement_anchored_all`. Remaining B3: the diagonal's in-section
+hook *orientation* is GPU-polish (position + As done).
+
+**Item 5 — E1 + E2 (canonical `.rcfg` + migration).**
+- **E1 (the biggest hidden gap):** pre-E1 `docToRcfg` emitted **empty** `baseGroups`/`supplementalGroups` (real data
+  only in `meta.app_document`; passed tests, so nothing flagged it). Now: new pure **`reinforcementFromResult(result)`**
+  (`exporters/canonical.ts`) maps the solved `groups[]` → canonical §10 `ReinforcingElement[]`, **element-agnostic**
+  (role → distribution/placement: longitudinal `FIXED_COUNT`+`SECTION_PERIMETER`; transverse `SPACING_ALONG_PATH`
+  uniform/segments + `ALONG_PATH`; skin/diagonal/diamond → `supplementalGroups`). `SolvedGroup` gained `params` +
+  `supplementId` (populated in `element.ts` from the inputs). `docToRcfg` solves the doc + populates the arrays
+  (try/catch → empty fallback so a bad doc still saves via `app_document`). `.rcfg` bumped **1.0 → 1.2** with an
+  additive **version-only** migration (`1.0`/`1.0.2`/`1.1` → `1.2`, idempotent).
+- **E2:** `migration_chain` corpus — every fixture migrates to current + `parse∘serialize∘parse` fixed point +
+  `migrateRcfg` idempotent + a FUTURE version (9.9.9) loaded as-is (forward-compat) + unknown `TENDON` kind survives.
+- **Backend↔frontend validation (throwaway probe, deleted):** all **8 elements** (`defaultDocFor`) → `docToRcfg` →
+  serialize → parse → **recover the doc from `app_document`** = lossless; each populates ≥1 canonical base group at
+  v1.2; every element is well-formed `REBAR_GROUP`. No circular import (rcfgDoc→solveDoc is acyclic; both typechecks
+  clean). The canonical fill is **write-only for the SPA** (rcfgToDoc still reads `app_document`), so no round-trip
+  coupling + no golden moved.
+
+**Item 3 — C1 slab-exactness DEFERRED (rationale).** Making a slab's DISTRIBUTION (secondary) bars exact in the coupe
+is a **geometry re-model**, not a drop-in: `layout/slab.ts` positions every zone's bars ACROSS the width and
+`place.ts` runs them along the SPAN (the representative model); a faithful distribution layer must be regenerated as
+bars running ACROSS the width at SPAN stations (a new bar set + the per-metre As mapping + the coupe). That is (a)
+owner-gated on the G-COUPE conventions + visual acceptance `[§B/§D]` and (b) a re-baseline → its own scoped slice, not
+a safe increment this turn. The non-gated C1 part (station-aware default coupe) shipped earlier today. `coupe_slab_exactness`
+stays the open test.
+
+**Tests (all green, +13 over 612).** `supplement_anchored_all` +1 (corner-diagonal→As), new `tests/migration_chain.spec.ts`
+(9), new `apps/web/.../rcfg_canonical.spec.ts` (3). No golden moved.
+
+**Green gate (2026-07-07).** `npm run check` ✓ — **625 tests / 124 files** (+13 over 612/122); `npm run coverage`
+core **94.91%** (≥90 ✓); `npm run coverage:adapter` **96.76%** (up from 96.74); `npm run build:web` ✓. **NOT pushed.**
+
+**Next (remaining to finalize v1.0.4).** Code: **C1 slab-exactness** (re-model, needs G-COUPE `[§B/§D]`); **D1/D2**
+(stair + slab/mesh 3D fidelity, owner GPU); **H10** hook last-valid test; cover WARN tier (G-TOL). Everything else
+(A2, A3, B1/B2/B3, C2, E1/E2, façonnage H1–H19 minus H10) is **code-complete**. People/acceptance (the true 100%
+gate): engineer nomination (**B-1** 🔴) → sign-offs **B-2…B-9**; owner data **C-1/C-2/C-8**; owner GPU/drawing
+acceptance (**§D**). See the "Owner actions" the owner has.
+
+### 2026-07-07 (later still) — v1.0.4 **façonnage Phase-6 (H16/H17/H18/H19/H12) + H14 + B1 (per-bar splices)** — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
+
+**Context.** After an inspection audit (below), the owner directed "do items 1 and 2": the façonnage Phase-6 UI batch
++ H14→B1 splices. All self-gated → legacy byte-identical; **no golden moved** (two pre-existing test *assertions*
+updated, called out below).
+
+**Façonnage Phase-6 (apps/web + one core guard).**
+- **H16** — the `FaconnageEditor` now honours the manifest `max`/`step` for every param (was hardcoded 20000/10 for
+  length params). New optional `ShapeParam.step` (+ schema); falls back to a type default when unset. Proof: added
+  `"step": 5` to `droite.json`'s `L`.
+- **H17** — rich invalid feedback: on an invalid param edit the editor shows the generator's **real** reason
+  (`.faconnage-error-detail`), keeps the **last valid sketch** on screen (a `lastSketchRef`), and marks the offending
+  field `aria-invalid` (new `NumberField.invalid` prop). The edit is never visually "dropped".
+- **H18** — `AddressableBars` copy now comes from the shared i18n bundle (`t(lang).addressable`, ~20 keys added to
+  `strings.ts` FR+EN), replacing the inline `const tr = …`.
+- **H19** — per-leg `min > 0`: the **core** `segment-grammar` generator throws on a non-positive straight leg (a 0/neg
+  body run that would slip past the H3 cutLength guard when other legs compensate), and the length controls floor at
+  1 mm. (Interaction: for a DROITE `L≤0` the leg guard now fires before the H3 cutLength guard — the pre-existing
+  `cutlength_positive_guard` assertion was broadened to `/cut length|non-positive leg/i`.)
+- **H12** (owner **A-7**) — a DROITE bar's length is coupled to the member (read-only display) with an explicit
+  "custom length" toggle (`CoupledLength`); a non-DROITE bar keeps its param-driven editable length. (The new
+  custom-length checkbox made `addressable_bars_ui`'s `getByRole("checkbox")` ambiguous → retargeted to the
+  `.addressable-remove` checkbox.)
+
+**H14 + B1 — per-bar lap splices on the addressable channel (core + adapter + UI).**
+- **Types:** `LongBarOverride` + `ExtraLongBar` gain `splices?: Splice[]` (explicit, B1) + `autoSplice?: boolean`
+  (H14); `PlacedLongBar` gains `splice?: SpliceResult`; `ElementSolveInput.stockLength?` (⚠ PROVISIONAL 12000).
+- **`buildLongBars`** computes each bar's splice = explicit stations + (autoSplice ? `autoSplices(cutLength, stock)`)
+  → `spliceBar`. Stored on the bar.
+- **Schedule/drawing:** the BBS longBar path expands a spliced bar into its **segments** (`groupId#si`, one per bar) +
+  a coupler tally (cutLength invariant preserved); `shopDrawing.sketchOf` now slices the segment's own centreline for
+  addressable rows too (extended the C2 parent map to include spliced longBars).
+- **B1 stagger:** new pure **`evaluateLapStagger(barStations, l0, totalBars)`** in `geometry/splice.ts` — the sourced
+  EC2 §8.7.2 rule (≤ ½ of a zone's bars lapped within one **0.3·l0** section). `solveElement` groups the placed bars
+  by zone, feeds each spliced bar's lap stations to it, and emits a per-zone `lap_stagger` **PASS/WARN**; each lap
+  also pushes a per-bar extent into `lapExtents` so the seismic `lap_in_critical_zone` is exact per bar. The blanket
+  per-group WARN is untouched (it only fires for zone-level grouped splices, which the addressable bars don't use).
+- **Adapter + UI:** doc `BarOverrideEdit`/`AddressableBar` carry `autoSplice?`/`splices?` (ride `meta.app_document`,
+  so `.rcfg` round-trips for free); `buildLongOverrides`/`buildExtraBars` thread them; a per-bar "Auto-split (stock)"
+  checkbox in `AddressableBars`.
+- **⚠ Flags:** the stock length is PROVISIONAL 12000 (owner §C — same value blocks nothing else now); the stagger
+  rule value is the sourced EC2 default (owner/engineer confirm per market — owner_tasks **B-6**).
+
+**Tests (all green, +17 over 595).** New `tests/leg_min.spec.ts` (4), `tests/splice_stagger.spec.ts` (7),
+`apps/web/.../faconnage_phase6.spec.tsx` (6: H16 ×2, H19, H17, H18, H12). Updated 2 pre-existing assertions
+(cutlength guard message; addressable remove-checkbox selector). No golden moved.
+
+**Green gate (2026-07-07).** `npm run check` ✓ — **612 tests / 122 files** (+17 over 595/119); `npm run coverage`
+core **94.91%** (≥90 ✓); `npm run coverage:adapter` **96.74%** (up from 96.73); `npm run build:web` ✓. **NOT pushed.**
+
+**Audit finding (this session, pre-work).** A code inspection to find "hidden / marked-done-but-not" gaps surfaced,
+most notably: **E1's canonical `.rcfg reinforcement[]` is an empty shell** (`rcfgDoc.ts` emits `baseGroups:[]`,
+`supplementalGroups:[]` — real data only in `meta.app_document`; passes tests, so nothing flags it); the **cover
+check has no WARN tier** (only FAIL/PASS — `validation/index.ts` §7.12 comfort band deferred); **slab-family coupes
+stay representative** (C1 tail `coupe_slab_exactness`); BAEL `l_s≈44φ` vs tabulated 40φ (a G-BAEL item). See the
+audit summary the owner has.
+
+**Next (remaining to finalize v1.0.4).** Code: **E1/E2** (populate canonical `reinforcement[]` + unified idempotent
+migrator, bump `.rcfg` v1.2); **C1 tail** (slab coupe exactness — needs G-COUPE `[§B/§D]`); **B3 tail** (corner-diagonal
+→ As accounting + diagonal hook orientation); **D1/D2** (stair + slab/mesh 3D fidelity, owner GPU); **H10** hook
+last-valid test; cover WARN tier (G-TOL). People/acceptance (the true 100% gate): engineer nomination (**B-1** 🔴) →
+sign-offs **B-2…B-9** (now incl. the diamond-Asw model + stagger rule); owner data **C-1**/**C-2**/stock length;
+owner GPU/drawing acceptance (**§D**).
+
+### 2026-07-07 (later) — v1.0.4 **B3 (2nd slice) + C2 (shop-drawing completeness) + C1 (station-aware coupe)** — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
+
+**Context.** Owner directed: finish B3's deferred slice, then C2 → C1 (spec §7 step 5). Continued from Amer's
+55f1376 (A2-review-fixes + B2 + B3-first-slice). Everything below self-gates so legacy docs are byte-identical —
+**no golden moved** this session.
+
+**B3 — 2nd slice (SKIN fanout + supplements → A2 accounting).**
+- **SKIN multi-bar fanout.** `resolveSupplement` (`scheme/resolve.ts`) now returns `anchors[]` for SIDE_FACES —
+  `count_per_side` bars on BOTH lateral faces (u = ±uMax), spaced evenly between the corner bars (bar k of n at
+  `v = −vMax + k/(n+1)·2vMax`; n=1 ⇒ mid-height, reproducing the legacy representative). `position`/`angleDeg` mirror
+  `anchors[0]` (right face first) for back-compat — the existing 1-bar callers + the first-slice test are unchanged.
+  Diagonal/diamond also carry a single-entry `anchors` for a uniform adapter path. The adapter (`solveDoc.ts`
+  `resolveDocSupplements`) emits **one `ElementSupplementInput` per anchor** (groupId `inst`, `inst#1`, `inst#2`…),
+  so a skin group renders + schedules as N bars. Verified live: `count_per_side=2` on a 4-corner column → 4 SKIN
+  groups (2 per face), each with its own anchor.
+- **Supplements feed A2's steel accounting** (`pipeline/element.ts`, a new pass after the longBars reconciliation;
+  hoisted `nearestFace`/`zoneForExtra` out so both passes share them). A **SKIN** bar is real longitudinal steel →
+  its area joins the **As,prov + provided count** of the zone whose tension region its anchor sits in (the owner's
+  extra→zone rule). `d` is LEFT on the extreme-tension layer — a mid-face skin bar does not lower the lever arm
+  (conservative + honest; avoids the beam extra→zone limitation Amer flagged). An interior **DIAMANT** tie (a closed
+  supplement, `shape.closed`) adds provided **Asw/m** to every transverse zone, credited at the *geometrically
+  derived* orientation factor **`cos(inclination)`** (a 45° diamond ⇒ ~0.707 of a vertical leg) via new optional
+  `SolvedTransZone.aswProvExtraPerM` / `ColumnZoneInputs.aswProvExtraPerM` (threaded into the beam/circular Asw
+  blocks in `profiles.ts` + the column block in `index.ts`; absent → 0 → byte-identical). **⚠ FLAG (engineer /
+  G-BAEL/EC2):** the diamond leg-crossing model (2 legs · `cos(inclination)`) is *derived geometry, not an invented
+  constant*, but the leg-count/orientation **convention needs professional sign-off** before it's relied on. It is
+  conservative-ish and self-gated (no diamond add-on → no change).
+
+**C2 — shop-drawing completeness (`exporters/shopDrawing.ts`).**
+- **Segment-row sketches.** A spliced bar is scheduled as SEGMENTS (`groupId "L1#si"`); the pre-C2 `sketchOf` split
+  on `#` and drew the *whole* parent bar for every segment row. Now: new `segmentArcBounds(segments, lapLength, run)`
+  reconstructs each segment's developed `[from,to]` window (geometric extent = `cutLength − (lapForward?lap:0)`, so
+  the windows tile the run exactly) + `sliceCenterline2D(c3, from, to)` returns the segment's own 2D sub-centreline.
+  So each segment row's thumbnail is its own piece (verified: a mid-spliced 6000 span bar → two ~3000-extent
+  sketches, not the full bar). Non-spliced rows unchanged.
+- **Robust leader anti-overlap.** Labels now fan on a rail **stretched** so consecutive labels are always ≥ a
+  legible pitch (`minSep = max(halfH·0.35, 55)`) apart, centred on the envelope — was an even fan that stacked when
+  `span/(n−1) < text height`. In anchor order (sorted), so leaders don't cross.
+- Both flow through **pdf.ts / dxf.ts unchanged** — they already consume `row.sketch` + `leader.to`, and the PDF
+  fit-bbox already spans the leader anchors. All shop-drawing / BBS / DXF goldens held.
+
+**C1 — station-aware coupe (`section/sectionAt.ts`).**
+- `defaultCoupeFor` now seeds the default cut at the **richest station** — the along-member station that crosses the
+  MOST longitudinal bars (`richestStation` over `placeBars` world-Y ranges of the PRIMARY_LONGITUDINAL/DISTRIBUTION
+  members) — so an offset/bent/relevé/extra bar a mid-span cut would miss is revealed. Mid-length wins on ties /
+  equal counts, and the whole thing is **gated to `result.longBars` present** (the addressable channel); a plain
+  grouped element keeps `length/2` exactly → **every coupe/DXF golden held**.
+- New pure `suggestCoupeStations(result)` (auto-exported via `section/index`) → mid + each partial-length bar's
+  midpoint, sorted/deduped, for the UI's "auto-suggest a cut where the detailing is".
+- **⚠ FLAG (owner_tasks §B-7 / G-COUPE):** the coupe conventions (near-parallel angle, look-behind, cutting-line/tag
+  style, default station) stay **PROVISIONAL** — proceeded on defaults, acceptance pending. **Remaining C1:**
+  slab-family coupe exactness (`coupe_slab_exactness`) not yet done (deferred — needs the ratified conventions +
+  owner visual acceptance).
+
+**Tests (all green, +17 over 578).** `supplement_anchored_all` +6 (SKIN fanout ×2, skin→As ×2, diamant→Asw, legacy
+no-op); new `shop_drawing_c2.spec.ts` (6: segment-sketch extent, legacy full-bar sketch, leader min-pitch, distinct
+anchors, determinism); new `coupe_station_aware.spec.ts` (5: mid-length legacy default, richer-station shift reveals
+more bars, `suggestCoupeStations` mid + offset station, determinism). Prior goldens (bbs/dxf/coupe/section) held.
+
+**Green gate (2026-07-07).** `npm run check` ✓ — **595 tests / 119 files** (+17 over 578/117); `npm run coverage`
+core **94.6%** (≥90 ✓); `npm run coverage:adapter` **96.73%** (was 96.72% — up); `npm run build:web` ✓. **No golden
+moved.** **NOT pushed** (owner controls push, `cross_projects_policy §10`).
+
+**Next.** Per spec §7 step 5–7: **C1 slab-exactness** slice (needs G-COUPE conventions `[§B/§D]`), **B1** (per-bar
+splice stagger — rides H14; stagger rule sourced EC2 ≤50%/0.3·l0), then **E1/E2** (canonical `.rcfg` `reinforcement[]`
++ migration consolidation), **D1/D2** (viewport fidelity, owner GPU). **A1** (fill packs from `structural_data.md` +
+reference-case suite) runs in parallel. **Two conventions now awaiting engineer sign-off (added this session):** the
+diamond-tie Asw leg-crossing/orientation model (B3) and — standing — the extra→zone beam convention (A2, Amer's
+flag). Owner long-lead items unchanged (engineer nomination §B-1; RPS zone→ND §C-1; G-COUPE ratification §B-7).
 
 ### 2026-07-07 — v1.0.4 **A2 review (adversarial) + two verdict-fixes** + **B2 (beam two-support precision)** + **B3 (supplement anchoring, first slice)** — **CODE DONE, tested, green — NOT pushed** — by **Amer** (owner's local Windows PC)
 

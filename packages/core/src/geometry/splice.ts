@@ -83,6 +83,42 @@ export function spliceBar(
   return { segments, couplerCount, lapLength, totalCutLength };
 }
 
+export interface StaggerResult {
+  /** the sourced rule holds: ≤ `maxFraction` of the zone's bars lap within one 0.3·l0 section. */
+  pass: boolean;
+  /** the worst section's fraction of the zone's bars lapping there. */
+  worstFraction: number;
+  /** the "same section" window used (0.3·l0, mm). */
+  window: number;
+}
+
+/**
+ * v1.0.4 B1 ([REF-SYS], §B1, structural_data §2) — evaluate lap STAGGERING across a zone's bars
+ * against the sourced rule (EC2 §8.7.2): at most `maxFraction` (½) of the bars may lap within one
+ * "section" — a window of 0.3·l0 — otherwise the laps are effectively coincident (α6 = 1.5) and must
+ * be staggered. Pure. `barStations` = the absolute lap stations (mm) of each SPLICED bar; `totalBars`
+ * = the zone's total bar count (the fraction denominator, so 1 lapped bar of 4 = 25% ≤ ½ → PASS).
+ */
+export function evaluateLapStagger(
+  barStations: number[][],
+  lapLength: number,
+  totalBars: number,
+  maxFraction = 0.5,
+): StaggerResult {
+  const window = 0.3 * lapLength;
+  const withLaps = barStations.filter((b) => b.length > 0);
+  const denom = Math.max(totalBars, withLaps.length, 1);
+  if (withLaps.length <= 1) return { pass: true, worstFraction: withLaps.length / denom, window };
+  const stations = withLaps.flatMap((b, i) => b.map((at) => ({ at, bar: i })));
+  let worst = 0;
+  for (const s of stations) {
+    const near = new Set<number>();
+    for (const o of stations) if (Math.abs(o.at - s.at) < window) near.add(o.bar);
+    worst = Math.max(worst, near.size / denom);
+  }
+  return { pass: worst <= maxFraction + 1e-9, worstFraction: worst, window };
+}
+
 /**
  * Auto-splice a run longer than the stock length into near-equal lap segments (spec §4.2, default
  * 12 m stock — the same the BBS `nestCuts` uses). Returns the interior splice points; an already

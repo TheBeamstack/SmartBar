@@ -29,6 +29,7 @@
         "type": { "enum": ["length", "angle", "diameter", "count", "number"] },
         "min": { "type": "number" },
         "max": { "type": "number" },
+        "step": { "type": "number" },
         "default": { "type": "number" },
         "label": { "type": "string" },
         "label_fr": { "type": "string" },

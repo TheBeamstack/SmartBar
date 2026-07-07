@@ -240,6 +240,8 @@ function buildLongOverrides(
       return {
         barIndex: e.index,
         ...(e.axialPos !== undefined ? { axisStart: e.axialPos } : {}),
+        ...(e.autoSplice ? { autoSplice: true } : {}), // H14
+        ...(e.splices !== undefined ? { splices: e.splices } : {}), // B1
         ...(e.removed ? { removed: true } : {}),
       };
     }
@@ -264,6 +266,8 @@ function buildLongOverrides(
       diameter,
       ...(hooks ? { hooks } : {}),
       ...(e.axialPos !== undefined ? { axisStart: e.axialPos } : {}),
+      ...(e.autoSplice ? { autoSplice: true } : {}), // H14
+      ...(e.splices !== undefined ? { splices: e.splices } : {}), // B1
       ...(e.removed ? { removed: true } : {}),
     };
   });
@@ -288,6 +292,8 @@ function buildExtraBars(bars: AddressableBar[] | undefined, memberLen: number, c
       diameter: eb.diameter,
       ...(hooks ? { hooks } : {}),
       ...(eb.axialPos !== undefined ? { axisStart: eb.axialPos } : {}),
+      ...(eb.autoSplice ? { autoSplice: true } : {}), // H14
+      ...(eb.splices !== undefined ? { splices: eb.splices } : {}), // B1
     };
   });
 }
@@ -855,15 +861,23 @@ function resolveDocSupplements(
       warnings.push(warnItem(ed.instanceId, r.message_fr ?? "", r.message_en ?? ""));
       continue; // don't render a broken supplement
     }
-    inputs.push({
-      groupId: ed.instanceId,
-      role: man.role,
-      shape: loadShape(man.shape),
-      params: supplementShapeParams(man.shape, doc, r.params.span),
-      diameter: r.diameter,
-      count: 1,
-      // B3: thread the resolved section placement so the add-on renders anchored, not centred.
-      ...(r.position !== undefined ? { anchor: { u: r.position.u, v: r.position.v, angleDeg: r.angleDeg ?? 0 } } : {}),
+    // B3 fanout: one engine input per resolved placement — a SIDE_FACES skin group is many bars
+    // (`count_per_side` × both faces); a point-placed add-on is one. Each carries its own anchor so it
+    // renders in its true (u,v) + orientation, and (skin/diamant) feeds A2's steel accounting.
+    const shape = loadShape(man.shape);
+    const shapeParams = supplementShapeParams(man.shape, doc, r.params.span);
+    const anchors =
+      r.anchors ?? (r.position !== undefined ? [{ u: r.position.u, v: r.position.v, angleDeg: r.angleDeg ?? 0 }] : [undefined]);
+    anchors.forEach((anchor, k) => {
+      inputs.push({
+        groupId: k === 0 ? ed.instanceId : `${ed.instanceId}#${k}`,
+        role: man.role,
+        shape,
+        params: shapeParams,
+        diameter: r.diameter,
+        count: 1,
+        ...(anchor !== undefined ? { anchor } : {}),
+      });
     });
   }
   return { inputs, warnings };

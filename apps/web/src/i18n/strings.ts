@@ -67,6 +67,29 @@ export interface Strings {
     hookNone: string;
     cutLength: string;
     invalid: string;
+    lastValid: string;
+  };
+  addressable: {
+    title: string;
+    hint: string;
+    bar: string;
+    remove: string;
+    diameter: string;
+    length: string;
+    axialPos: string;
+    reset: string;
+    overridden: string;
+    removed: string;
+    removeOverride: string;
+    independent: string;
+    addBar: string;
+    independentList: string;
+    u: string;
+    level: string;
+    lengthCoupled: string;
+    customLength: string;
+    removeBar: string;
+    autoSplit: string;
   };
   beam: {
     span: string;
@@ -295,6 +318,29 @@ const FR: Strings = {
     hookNone: "Aucun",
     cutLength: "Longueur de coupe",
     invalid: "Paramètres invalides : géométrie impossible (vérifiez les longueurs).",
+    lastValid: "Aperçu : dernière forme valide",
+  },
+  addressable: {
+    title: "Détail barre par barre",
+    hint: "Sélectionnez une barre à façonner",
+    bar: "Barre",
+    remove: "Supprimer",
+    diameter: "Ø barre (mm)",
+    length: "Longueur (mm)",
+    axialPos: "Position axiale (mm)",
+    reset: "Réinitialiser la barre",
+    overridden: "Barres modifiées",
+    removed: "supprimée",
+    removeOverride: "Retirer la modification",
+    independent: "Barres indépendantes / niveaux",
+    addBar: "+ Ajouter une barre",
+    independentList: "Barres indépendantes",
+    u: "u (mm)",
+    level: "v / niveau (mm)",
+    lengthCoupled: "Longueur = membre (auto)",
+    customLength: "Longueur personnalisée",
+    removeBar: "Retirer",
+    autoSplit: "Découpe auto (barre stock)",
   },
   beam: {
     span: "Portée L (mm)",
@@ -523,6 +569,29 @@ const EN: Strings = {
     hookNone: "None",
     cutLength: "Cut length",
     invalid: "Invalid parameters: impossible geometry (check the lengths).",
+    lastValid: "Preview: last valid shape",
+  },
+  addressable: {
+    title: "Bar-by-bar detailing",
+    hint: "Pick a bar to shape",
+    bar: "Bar",
+    remove: "Remove",
+    diameter: "Bar Ø (mm)",
+    length: "Length (mm)",
+    axialPos: "Axial position (mm)",
+    reset: "Reset bar",
+    overridden: "Overridden bars",
+    removed: "removed",
+    removeOverride: "Remove override",
+    independent: "Independent bars / levels",
+    addBar: "+ Add a bar",
+    independentList: "Independent bars",
+    u: "u (mm)",
+    level: "v / level (mm)",
+    lengthCoupled: "Length = member (auto)",
+    customLength: "Custom length",
+    removeBar: "Remove",
+    autoSplit: "Auto-split (stock length)",
   },
   beam: {
     span: "Span L (mm)",

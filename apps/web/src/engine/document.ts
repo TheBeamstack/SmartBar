@@ -78,6 +78,10 @@ export interface BarOverrideEdit {
   length?: number;
   /** axial start station (mm) along the member. */
   axialPos?: number;
+  /** v1.0.4 H14: auto-split this bar at the stock length (segments in the BBS + stagger check). */
+  autoSplice?: boolean;
+  /** v1.0.4 B1: explicit per-bar lap/coupler stations (staggered). */
+  splices?: Splice[];
   removed?: boolean;
 }
 
@@ -97,6 +101,10 @@ export interface AddressableBar {
   diameter: number;
   length?: number;
   axialPos?: number;
+  /** v1.0.4 H14: auto-split at the stock length. */
+  autoSplice?: boolean;
+  /** v1.0.4 B1: explicit per-bar lap/coupler stations. */
+  splices?: Splice[];
 }
 
 /**

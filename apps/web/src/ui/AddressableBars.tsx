@@ -4,8 +4,11 @@
  * or remove it; and add INDEPENDENT extra bars at a chosen section level (`v`). All write the doc's
  * `barOverrides` / `extraBars`, which `solveDoc` threads into the engine's `longOverrides`/`extraBars`
  * so the choice flows to 3D/coupe/PDF/DXF + the schedule. Picker AND numeric (a11y parity).
+ *
+ * H18 ([v1.0.4]): all copy comes from the shared i18n bundle (`t(lang).addressable`), not inline `tr()`.
  */
 import { useStore } from "../store/useStore";
+import { t, type Strings } from "../i18n/strings";
 import { isColumnDoc, isBeamDoc, type BarOverrideEdit, type BarFaconnage } from "../engine/document";
 import { barLabel } from "../engine/barLabels";
 import { SectionPicker } from "./SectionPicker";
@@ -22,7 +25,7 @@ export function AddressableBars() {
   const setSelectedExtraId = useStore((s) => s.setSelectedExtraId);
   const setBarOverrides = useStore((s) => s.setBarOverrides);
   const setExtraBars = useStore((s) => s.setExtraBars);
-  const tr = (fr: string, en: string) => (lang === "fr" ? fr : en);
+  const s = t(lang).addressable;
 
   const col = isColumnDoc(doc);
   const beam = isBeamDoc(doc);
@@ -63,8 +66,8 @@ export function AddressableBars() {
 
   return (
     <div className="addressable">
-      <h3>{tr("Détail barre par barre", "Bar-by-bar detailing")}</h3>
-      <p className="muted sp-hint">{tr("Sélectionnez une barre à façonner", "Pick a bar to shape")}</p>
+      <h3>{s.title}</h3>
+      <p className="muted sp-hint">{s.hint}</p>
       <SectionPicker
         onPick={(i) => { setSelectedBars([i]); setSelectedExtraId(null); }}
         onPickExtra={(id) => { setSelectedExtraId(id); setSelectedBars([]); }}
@@ -74,17 +77,21 @@ export function AddressableBars() {
       {target !== undefined && (
         <div className="addressable-bar">
           <div className="addressable-head">
-            <strong>{tr("Barre", "Bar")} {barLabel(target, bars)}</strong>
+            <strong>{s.bar} {barLabel(target, bars)}</strong>
             <label className="addressable-remove">
               <input type="checkbox" checked={cur?.removed ?? false} onChange={(e) => upsert(target, { removed: e.target.checked })} />
-              {tr("Supprimer", "Remove")}
+              {s.remove}
             </label>
           </div>
           {!cur?.removed && (
             <>
-              <NumberField label={tr("Ø barre (mm)", "Bar Ø (mm)")} value={cur?.diameter ?? group.diameter} min={6} max={40} step={1} onChange={(v) => upsert(target, { diameter: v })} />
-              <NumberField label={tr("Longueur (mm)", "Length (mm)")} value={cur?.length ?? memberLen} min={0} max={20000} step={10} onChange={(v) => upsert(target, { length: v })} />
-              <NumberField label={tr("Position axiale (mm)", "Axial position (mm)")} value={cur?.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => upsert(target, { axialPos: v })} />
+              <NumberField label={s.diameter} value={cur?.diameter ?? group.diameter} min={6} max={40} step={1} onChange={(v) => upsert(target, { diameter: v })} />
+              <CoupledLength s={s} shapeId={cur?.shapeId ?? group.shapeId} length={cur?.length} memberLen={memberLen} onChange={(v) => upsert(target, { length: v })} />
+              <NumberField label={s.axialPos} value={cur?.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => upsert(target, { axialPos: v })} />
+              <label className="addressable-autosplit">
+                <input type="checkbox" checked={cur?.autoSplice ?? false} onChange={(e) => upsert(target, { autoSplice: e.target.checked })} />
+                {s.autoSplit}
+              </label>
               <FaconnageEditor
                 key={`ov-${target}`}
                 shapeId={cur?.shapeId ?? group.shapeId}
@@ -97,46 +104,50 @@ export function AddressableBars() {
           )}
           {cur && (
             <button type="button" className="addressable-reset" onClick={() => removeOverride(target)}>
-              {tr("Réinitialiser la barre", "Reset bar")}
+              {s.reset}
             </button>
           )}
         </div>
       )}
 
       {overrides.length > 0 && (
-        <ul className="addressable-list" aria-label={tr("Barres modifiées", "Overridden bars")}>
+        <ul className="addressable-list" aria-label={s.overridden}>
           {overrides.map((o) => (
             <li key={o.index} className="addressable-row">
               <span>
-                {barLabel(o.index, bars)} — {o.removed ? tr("supprimée", "removed") : `${o.shapeId ?? group.shapeId} Ø${o.diameter ?? group.diameter}${o.length ? ` ℓ=${o.length}` : ""}`}
+                {barLabel(o.index, bars)} — {o.removed ? s.removed : `${o.shapeId ?? group.shapeId} Ø${o.diameter ?? group.diameter}${o.length ? ` ℓ=${o.length}` : ""}`}
               </span>
-              <button type="button" onClick={() => removeOverride(o.index)} aria-label={tr("Retirer", "Remove override")}>×</button>
+              <button type="button" onClick={() => removeOverride(o.index)} aria-label={s.removeOverride}>×</button>
             </li>
           ))}
         </ul>
       )}
 
-      <h4>{tr("Barres indépendantes / niveaux", "Independent bars / levels")}</h4>
+      <h4>{s.independent}</h4>
       <button type="button" className="addressable-add-extra" onClick={addExtra}>
-        {tr("+ Ajouter une barre", "+ Add a bar")}
+        {s.addBar}
       </button>
-      <ul className="addressable-list" aria-label={tr("Barres indépendantes", "Independent bars")}>
+      <ul className="addressable-list" aria-label={s.independentList}>
         {extras.map((e) => (
           <li key={e.id} className={`addressable-extra ${e.id === selectedExtraId ? "addressable-extra-selected" : ""}`} aria-current={e.id === selectedExtraId || undefined}>
             {/* H6 ([v1.0.4]): expose the FULL model an independent bar already carries (shape/façonnage/
                 length/axial pos), not just u/v/Ø — the adapter (buildExtraBars) threads all of it.
                 H7: the section-picker selects an extra by id → highlight its editor here. */}
             <div className="addressable-head">
-              <strong>{tr("Barre", "Bar")} {e.id}</strong>
-              <button type="button" onClick={() => removeExtra(e.id)} aria-label={tr(`Retirer ${e.id}`, `Remove ${e.id}`)}>×</button>
+              <strong>{s.bar} {e.id}</strong>
+              <button type="button" onClick={() => removeExtra(e.id)} aria-label={`${s.removeBar} ${e.id}`}>×</button>
             </div>
             <div className="addressable-extra-pos">
-              <NumberField label="u (mm)" value={e.u} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { u: v })} />
-              <NumberField label={tr("v / niveau (mm)", "v / level (mm)")} value={e.v} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { v })} />
+              <NumberField label={s.u} value={e.u} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { u: v })} />
+              <NumberField label={s.level} value={e.v} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { v })} />
               <NumberField label="Ø (mm)" value={e.diameter} min={6} max={40} step={1} onChange={(v) => patchExtra(e.id, { diameter: v })} />
             </div>
-            <NumberField label={tr("Longueur (mm)", "Length (mm)")} value={e.length ?? memberLen} min={0} max={20000} step={10} onChange={(v) => patchExtra(e.id, { length: v })} />
-            <NumberField label={tr("Position axiale (mm)", "Axial position (mm)")} value={e.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => patchExtra(e.id, { axialPos: v })} />
+            <CoupledLength s={s} shapeId={e.shapeId} length={e.length} memberLen={memberLen} onChange={(v) => patchExtra(e.id, { length: v })} />
+            <NumberField label={s.axialPos} value={e.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => patchExtra(e.id, { axialPos: v })} />
+            <label className="addressable-autosplit">
+              <input type="checkbox" checked={e.autoSplice ?? false} onChange={(ev) => patchExtra(e.id, { autoSplice: ev.target.checked })} />
+              {s.autoSplit}
+            </label>
             <FaconnageEditor
               key={`extra-${e.id}`}
               shapeId={e.shapeId}
@@ -148,6 +159,44 @@ export function AddressableBars() {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * H12 ([v1.0.4], owner A-7): a DROITE bar's length is coupled to the member by default (read-only),
+ * with an explicit toggle to enter a custom length (`length` undefined ⇒ coupled = memberLen). A
+ * non-DROITE bar drives its length via the façonnage params, so it keeps the editable field. H19: the
+ * custom length floors at 1 mm.
+ */
+function CoupledLength({
+  s,
+  shapeId,
+  length,
+  memberLen,
+  onChange,
+}: {
+  s: Strings["addressable"];
+  shapeId: string;
+  length?: number;
+  memberLen: number;
+  onChange: (v: number | undefined) => void;
+}) {
+  if (shapeId !== "DROITE") {
+    return <NumberField label={s.length} value={length ?? memberLen} min={1} max={20000} step={10} onChange={onChange} />;
+  }
+  const custom = length !== undefined;
+  return (
+    <div className="addressable-length">
+      <label className="addressable-couple">
+        <input type="checkbox" checked={custom} onChange={(e) => onChange(e.target.checked ? memberLen : undefined)} />
+        {s.customLength}
+      </label>
+      {custom ? (
+        <NumberField label={s.length} value={length ?? memberLen} min={1} max={20000} step={10} onChange={onChange} />
+      ) : (
+        <output className="addressable-coupled" aria-label={s.length}>{s.lengthCoupled}: {memberLen} mm</output>
+      )}
     </div>
   );
 }

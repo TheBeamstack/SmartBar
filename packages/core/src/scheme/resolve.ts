@@ -226,13 +226,20 @@ export interface ResolvedSupplement {
   diameter: number;
   /** resolved shape params (e.g. { span } for an épingle). */
   params: Record<string, number>;
-  /** centroid of the add-on in the section frame (mm), when point-placed. */
+  /** centroid of the add-on in the section frame (mm), when point-placed. Equals `anchors[0]`. */
   position?: PointUV;
   /**
    * v1.0.4 B3 ([REF-SYS-756c], §5.4): in-plane orientation of the add-on (degrees) — a corner
    * diagonal along its bar pair, an interior diamond tie at 45°, a skin bar at 0°. Absent → 0.
    */
   angleDeg?: number;
+  /**
+   * v1.0.4 B3 ([REF-SYS-756c], §5.4): the FULL fan-out of placements for a multi-bar add-on — a
+   * SIDE_FACES skin group is `count_per_side` bars on BOTH lateral faces, each anchored at its own
+   * (u,v). A point-placed add-on (diagonal / diamond) carries a single entry. `position`/`angleDeg`
+   * mirror `anchors[0]` (the representative) for back-compat.
+   */
+  anchors?: { u: number; v: number; angleDeg: number }[];
   /** PASS while every referenced bar exists; WARN when a base bar was deleted/moved out. */
   status: "PASS" | "WARN";
   /** human cue when a rebind is needed (§5.5). */
@@ -331,18 +338,30 @@ export function resolveSupplement(
         ...(placed.brokenIndices ? { brokenIndices: placed.brokenIndices } : {}),
       };
     }
-    return { ...base, params, position: placed.position!, angleDeg: placed.angleDeg ?? 0, status: "PASS" };
+    const a = { u: placed.position!.u, v: placed.position!.v, angleDeg: placed.angleDeg ?? 0 };
+    return { ...base, params, position: placed.position!, angleDeg: a.angleDeg, anchors: [a], status: "PASS" };
   }
 
   if (rule === "INTERIOR_DIAMOND") {
     // a diamond confinement tie: centred but rotated 45° (its corners engage the mid-face bars).
-    return { ...base, params, position: { u: 0, v: 0 }, angleDeg: 45, status: "PASS" };
+    return { ...base, params, position: { u: 0, v: 0 }, angleDeg: 45, anchors: [{ u: 0, v: 0, angleDeg: 45 }], status: "PASS" };
   }
 
   if (rule === "SIDE_FACES") {
-    // a skin/side bar on a lateral face at mid-height (the representative bar; multi-bar fanout per
-    // `count_per_side` + the opposite face rides the same anchor seam — B3 follow-up).
-    return { ...base, params, position: { u: uMax, v: 0 }, angleDeg: 0, status: "PASS" };
+    // v1.0.4 B3 fanout: `count_per_side` skin bars on BOTH lateral faces (u = ±uMax), spaced evenly in
+    // the clear height between the corner bars — bar k of n sits at v = −vMax + k/(n+1)·(2·vMax). One
+    // bar/side (n=1) reproduces the legacy representative at mid-height (v=0). RIGHT face first so
+    // `anchors[0]`/`position` stays (uMax, mid) — back-compatible with the single-bar callers.
+    const n = Math.max(
+      1,
+      Math.round(params["count_per_side"] ?? defaultParam(supplement.params, "count_per_side", 1)),
+    );
+    const anchors: { u: number; v: number; angleDeg: number }[] = [];
+    for (const u of [uMax, -uMax]) {
+      for (let k = 1; k <= n; k++) anchors.push({ u, v: -vMax + (k / (n + 1)) * (2 * vMax), angleDeg: 0 });
+    }
+    const first = anchors[0]!;
+    return { ...base, params, position: { u: first.u, v: first.v }, angleDeg: 0, anchors, status: "PASS" };
   }
 
   // generic / explicit-param placements

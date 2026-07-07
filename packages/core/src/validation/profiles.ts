@@ -103,6 +103,12 @@ export interface SolvedTransZone {
    * least steel — instead of the single representative `spacing`. Absent → the uniform `spacing`.
    */
   regions?: TransverseRegion[];
+  /**
+   * v1.0.4 B3 ([REF-SYS-756c], §5.4): extra provided Asw/m from an anchored confinement add-on (an
+   * interior DIAMANT tie) crossing this zone's shear plane, credited at its derived orientation factor.
+   * Added to the leg-counted provision. Absent → 0 (no confinement add-on, byte-identical).
+   */
+  aswProvExtraPerM?: number;
 }
 
 /** The governing (widest) transverse spacing (mm): the sparsest region drives the minimum Asw/m. */
@@ -193,6 +199,8 @@ export function validateColumnProfile(ctx: ProfileContext): ValidationItem[] {
       asProvExact: lz.asProv,
       // A2: Asw checked on the governing (widest) tie region (uniform set → tieSpacing, identical).
       aswSpacing: governingAswSpacing(tz),
+      // B3: extra Asw/m from an anchored confinement add-on (interior diamond) — absent → identical.
+      ...(tz.aswProvExtraPerM !== undefined ? { aswProvExtraPerM: tz.aswProvExtraPerM } : {}),
       // A2 completeness: real placed bar count + underfilled faces (removals). Absent → layout counts.
       ...(ctx.placedCount !== undefined ? { placedCount: ctx.placedCount } : {}),
       ...(ctx.placedUnderfilledFaces !== undefined ? { placedUnderfilledFaces: ctx.placedUnderfilledFaces } : {}),
@@ -367,7 +375,7 @@ export function validateBeamProfile(ctx: ProfileContext): ValidationItem[] {
     if (tz.aswReqPerM > 0) {
       // A2: the sparsest (widest) region governs the minimum Asw/m (uniform set → tz.spacing).
       const aswSpacing = governingAswSpacing(tz);
-      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, aswSpacing);
+      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, aswSpacing) + (tz.aswProvExtraPerM ?? 0);
       const regionNote = tz.regions && tz.regions.length > 1 ? ` @ région ${round(aswSpacing)} mm` : "";
       const aswStatus: ValidationStatus =
         aswProv < tz.aswReqPerM
@@ -625,7 +633,7 @@ export function validateCircularColumnProfile(ctx: ProfileContext): ValidationIt
     );
 
     if (tz.aswReqPerM > 0) {
-      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, governingAswSpacing(tz)); // A2: governing region
+      const aswProv = aswProvidedPerMetre(tz.nLegs, tz.diameter, governingAswSpacing(tz)) + (tz.aswProvExtraPerM ?? 0); // A2: governing region + B3 add-on
       const aswStatus: ValidationStatus =
         aswProv < tz.aswReqPerM ? "FAIL" : aswProv < tz.aswReqPerM * (1 + bands.spacing) ? "WARN" : "PASS";
       out.push(

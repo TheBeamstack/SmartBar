@@ -123,6 +123,60 @@ export interface ShopDrawingOptions {
 const LONG_ROLES = new Set(["PRIMARY_LONGITUDINAL", "DISTRIBUTION"]);
 const SUPPORT_TAG = { left: "V1", right: "V2" } as const;
 
+/**
+ * v1.0.4 C2 ([REF-SYS-820], §C2): the developed [from,to] arc-length window of each spliced segment
+ * along the parent bar. A segment's GEOMETRIC extent excludes the lap overlap its `cutLength` carries
+ * (`cutLength − lapLength` when it laps forward), so the windows tile the parent run exactly (Σ = run).
+ */
+function segmentArcBounds(
+  segments: { cutLength: number; lapForward: boolean }[],
+  lapLength: number,
+  run: number,
+): { from: number; to: number }[] {
+  const bounds: { from: number; to: number }[] = [];
+  let acc = 0;
+  for (const seg of segments) {
+    const geom = seg.cutLength - (seg.lapForward ? lapLength : 0);
+    const to = Math.min(acc + geom, run);
+    bounds.push({ from: acc, to });
+    acc = to;
+  }
+  return bounds;
+}
+
+/** Slice a flat `[x,y,z, …]` centreline between developed arc-lengths [from,to] → 2D (x,y) points. */
+function sliceCenterline2D(c3: number[], from: number, to: number): { x: number; y: number }[] {
+  const n = Math.floor(c3.length / 3);
+  if (n < 2) return [];
+  const cum = [0];
+  for (let i = 1; i < n; i++) {
+    const dx = c3[i * 3]! - c3[(i - 1) * 3]!;
+    const dy = c3[i * 3 + 1]! - c3[(i - 1) * 3 + 1]!;
+    const dz = c3[i * 3 + 2]! - c3[(i - 1) * 3 + 2]!;
+    cum.push(cum[i - 1]! + Math.hypot(dx, dy, dz));
+  }
+  const total = cum[n - 1]!;
+  const a = Math.max(0, Math.min(from, total));
+  const b = Math.max(a, Math.min(to, total));
+  const sample = (s: number): { x: number; y: number } => {
+    let i = 1;
+    while (i < n - 1 && cum[i]! < s) i++;
+    const s0 = cum[i - 1]!;
+    const len = cum[i]! - s0;
+    const t = len <= 1e-9 ? 0 : (s - s0) / len;
+    return {
+      x: c3[(i - 1) * 3]! + (c3[i * 3]! - c3[(i - 1) * 3]!) * t,
+      y: c3[(i - 1) * 3 + 1]! + (c3[i * 3 + 1]! - c3[(i - 1) * 3 + 1]!) * t,
+    };
+  };
+  const out: { x: number; y: number }[] = [sample(a)];
+  for (let i = 0; i < n; i++) {
+    if (cum[i]! > a + 1e-6 && cum[i]! < b - 1e-6) out.push({ x: c3[i * 3]!, y: c3[i * 3 + 1]! });
+  }
+  out.push(sample(b));
+  return out;
+}
+
 /** Build the shop-drawing annotation model for a solved element (pure, deterministic). */
 export function shopDrawing(result: SolveResult, opts: ShopDrawingOptions = {}): ShopDrawing {
   const quantity = opts.quantity ?? 1;
@@ -140,9 +194,31 @@ export function shopDrawing(result: SolveResult, opts: ShopDrawingOptions = {}):
   const centerlineByGroup = new Map<string, number[]>();
   for (const g of result.groups) centerlineByGroup.set(g.groupId, g.shape.centerline3D);
   for (const lb of result.longBars ?? []) centerlineByGroup.set(lb.groupId, lb.shape.centerline3D);
+  // Parent (shape + splice) per base groupId, for the segment-slice sketch below — from the grouped
+  // groups AND the addressable longBars (a per-bar splice, H14/B1, also emits `groupId#si` rows).
+  type SpliceParent = { splice?: { segments: { cutLength: number; lapForward: boolean }[]; lapLength: number }; shape: { cutLength: number; centerline3D: number[] } };
+  const groupByIdFull = new Map<string, SpliceParent>();
+  for (const g of result.groups) groupByIdFull.set(g.groupId, g);
+  for (const lb of result.longBars ?? []) if (lb.splice) groupByIdFull.set(lb.groupId, lb);
+  // v1.0.4 C2 ([REF-SYS-820], §C2): a spliced-bar BBS row is one SEGMENT (`groupId = "L1#si"`), so its
+  // sketch must be the segment's OWN centreline — the developed [from,to] slice of the parent bar — not
+  // the whole bar (the pre-C2 `split("#")[0]` fallback drew the full bar for every segment row). Absent
+  // splice → the parent's full centreline (byte-identical).
   const sketchOf = (groupIds: string[]): { x: number; y: number }[] | undefined => {
     for (const gid of groupIds) {
-      const c3 = centerlineByGroup.get(gid.split("#")[0]!);
+      const hash = gid.indexOf("#");
+      const base = hash >= 0 ? gid.slice(0, hash) : gid;
+      const parent = groupByIdFull.get(base);
+      if (parent?.splice && hash >= 0) {
+        const si = Number.parseInt(gid.slice(hash + 1), 10) - 1; // BBS numbers segments from #1
+        const bounds = segmentArcBounds(parent.splice.segments, parent.splice.lapLength, parent.shape.cutLength);
+        const b = bounds[si];
+        if (b) {
+          const seg = sliceCenterline2D(parent.shape.centerline3D, b.from, b.to);
+          if (seg.length >= 2) return seg;
+        }
+      }
+      const c3 = centerlineByGroup.get(base);
       if (c3 && c3.length >= 6) {
         const pts: { x: number; y: number }[] = [];
         for (let i = 0; i + 2 < c3.length; i += 3) pts.push({ x: c3[i]!, y: c3[i + 1]! });
@@ -193,17 +269,21 @@ export function shopDrawing(result: SolveResult, opts: ShopDrawingOptions = {}):
     .filter((g) => g.mark !== "")
     .sort((a, b) => a.rep.x - b.rep.x || a.rep.y - b.rep.y || a.mark.localeCompare(b.mark));
 
-  // basic anti-overlap: fan the labels out along the member's drawing axis, on a row just beyond the
-  // concrete envelope, so no two labels coincide (the §9.2 collision note actioned at a basic level).
+  // v1.0.4 C2 ([REF-SYS-820], §C2): robust anti-overlap at density. Labels fan out along the member's
+  // drawing axis on a rail just beyond the concrete envelope, in anchor order (groupsArr is sorted by
+  // the bar's real position). The rail is stretched so consecutive labels are ALWAYS ≥ `minSep` apart —
+  // a legible pitch — even when the bars are denser than the envelope span (the pre-C2 even fan let
+  // labels stack when `span/(n−1) < text height`). Centred on the envelope so the callout stays local.
   const gap = Math.max(halfH * 0.6, L * 0.05, 60);
   const bb = fiche.bbox;
   const n = groupsArr.length;
+  const along = att === "VERTICAL" ? { min: bb.minY, max: bb.maxY } : { min: bb.minX, max: bb.maxX };
+  const minSep = Math.max(halfH * 0.35, 55); // minimum legible label pitch (mm)
+  const railLen = Math.max(along.max - along.min, (n - 1) * minSep);
+  const railStart = (along.min + along.max) / 2 - railLen / 2;
   const leaders: ShopLeader[] = groupsArr.map((g, i) => {
-    const frac = n <= 1 ? 0.5 : i / (n - 1);
-    const to: FichePt =
-      att === "VERTICAL"
-        ? { x: bb.maxX + gap, y: bb.minY + (bb.maxY - bb.minY) * frac }
-        : { x: bb.minX + (bb.maxX - bb.minX) * frac, y: bb.maxY + gap };
+    const pos = n <= 1 ? (along.min + along.max) / 2 : railStart + (railLen * i) / (n - 1);
+    const to: FichePt = att === "VERTICAL" ? { x: bb.maxX + gap, y: pos } : { x: pos, y: bb.maxY + gap };
     return { mark: g.mark, from: g.rep, to, text: `${g.mark} ${g.count}Ø${g.diameter} l=${Math.round(g.cut)}` };
   });
   const marks: ShopMark[] = leaders.map((l) => ({ mark: l.mark, at: l.from }));

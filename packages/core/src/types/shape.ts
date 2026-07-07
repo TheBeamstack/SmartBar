@@ -23,6 +23,8 @@ export interface ShapeParam {
   label_en?: string;
   min?: number;
   max?: number;
+  /** v1.0.4 H16: UI increment for this param's control (falls back to a type default when unset). */
+  step?: number;
   default?: number;
 }
 

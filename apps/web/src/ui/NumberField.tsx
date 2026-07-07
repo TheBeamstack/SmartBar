@@ -11,13 +11,15 @@ export function NumberField(props: {
   min: number;
   max: number;
   step?: number;
+  /** v1.0.4 H17: mark the control invalid (aria-invalid + styling) when its value breaks the shape. */
+  invalid?: boolean;
   onChange: (v: number) => void;
 }) {
-  const { label, value, min, max, step = 1, onChange } = props;
+  const { label, value, min, max, step = 1, invalid, onChange } = props;
   const setDragMode = useStore((s) => s.setDragMode);
 
   return (
-    <label className="field">
+    <label className={`field${invalid ? " field-invalid" : ""}`}>
       <span className="field-label">{label}</span>
       <span className="field-row">
         <input
@@ -26,6 +28,7 @@ export function NumberField(props: {
           max={max}
           step={step}
           value={value}
+          aria-invalid={invalid || undefined}
           onPointerDown={() => setDragMode(true)}
           onPointerUp={() => setDragMode(false)}
           onPointerCancel={() => setDragMode(false)}
@@ -38,6 +41,7 @@ export function NumberField(props: {
           max={max}
           step={step}
           value={value}
+          aria-invalid={invalid || undefined}
           onChange={(e) => onChange(Number(e.target.value))}
         />
       </span>

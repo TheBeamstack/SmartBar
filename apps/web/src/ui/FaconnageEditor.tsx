@@ -47,6 +47,11 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
   // commit it to the store.
   const committed = faconnage?.shapeParams && Object.keys(faconnage.shapeParams).length > 0 ? faconnage.shapeParams : defaultParams(shape, memberLength);
   const [params, setParams] = useState<Record<string, number>>(committed);
+  // H17 ([v1.0.4]): the param whose last edit broke the shape (drives aria-invalid on that field) +
+  // the last VALID sketch, so an invalid in-progress edit shows the real reason without blanking the
+  // preview (the user keeps the last good shape on screen while they fix the number).
+  const [invalidKey, setInvalidKey] = useState<string | null>(null);
+  const lastSketchRef = useRef<ReturnType<typeof generateBarShape> | null>(null);
   // H4 ([v1.0.4]): resync the buffer to the committed params whenever the shape, the member length,
   // or the committed params themselves change externally (import / geometry edit / undo) — keyed by a
   // stable serialization + a last-committed ref so a self-triggered commit (or an unrelated re-render)
@@ -69,6 +74,7 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
   let error: string | null = null;
   try {
     sketch = tryGen(params, hooks);
+    lastSketchRef.current = sketch; // H17: remember the last VALID shape for the fallback preview
   } catch (e) {
     error = (e as Error).message;
   }
@@ -84,6 +90,7 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
     } catch {
       return;
     }
+    setInvalidKey(null); // H17: a fresh valid shape clears any stale invalid marker
     setParams(seeded);
     onChange({ shapeId: id, faconnage: { ...faconnage, shapeParams: seeded } });
   };
@@ -93,9 +100,11 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
     setParams(next);
     try {
       tryGen(next, hooks);
+      setInvalidKey(null); // H17: valid → clear the invalid marker
       onChange({ faconnage: { ...faconnage, shapeParams: next } }); // commit only when valid
     } catch {
-      /* invalid → keep in the buffer, show the error, do NOT reach the solver */
+      setInvalidKey(key); // H17: mark this field invalid; keep the buffer + last-valid preview
+      /* invalid → keep in the buffer, show the reason, do NOT reach the solver */
     }
   };
 
@@ -125,17 +134,23 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
         </select>
       </label>
 
-      {shape.params.map((p) => (
-        <NumberField
-          key={p.key}
-          label={(lang === "fr" ? p.label_fr : p.label_en) ?? p.key}
-          value={params[p.key] ?? 0}
-          min={p.min ?? 0}
-          max={p.type === "angle" ? (p.max ?? 180) : 20000}
-          step={p.type === "angle" ? 1 : 10}
-          onChange={(v) => editParam(p.key, v)}
-        />
-      ))}
+      {shape.params.map((p) => {
+        const isAngle = p.type === "angle";
+        return (
+          <NumberField
+            key={p.key}
+            label={(lang === "fr" ? p.label_fr : p.label_en) ?? p.key}
+            value={params[p.key] ?? 0}
+            // H19: a straight leg must be > 0 — floor a length param at 1 mm (angles keep their min).
+            min={p.type === "length" ? Math.max(p.min ?? 0, 1) : p.min ?? 0}
+            // H16: honour the manifest max/step; fall back to a type default when unset.
+            max={p.max ?? (isAngle ? 180 : 20000)}
+            step={p.step ?? (isAngle ? 1 : 10)}
+            invalid={invalidKey === p.key}
+            onChange={(v) => editParam(p.key, v)}
+          />
+        );
+      })}
 
       <div className="faconnage-hooks">
         {(["start", "end"] as const).map((end) => (
@@ -153,9 +168,18 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
       </div>
 
       {error ? (
-        <p className="faconnage-error" role="alert">
-          {s.faconnage.invalid}
-        </p>
+        <div className="faconnage-invalid">
+          {/* H17: the generic cue + the REAL reason (the generator's own message), and — crucially —
+              the last valid sketch stays on screen so the edit is never "dropped" visually. */}
+          <p className="faconnage-error" role="alert">{s.faconnage.invalid}</p>
+          <p className="faconnage-error-detail">{error}</p>
+          {lastSketchRef.current && (
+            <>
+              <p className="faconnage-lastvalid muted">{s.faconnage.lastValid}</p>
+              <FaconnageSketch sketch={lastSketchRef.current} cutLabel={s.faconnage.cutLength} />
+            </>
+          )}
+        </div>
       ) : sketch ? (
         <FaconnageSketch sketch={sketch} cutLabel={s.faconnage.cutLength} />
       ) : null}

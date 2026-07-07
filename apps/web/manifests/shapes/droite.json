@@ -4,7 +4,7 @@
   "label_en": "Straight bar",
   "plane": "2D",
   "params": [
-    { "key": "L", "label_fr": "Longueur", "type": "length", "min": 0 }
+    { "key": "L", "label_fr": "Longueur", "type": "length", "min": 0, "step": 5 }
   ],
   "closed": false,
   "segments": [

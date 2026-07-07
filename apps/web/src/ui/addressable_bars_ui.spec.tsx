@@ -27,7 +27,8 @@ describe("G2 addressable-bars editor", () => {
     fireEvent.click(barBtns[0]!);
     const sel = useStore.getState().selectedBars[0]!;
 
-    fireEvent.click(within(panel).getByRole("checkbox"));
+    // the Remove checkbox specifically (H12 added a second, "custom length", checkbox on the bar).
+    fireEvent.click(panel.querySelector(".addressable-remove input") as HTMLElement);
     const doc = useStore.getState().doc as ColumnDoc;
     expect(doc.longitudinal.barOverrides?.find((o) => o.index === sel)?.removed).toBe(true);
     expect(placeBars(solveDoc(doc)).some((b) => b.barIndex === sel)).toBe(false);

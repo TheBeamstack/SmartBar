@@ -20,7 +20,7 @@ import type { MaterialContext, ValidationStatus } from "../types/codepack";
 import type { SeismicOverlay, CritZoneSegment, LapExtent } from "../types/seismic";
 import type { BarShapeResult, UserHook } from "../geometry/segment-grammar";
 import { generateShape } from "../geometry/registry";
-import { spliceBar, autoSplices, type Splice, type SpliceResult } from "../geometry/splice";
+import { spliceBar, autoSplices, evaluateLapStagger, type Splice, type SpliceResult } from "../geometry/splice";
 import {
   solveRectLayout,
   computeZoneGeometry,
@@ -40,6 +40,7 @@ import {
 } from "../validation/predicates";
 import {
   getValidationProfile,
+  governingAswSpacing,
   type SolvedLongZone,
   type SolvedTransZone,
   type SupportInput,
@@ -53,6 +54,10 @@ export interface SolvedGroup {
   count: number;
   zone?: string;
   shape: BarShapeResult;
+  /** v1.0.4 E1: the archetype param values (for the canonical §10 `reinforcement[]` export). */
+  params?: Record<string, number>;
+  /** v1.0.4 E1: the supplement catalog id (supplemental groups) for the canonical export. */
+  supplementId?: string;
   /** v1.0.3 G4 ([REF-SYS-770]): lap/coupler segmentation of this group's bars (absent → unspliced). */
   splice?: SpliceResult;
   /** v1.0.4 B3 ([REF-SYS-756c]): section-frame placement for an anchored supplement (skin/diagonal/
@@ -132,6 +137,10 @@ export interface LongBarOverride {
   diameter?: number;
   /** axial start station along the member (mm) — feeds the G1 `axisStart` (unique-position bars). */
   axisStart?: number;
+  /** v1.0.4 B1: explicit per-bar lap/coupler stations (staggered by the caller). */
+  splices?: Splice[];
+  /** v1.0.4 H14: auto-split this bar at the stock length (`ElementSolveInput.stockLength`). */
+  autoSplice?: boolean;
   /** drop this bar from the render + schedule (kept in the validation count — see note above). */
   removed?: boolean;
 }
@@ -152,6 +161,10 @@ export interface ExtraLongBar {
   diameter: number;
   axisStart?: number;
   role?: BarRole;
+  /** v1.0.4 B1: explicit per-bar lap/coupler stations. */
+  splices?: Splice[];
+  /** v1.0.4 H14: auto-split at the stock length. */
+  autoSplice?: boolean;
 }
 
 /**
@@ -172,6 +185,8 @@ export interface PlacedLongBar {
   removed: boolean;
   /** true for an independent extra bar (not a member of a count-group). */
   standalone: boolean;
+  /** v1.0.4 H14/B1: this bar's per-bar splice (explicit or auto at stock length). Absent → unspliced. */
+  splice?: SpliceResult;
 }
 
 export interface ElementTransInput {
@@ -263,6 +278,11 @@ export interface ElementSolveInput {
   /** v1.0.3 G2: independent addressable bars / extra section levels (absent → none). */
   extraBars?: ExtraLongBar[];
   supplements?: ElementSupplementInput[];
+  /**
+   * v1.0.4 H14: commercial stock bar length (mm) for per-bar auto-splitting on the addressable
+   * channel. ⚠ PROVISIONAL default 12000 (owner_tasks §C / `structural_data §2`), owner-confirmable.
+   */
+  stockLength?: number;
   /**
    * v1.0.4 B2: element supports (a beam's V1/V2) with each support's provided bottom-bar anchorage +
    * bearing width, for the per-support §7.7 anchorage check. Consumed only by profiles that read it
@@ -363,6 +383,14 @@ function buildLongBars(
   // v1.0.4 B2: per-zone axial start (a beam's right-support chapeau over its support = `L − extension`).
   const zoneAxisStart = new Map<string, number>();
   for (const lz of input.longitudinal) if (lz.axisStart !== undefined) zoneAxisStart.set(lz.groupId, lz.axisStart);
+  // v1.0.4 H14/B1: per-bar splice — explicit stations + optional auto-split at the stock length. The
+  // segments feed the schedule (BBS) + the stagger/seismic checks; unspliced bars → undefined (no-op).
+  const stock = input.stockLength ?? 12000;
+  const barSplice = (shape: BarShapeResult, dia: number, splices?: Splice[], autoSplice?: boolean): SpliceResult | undefined => {
+    const pts: Splice[] = [...(splices ?? []), ...(autoSplice ? autoSplices(shape.cutLength, stock) : [])];
+    if (pts.length === 0) return undefined;
+    return spliceBar(shape.cutLength, pts, code, { diameter: dia, material: input.material, fractionLapped: 1 });
+  };
 
   const out: PlacedLongBar[] = [];
   for (let i = 0; i < layoutBars.length; i++) {
@@ -381,7 +409,8 @@ function buildLongBars(
         shape = generateShape(ov.shape, ov.params ?? {}, diameter, code, ov.hooks ? { hooks: ov.hooks } : undefined);
       }
     }
-    out.push({ barIndex: i, groupId: g.groupId, role: g.role, position: bp.position, shape, diameter, axisStart, removed, standalone: false });
+    const splice = removed ? undefined : barSplice(shape, diameter, ov?.splices, ov?.autoSplice);
+    out.push({ barIndex: i, groupId: g.groupId, role: g.role, position: bp.position, shape, diameter, axisStart, removed, standalone: false, ...(splice ? { splice } : {}) });
   }
   // Any longitudinal zone the representative section couldn't seat (e.g. the second beam support's
   // chapeau — both supports never share a cross-section, G3) is emitted as addressable bars so it
@@ -401,6 +430,7 @@ function buildLongBars(
   }
   extra.forEach((eb) => {
     const shape = generateShape(eb.shape, eb.params, eb.diameter, code, eb.hooks ? { hooks: eb.hooks } : undefined);
+    const splice = barSplice(shape, eb.diameter, eb.splices, eb.autoSplice);
     out.push({
       barIndex: nextIndex++,
       groupId: eb.id,
@@ -411,6 +441,7 @@ function buildLongBars(
       axisStart: eb.axisStart ?? 0,
       removed: false,
       standalone: true,
+      ...(splice ? { splice } : {}),
     });
   });
   return out;
@@ -481,6 +512,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       count: providedCount,
       zone: lz.zone,
       shape,
+      params: lz.params, // E1
       ...(splice ? { splice } : {}),
     });
     solvedLong.push({
@@ -508,6 +540,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       count: 1,
       zone: tz.zone,
       shape,
+      params: tz.params, // E1
     });
     solvedTrans.push({
       zone: tz.zone,
@@ -530,6 +563,8 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       diameter: sup.diameter,
       count: sup.count,
       shape,
+      params: sup.params, // E1
+      ...(sup.catalogId !== undefined ? { supplementId: sup.catalogId } : {}), // E1
       ...(sup.anchor !== undefined ? { anchor: sup.anchor } : {}),
     });
   }
@@ -540,24 +575,25 @@ export function solveElement(input: ElementSolveInput): SolveResult {
   // the layout). Exact for mixed Ø + mixed levels via the area-weighted centroid. Only runs when the
   // addressable channel is active (`longBars` present); a grouped doc keeps the byte-identical
   // count-based As (extras count toward the zone they reinforce — owner decision 2026-07-06). ---
+  const section = { b: geometry.b, h: geometry.h };
+  const nearestFace = (p: { u: number; v: number }): TensionFace => {
+    const dist: Record<TensionFace, number> = {
+      TOP: section.h / 2 - p.v,
+      BOTTOM: p.v + section.h / 2,
+      LEFT: p.u + section.b / 2,
+      RIGHT: section.b / 2 - p.u,
+    };
+    return (["TOP", "BOTTOM", "LEFT", "RIGHT"] as TensionFace[]).reduce((a, b) => (dist[b] < dist[a] ? b : a));
+  };
+  // a standalone extra reinforces the zone whose tension face it sits nearest (region rule); if no
+  // zone owns that face, it falls to the first zone (A1 review confirms the edge conventions).
+  const zoneForExtra = (p: { u: number; v: number }): string | undefined => {
+    const face = nearestFace(p);
+    return (solvedLong.find((z) => z.tensionFace === face) ?? solvedLong[0])?.groupId;
+  };
+
   const longBars = buildLongBars(input, groups, layout.bars, code);
   if (longBars !== undefined && solvedLong.length > 0) {
-    const section = { b: geometry.b, h: geometry.h };
-    const nearestFace = (p: { u: number; v: number }): TensionFace => {
-      const dist: Record<TensionFace, number> = {
-        TOP: section.h / 2 - p.v,
-        BOTTOM: p.v + section.h / 2,
-        LEFT: p.u + section.b / 2,
-        RIGHT: section.b / 2 - p.u,
-      };
-      return (["TOP", "BOTTOM", "LEFT", "RIGHT"] as TensionFace[]).reduce((a, b) => (dist[b] < dist[a] ? b : a));
-    };
-    // a standalone extra reinforces the zone whose tension face it sits nearest (region rule); if no
-    // zone owns that face, it falls to the first zone (A1 review confirms the edge conventions).
-    const zoneForExtra = (p: { u: number; v: number }): string | undefined => {
-      const face = nearestFace(p);
-      return (solvedLong.find((z) => z.tensionFace === face) ?? solvedLong[0])?.groupId;
-    };
     const faceTagOf = (pb: PlacedLongBar): FaceTag =>
       pb.standalone ? nearestFace(pb.position) : layout.bars[pb.barIndex]?.faceTag ?? nearestFace(pb.position);
 
@@ -577,6 +613,43 @@ export function solveElement(input: ElementSolveInput): SolveResult {
         sl.tensionFace,
       );
       zones[i] = sl.geometry; // keep SolveResult.zones in sync with the reconciled geometry
+    }
+  }
+
+  // --- v1.0.4 B3 ([REF-SYS-756c], §5.4): fold anchored ADD-ONS into A2's steel accounting, so "every
+  // steel add feeds §7" holds for supplements too (was: supplements rendered but never counted). An OPEN
+  // add-on that runs along the member — a SKIN bar OR a CORNER-DIAGONAL bar — is real longitudinal steel:
+  // its area joins the As,prov + provided count of the zone whose tension region its anchor sits in (the
+  // owner's extra→zone rule; the beam extra→zone limitation is the standing A1 open call). `d` is left on
+  // the extreme-tension layer (a mid-face skin bar does NOT lower the flexural lever arm — conservative +
+  // honest). A CLOSED confinement tie (interior DIAMANT) crosses the shear plane with 2 legs → extra
+  // Asw/m on every transverse zone, credited at the geometrically-derived orientation factor
+  // cos(inclination) (a 45° diamond ⇒ ~0.707 of a vertical leg). ⚠ the leg-crossing/orientation
+  // convention is a G-BAEL/EC2 sign-off item (flagged) — the value is DERIVED geometry, not an invented
+  // constant. Self-gated to anchored add-ons → a doc without them is byte-identical. ---
+  const aswExtraByZone = new Map<string, number>();
+  for (const sup of input.supplements ?? []) {
+    if (!sup.anchor) continue;
+    if (!sup.shape.closed) {
+      // open longitudinal add-on (skin bar / corner diagonal) → As of the zone it reinforces.
+      const gid = zoneForExtra(sup.anchor);
+      const sl = solvedLong.find((z) => z.groupId === gid);
+      if (!sl) continue;
+      sl.asProv += barArea(sup.diameter) * sup.count;
+      sl.providedCount += sup.count;
+    } else {
+      const orient = Math.abs(Math.cos((sup.anchor.angleDeg * Math.PI) / 180)); // 45° diamond → ~0.707
+      const perLeg = barArea(sup.diameter) * sup.count;
+      for (const tz of solvedTrans) {
+        const extra = (2 * orient * perLeg * 1000) / governingAswSpacing(tz);
+        aswExtraByZone.set(tz.groupId, (aswExtraByZone.get(tz.groupId) ?? 0) + extra);
+      }
+    }
+  }
+  if (aswExtraByZone.size > 0) {
+    for (const tz of solvedTrans) {
+      const extra = aswExtraByZone.get(tz.groupId);
+      if (extra) tz.aswProvExtraPerM = (tz.aswProvExtraPerM ?? 0) + extra;
     }
   }
 
@@ -638,6 +711,60 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       tier: 2,
       symbol: "🟠",
     });
+  }
+
+  // --- v1.0.4 H14/B1 ([REF-SYS], §B1): per-bar splices on the ADDRESSABLE channel. Each spliced bar's
+  // laps feed the seismic lap_in_critical_zone (exact per bar) + a per-zone STAGGER check against the
+  // sourced rule (EC2 §8.7.2: ≤ ½ of a zone's bars lapped within one 0.3·l0 section → PASS, else WARN
+  // — the group-level blanket WARN above never fires for these, since the per-bar splice lives on the
+  // longBar, not the representative group). Grouped-only docs have no addressable splices → inert. ---
+  if (longBars !== undefined) {
+    const lapStationsOf = (sp: SpliceResult, axisStart: number): number[] => {
+      const out: number[] = [];
+      let acc = 0;
+      for (const seg of sp.segments) {
+        acc += seg.cutLength - (seg.lapForward ? sp.lapLength : 0);
+        if (seg.lapForward) out.push(axisStart + acc);
+      }
+      return out;
+    };
+    const byZone = new Map<string, { stations: number[][]; total: number; lapLength: number; anyLap: boolean }>();
+    for (const pb of longBars) {
+      if (pb.removed) continue;
+      const z = byZone.get(pb.groupId) ?? { stations: [], total: 0, lapLength: 0, anyLap: false };
+      z.total++;
+      if (pb.splice && pb.splice.segments.some((s) => s.lapForward)) {
+        const stations = lapStationsOf(pb.splice, pb.axisStart);
+        z.stations.push(stations);
+        z.lapLength = pb.splice.lapLength;
+        z.anyLap = true;
+        for (const at of stations) {
+          lapExtents.push({ groupId: pb.groupId, start: at - pb.splice.lapLength / 2, end: at + pb.splice.lapLength / 2 });
+        }
+      }
+      byZone.set(pb.groupId, z);
+    }
+    for (const [groupId, z] of byZone) {
+      if (!z.anyLap) continue;
+      const st = evaluateLapStagger(z.stations, z.lapLength, z.total);
+      const pct = Math.round(st.worstFraction * 100);
+      validation.push({
+        rule: `lap_stagger:${groupId}`,
+        status: st.pass ? "PASS" : "WARN",
+        value: pct,
+        limit: 50,
+        codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+        message_fr: st.pass
+          ? `Recouvrements décalés (${pct} % par section ≤ 50 %)`
+          : `Recouvrements alignés (${pct} % > 50 % dans 0,3·l0=${Math.round(st.window)} mm) — décaler (quinconce)`,
+        message_en: st.pass
+          ? `Laps staggered (${pct} % per section ≤ 50 %)`
+          : `Laps clustered (${pct} % > 50 % within 0.3·l0=${Math.round(st.window)} mm) — stagger`,
+        affectedGroupIds: [groupId],
+        tier: st.pass ? 3 : 2,
+        symbol: st.pass ? "🟢" : "🟠",
+      });
+    }
   }
 
   // --- seismic overlay (RPS, §7.10): compose on top of the base validation if a regime is set ---

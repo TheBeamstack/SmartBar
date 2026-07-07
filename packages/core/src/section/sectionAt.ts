@@ -353,10 +353,77 @@ function buildDimensions(
   return dims;
 }
 
+/** Roles whose bars define a meaningful section station (the true longitudinal members). */
+const STATION_ROLES = new Set(["PRIMARY_LONGITUDINAL", "DISTRIBUTION"]);
+
+/**
+ * The along-member [lo,hi] axial (world-Y) extent of each longitudinal bar. A bar that is bent,
+ * relevé, axially offset (a right-support chapeau) or an independent extra covers only part of the
+ * member — this is what makes a mid-span cut miss it.
+ */
+function longitudinalRanges(result: SolveResult): { lo: number; hi: number }[] {
+  const ranges: { lo: number; hi: number }[] = [];
+  for (const bar of placeBars(result)) {
+    if (!STATION_ROLES.has(bar.role)) continue;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 1; i < bar.points.length; i += 3) {
+      const y = bar.points[i]!;
+      if (y < lo) lo = y;
+      if (y > hi) hi = y;
+    }
+    if (hi > lo) ranges.push({ lo, hi });
+  }
+  return ranges;
+}
+
+/**
+ * v1.0.4 C1 ([REF-SYS-810], §C1): the station (world-Y) at which a PERPENDICULAR default coupe shows
+ * the MOST longitudinal detailing. Mid-length is the seed; another station wins only when it crosses
+ * strictly MORE bars (so an offset chapeau / relevé / extra that mid-span misses is revealed) — ties
+ * and equal counts keep mid-length. When every bar spans the full member (a plain grouped element),
+ * every station crosses the same set → mid-length → byte-identical to the pre-C1 default.
+ */
+function richestStation(result: SolveResult, length: number): number {
+  const ranges = longitudinalRanges(result);
+  const mid = length / 2;
+  if (ranges.length === 0) return mid;
+  const coverage = (s: number): number => ranges.filter((r) => r.lo - 1e-6 <= s && s <= r.hi + 1e-6).length;
+  const candidates = [mid, ...ranges.map((r) => (r.lo + r.hi) / 2)].sort((a, b) => a - b);
+  let best = mid;
+  let bestCount = coverage(mid);
+  for (const s of candidates) {
+    if (coverage(s) > bestCount) {
+      best = s;
+      bestCount = coverage(s);
+    }
+  }
+  return best;
+}
+
+/**
+ * v1.0.4 C1 ([REF-SYS-810], §C1): meaningful cut stations to offer the user ("auto-suggest a cut
+ * where the detailing is") — mid-length plus the midpoint of every longitudinal bar that covers only
+ * part of the member (a chapeau / relevé / offset extra). Sorted, de-duplicated. A plain full-length
+ * element yields just [mid]. Pure + deterministic.
+ */
+export function suggestCoupeStations(result: SolveResult): number[] {
+  const length = result.member.length;
+  const mid = length / 2;
+  const out = new Set<number>([mid]);
+  for (const r of longitudinalRanges(result)) {
+    if (r.hi - r.lo < 0.98 * length) out.add(Math.round(((r.lo + r.hi) / 2) * 1e3) / 1e3);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
 /**
  * Seed the default representative coupe for a solved element (spec §9.5; §14 item 17): a
- * PERPENDICULAR cut at mid-length (column mid-height / beam mid-span / slab representative strip),
- * looking along +Y. The owner may move, rename, add to, or delete it.
+ * PERPENDICULAR cut looking along +Y. v1.0.4 C1 ([REF-SYS-810]): the station is now STATION-AWARE —
+ * mid-length for a plain member (byte-identical), but shifted to reveal offset/bent/relevé/extra
+ * detailing when the addressable channel places bars a mid-span cut would miss. The owner may move,
+ * rename, add to, or delete it. ⚠ the G-COUPE conventions (near-parallel angle, look-behind depth,
+ * cutting-line/tag style, default station) remain PROVISIONAL pending owner/engineer ratification.
  */
 export function defaultCoupeFor(
   result: SolveResult,
@@ -365,10 +432,12 @@ export function defaultCoupeFor(
   const length = result.member.length;
   const spacing = result.member.transverse[0]?.spacing;
   const tag = conv.tagFor(0);
+  // Station-aware only when the addressable channel is active; grouped docs keep mid-length exactly.
+  const station = result.longBars && result.longBars.length > 0 ? richestStation(result, length) : length / 2;
   return {
     id: tag,
     label_fr: conv.labelFor(tag),
-    origin: { x: 0, y: length / 2, z: 0 },
+    origin: { x: 0, y: station, z: 0 },
     normal: { x: 0, y: 1, z: 0 },
     lookBehind_mm: resolveLookBehind(undefined, spacing, conv),
     isDefault: true,

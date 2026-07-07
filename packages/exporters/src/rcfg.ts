@@ -10,8 +10,9 @@
 import type { RcfgDocument, SectionCut, SolveResult } from "@rebarconfig/core";
 import { defaultCoupeFor } from "@rebarconfig/core";
 
-/** The current writer version; older files are migrated up to it on load. */
-export const CURRENT_RCFG_VERSION = "1.0";
+/** The current writer version; older files are migrated up to it on load. v1.0.4 E1: bumped to 1.2
+ *  when the canonical `reinforcement[]` arrays are populated (additive — the migration is version-only). */
+export const CURRENT_RCFG_VERSION = "1.2";
 
 /**
  * A `.rcfg` document plus the persisted user coupes (§9.5). `section_cuts` is additive; because
@@ -44,10 +45,14 @@ export function parseRcfg(text: string): RcfgProject {
   return migrateRcfg(doc as RcfgProject);
 }
 
-/** A single version step. v1.0 is current → the registry is a no-op today (extension point). */
+/** A single ordered version step. Each is additive + idempotent (preserves every existing field). */
 type Migration = (doc: RcfgProject) => RcfgProject;
 const MIGRATIONS: Record<string, Migration> = {
-  // "0.9": (doc) => ({ ...doc, rcfg_version: "1.0", /* …field moves… */ }),
+  // v1.0.4 E1: 1.0/1.1 → 1.2 is version-only (the canonical `reinforcement[]` arrays became populated;
+  // an older file's empty/partial arrays stay valid — nothing is dropped, forward-compat preserved).
+  "1.0": (doc) => ({ ...doc, rcfg_version: "1.2" }),
+  "1.0.2": (doc) => ({ ...doc, rcfg_version: "1.2" }),
+  "1.1": (doc) => ({ ...doc, rcfg_version: "1.2" }),
 };
 
 /**

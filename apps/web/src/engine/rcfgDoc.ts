@@ -15,7 +15,7 @@
  *  - **Forward-compat (NORMATIVE, §10):** unknown top-level fields / kinds / cut fields survive,
  *    because `parseRcfg`/`serializeRcfg` are JSON in/out and `rcfgToDoc` only *reads* `app_document`.
  */
-import type { RcfgProject } from "@rebarconfig/exporters";
+import { type RcfgProject, reinforcementFromResult, CURRENT_RCFG_VERSION } from "@rebarconfig/exporters";
 import type { SectionCut } from "@rebarconfig/core";
 import {
   type ElementDoc,
@@ -23,6 +23,7 @@ import {
   isColumnDoc,
   isGenericDoc,
 } from "./document";
+import { solveDoc } from "./solveDoc";
 import { migrateDoc } from "./crossTies";
 
 /** The namespaced meta key carrying the verbatim ElementDoc for a lossless SPA reload. */
@@ -61,8 +62,17 @@ export function docToRcfg(
   sectionCuts: SectionCut[],
   meta: { projectName?: string; drawnBy?: string } = {},
 ): RcfgProject {
+  // v1.0.4 E1: populate the canonical §10 `reinforcement[]` from the solved element (element-agnostic).
+  // Robust: a solve failure falls back to empty arrays — the SPA still reloads from `meta.app_document`.
+  let baseGroups: RcfgProject["reinforcement"]["baseGroups"] = [];
+  let supplementalGroups: RcfgProject["reinforcement"]["supplementalGroups"] = [];
+  try {
+    ({ baseGroups, supplementalGroups } = reinforcementFromResult(solveDoc(doc)));
+  } catch {
+    /* keep empty arrays — canonical export best-effort, app_document carry is authoritative for the SPA */
+  }
   return {
-    rcfg_version: "1.0",
+    rcfg_version: CURRENT_RCFG_VERSION,
     region: REGION,
     codePack: codePackId(doc),
     seismic: null, // gravity (no seismic regime picker in the UI yet — D-P4b-5)
@@ -83,10 +93,10 @@ export function docToRcfg(
     reinforcement: {
       schemeId: doc.scheme,
       mode: "guided",
-      // Canonical ReinforcingElement[] population is deferred (P6) — the SPA reloads from
-      // meta.app_document, and §10 forward-compat is preserved by the envelope index signature.
-      baseGroups: [],
-      supplementalGroups: [],
+      // v1.0.4 E1: the canonical §10 arrays are now populated from the solve (was empty, D-P5-7). The
+      // SPA still reloads from meta.app_document (lossless); these serve interchange / a future IFC.
+      baseGroups,
+      supplementalGroups,
     },
     section_cuts: sectionCuts,
     meta: {

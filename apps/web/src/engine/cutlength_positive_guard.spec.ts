@@ -11,12 +11,14 @@ import { baelPack } from "./solveDoc";
 describe("H3 — core rejects a non-positive cutLength", () => {
   const droite = () => loadShape("DROITE");
 
+  // v1.0.4 H19: a degenerate DROITE leg is now caught even earlier (per-leg guard) with its own
+  // message; either rejection satisfies "core refuses a non-positive/degenerate bar".
   it("throws on a zero length", () => {
-    expect(() => generateBarShape(droite(), { L: 0 }, 20, baelPack)).toThrow(/cut length/i);
+    expect(() => generateBarShape(droite(), { L: 0 }, 20, baelPack)).toThrow(/cut length|non-positive leg/i);
   });
 
   it("throws on a negative length", () => {
-    expect(() => generateBarShape(droite(), { L: -50 }, 20, baelPack)).toThrow(/cut length/i);
+    expect(() => generateBarShape(droite(), { L: -50 }, 20, baelPack)).toThrow(/cut length|non-positive leg/i);
   });
 
   it("still generates a valid positive length", () => {

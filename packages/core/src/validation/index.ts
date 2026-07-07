@@ -116,6 +116,12 @@ export interface ColumnZoneInputs {
    * check still uses `tieSpacing` (the representative), only Asw provision uses the governing region.
    */
   aswSpacing?: number;
+  /**
+   * v1.0.4 B3 ([REF-SYS-756c], §5.4): extra provided Asw/m from an anchored confinement add-on (an
+   * interior DIAMANT tie) crossing the shear plane, credited at its derived orientation factor. Added
+   * to the leg-counted provision. Absent → 0 (byte-identical).
+   */
+  aswProvExtraPerM?: number;
   /** optional user-set tie bend mandrel ø (mm); checked vs code min + enclosed-bar clearance. */
   userTieMandrel?: number;
   /**
@@ -374,7 +380,9 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
 
   // 7.5 leg-counted Asw/m vs required (A2: governing region spacing when set)
   if (inputs.aswReqPerM > 0) {
-    const aswProv = aswProvidedPerMetre(inputs.nLegs, inputs.phiT, inputs.aswSpacing ?? inputs.tieSpacing);
+    const aswProv =
+      aswProvidedPerMetre(inputs.nLegs, inputs.phiT, inputs.aswSpacing ?? inputs.tieSpacing) +
+      (inputs.aswProvExtraPerM ?? 0);
     const aswStatus: ValidationStatus =
       aswProv < inputs.aswReqPerM
         ? "FAIL"

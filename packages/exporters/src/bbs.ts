@@ -190,8 +190,27 @@ export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendi
   if (longBars) {
     for (const lb of longBars) {
       if (lb.removed) continue;
-      const cutLength = lb.shape.cutLength;
       const legSig = lb.shape.fiche.legs.map((l) => q(l.length)).join(",");
+      // v1.0.4 H14/B1 ([REF-SYS-770], §B1): a per-bar spliced addressable bar schedules as its SEGMENTS
+      // (each its own cut, one per bar) + a coupler tally — mirroring the grouped splice path — so the
+      // total-length invariant rides in the segment cut lengths. Unspliced → the single whole-bar row.
+      if (lb.splice) {
+        lb.splice.segments.forEach((seg, si) => {
+          raws.push({
+            key: `${lb.shape.archetypeId}|${lb.diameter}|${q(seg.cutLength)}|SEG`,
+            groupId: `${lb.groupId}#${si + 1}`,
+            shapeArchetypeId: lb.shape.archetypeId,
+            role: lb.role,
+            diameter: lb.diameter,
+            count: 1,
+            cutLength: seg.cutLength,
+            fiche: lb.shape.fiche,
+          });
+        });
+        couplerCount += lb.splice.couplerCount;
+        continue;
+      }
+      const cutLength = lb.shape.cutLength;
       raws.push({
         key: `${lb.shape.archetypeId}|${lb.diameter}|${q(cutLength)}|${legSig}`,
         groupId: lb.groupId,

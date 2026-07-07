@@ -16,3 +16,4 @@ export * from "./fiche";
 export * from "./shopDrawing";
 export * from "./pdf";
 export * from "./rcfg";
+export * from "./canonical";

@@ -210,6 +210,14 @@ html, body, #root {
 .faconnage-hooks { display: flex; gap: 8px; }
 .faconnage-hooks .field { flex: 1; }
 .faconnage-error { color: var(--fail); font-size: 12px; margin: 6px 0 0; }
+/* H17: the real reason + the retained last-valid preview when a param edit is invalid. */
+.faconnage-error-detail { color: var(--fail); font-size: 11px; margin: 2px 0 0; font-family: ui-monospace, monospace; opacity: 0.85; }
+.faconnage-lastvalid { font-size: 11px; margin: 6px 0 0; }
+.field-invalid input[aria-invalid="true"] { outline: 1px solid var(--fail); border-color: var(--fail); }
+/* H12/H14: coupled DROITE length + auto-split toggles. */
+.addressable-length { margin: 4px 0; }
+.addressable-couple, .addressable-autosplit { display: flex; align-items: center; gap: 6px; font-size: 12px; margin: 4px 0; }
+.addressable-coupled { display: block; font-size: 12px; opacity: 0.8; padding: 2px 0; }
 .faconnage-sketch { margin-top: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px; }
 .faconnage-sketch svg { display: block; width: 100%; height: auto; }
 .faconnage-cut { color: var(--muted); font-size: 12px; margin-top: 4px; text-align: right; }
