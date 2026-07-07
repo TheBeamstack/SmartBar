@@ -18,8 +18,10 @@ import { mm2 } from "./index";
  * extra bars), the one class of steel the grouped face-based `clear_spacing` never sees. Three pure
  * predicates over the resolved `longBars[]`, tiered per the owner's A-5 ruling:
  *   • `addressable_axial_extent` — a bar whose `[axisStart, axisStart+run]` leaves the member → 🔴 FAIL.
- *   • `addressable_section_bounds` — a standalone extra whose `(u,v)` breaks the cover envelope
- *     (`cover + Ø/2` off a face — i.e. the bar pokes out of / through the concrete cover) → 🔴 FAIL.
+ *   • `addressable_section_bounds` — a FOCUS bar (a standalone extra OR a per-bar Ø override) whose
+ *     `(u,v)` + its real Ø break the cover envelope (`cover + Ø/2` off a face — i.e. the bar pokes out
+ *     of / through the concrete cover) → 🔴 FAIL. A Ø-override enlarges the bar at its grid slot, so an
+ *     oversized override eats the cover the grouped face-based `cover` check (group Ø) never re-measures.
  *   • `addressable_clear_spacing` — a standalone extra closer than the code minimum
  *     `max(k1·Ø, dg+k2, 20)` (k1=1, k2=5 defaults) to a coexisting bar → 🔴 FAIL below the minimum,
  *     🟠 WARN if merely tight (within the pack spacing band).
@@ -87,6 +89,10 @@ export function validateAddressableBars(
   const out: ValidationItem[] = [];
   const live = bars.filter((b) => !b.removed);
   const extras = live.filter((b) => b.standalone);
+  // section-bounds is judged over every FOCUS bar — a standalone extra (custom u,v) OR a per-bar Ø
+  // override (custom Ø at its grid slot) — since both can breach the cover envelope the group-Ø
+  // `cover` check never re-measures (A2 fold, Finding-2 fix).
+  const bounded = live.filter((b) => b.focus);
   const hasAddressable =
     extras.length > 0 || live.some((b) => Math.abs(b.axisStart) > TOL);
 
@@ -122,10 +128,10 @@ export function validateAddressableBars(
     );
   }
 
-  // --- section bounds: an extra bar's (u,v) must stay inside the cover envelope ---
+  // --- section bounds: a focus bar's (u,v) + its real Ø must stay inside the cover envelope ---
   let worstBreach = 0;
   let breachBar: AddressableBarView | undefined;
-  for (const e of extras) {
+  for (const e of bounded) {
     const envU = ctx.b / 2 - ctx.cover - e.diameter / 2;
     const envV = ctx.h / 2 - ctx.cover - e.diameter / 2;
     const breach = Math.max(Math.abs(e.position.u) - envU, Math.abs(e.position.v) - envV);
@@ -134,9 +140,9 @@ export function validateAddressableBars(
       breachBar = e;
     }
   }
-  if (extras.length > 0) {
+  if (bounded.length > 0) {
     const fail = breachBar !== undefined && worstBreach > TOL;
-    const ref = breachBar ?? extras[0]!;
+    const ref = breachBar ?? bounded[0]!;
     const envU = Math.round(ctx.b / 2 - ctx.cover - ref.diameter / 2);
     const envV = Math.round(ctx.h / 2 - ctx.cover - ref.diameter / 2);
     out.push(

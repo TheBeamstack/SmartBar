@@ -107,8 +107,9 @@ export function makeEc2Pack(): Ec2Pack {
     const reduce = Math.min(1, Math.max(0, args.asReqOverProv ?? 1));
     const sigmaSd = fyd(args.material) * reduce; // §7.7.1 As,req/As,prov stress reduction
     const lbrqd = lbRqd(args.diameter, args.material, goodBond, sigmaSd);
-    // α₁..α₅ default to 1.0 (disclosed); l_bd = α·l_b,rqd ≥ l_b,min
-    return Math.max(lbrqd, lbMin(lbRqd(args.diameter, args.material, goodBond, fyd(args.material)), args.diameter));
+    // α₁..α₅ default to 1.0 (disclosed); B2 (§8.4.4): a hook/bend gives α₁ ≈ 0.7. l_bd = α·l_b,rqd ≥ l_b,min
+    const alpha1 = args.hooked ? constants.anchorage.alpha1Hooked : 1;
+    return Math.max(alpha1 * lbrqd, lbMin(lbRqd(args.diameter, args.material, goodBond, fyd(args.material)), args.diameter));
   };
 
   const l0 = (args: LapArgs): number => {

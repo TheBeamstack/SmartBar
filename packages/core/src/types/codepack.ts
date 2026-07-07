@@ -44,6 +44,12 @@ export interface AnchorageArgs {
   goodBond?: boolean;
   /** As,req / As,prov stress-reduction ratio (≤ 1), §7.7. */
   asReqOverProv?: number;
+  /**
+   * v1.0.4 B2: true = the bar is anchored with a standard hook / bend (the norm for an end-support
+   * bottom bar), which reduces the required anchorage length (BAEL hookedFactor ≈ 0.4·l_s / EC2
+   * α₁ ≈ 0.7·l_b,rqd). Absent/false → straight anchorage (unchanged; every existing caller).
+   */
+  hooked?: boolean;
 }
 
 export interface LapArgs extends AnchorageArgs {

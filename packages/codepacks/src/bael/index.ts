@@ -84,8 +84,10 @@ export function makeBaelPack(): BaelPack {
   const lbd = (args: AnchorageArgs): number => {
     let ls = lsStraight(args.diameter, args.material);
     if (args.goodBond === false) ls /= constants.anchorage.poorBondFactor; // poor bond → longer
+    // B2 (§A.6.1.253): a standard hook/bend reduces the required anchorage to hookedFactor·l_s.
+    const hookFactor = args.hooked ? constants.anchorage.hookedFactor : 1;
     const reduce = args.asReqOverProv ?? 1;
-    const reduced = ls * Math.min(1, Math.max(0, reduce));
+    const reduced = ls * hookFactor * Math.min(1, Math.max(0, reduce));
     return Math.max(reduced, lbMin(ls, args.diameter));
   };
 

@@ -42,6 +42,7 @@ import {
   getValidationProfile,
   type SolvedLongZone,
   type SolvedTransZone,
+  type SupportInput,
 } from "../validation/profiles";
 
 export interface SolvedGroup {
@@ -54,6 +55,9 @@ export interface SolvedGroup {
   shape: BarShapeResult;
   /** v1.0.3 G4 ([REF-SYS-770]): lap/coupler segmentation of this group's bars (absent → unspliced). */
   splice?: SpliceResult;
+  /** v1.0.4 B3 ([REF-SYS-756c]): section-frame placement for an anchored supplement (skin/diagonal/
+   *  diamond) — placeBars renders it here instead of centred at the origin. Absent → centred. */
+  anchor?: { u: number; v: number; angleDeg: number };
 }
 
 export interface SolveResult {
@@ -104,6 +108,13 @@ export interface ElementLongInput {
   splices?: Splice[];
   /** v1.0.3 G4: auto-split when the fabricated run exceeds the stock length (default 12 m). */
   autoSplice?: boolean;
+  /**
+   * v1.0.4 B2 ([REF-SYS-260]): axial start station (mm) for THIS zone's bars along the member — so a
+   * beam's right-support chapeau sits over its support (`L − extension`) rather than at station 0. Read
+   * by the addressable channel (`buildLongBars`); a zone without it defaults to 0 (byte-identical). The
+   * grouped fast path ignores it (representative placement — unchanged).
+   */
+  axisStart?: number;
 }
 
 /**
@@ -202,6 +213,12 @@ export interface ElementSupplementInput {
   count: number;
   /** catalog id (e.g. "SUPP_EPINGLE_CROSSTIE") — used to satisfy required seismic confinement. */
   catalogId?: string;
+  /**
+   * v1.0.4 B3 ([REF-SYS-756c]): resolved section-frame placement (skin bar on a side face, corner
+   * diagonal, interior diamond) so the add-on renders in its TRUE position + orientation instead of
+   * centred at the origin. Absent → centred (byte-identical to the legacy presence render).
+   */
+  anchor?: { u: number; v: number; angleDeg: number };
 }
 
 /**
@@ -246,6 +263,12 @@ export interface ElementSolveInput {
   /** v1.0.3 G2: independent addressable bars / extra section levels (absent → none). */
   extraBars?: ExtraLongBar[];
   supplements?: ElementSupplementInput[];
+  /**
+   * v1.0.4 B2: element supports (a beam's V1/V2) with each support's provided bottom-bar anchorage +
+   * bearing width, for the per-support §7.7 anchorage check. Consumed only by profiles that read it
+   * (BAEL_BEAM); absent for supportless elements (columns/slabs) → no per-support check.
+   */
+  supports?: SupportInput[];
   /** optional RPS seismic overlay (§7.10), composed on top of the base validation. */
   seismic?: SeismicElementInput;
   code: ExtendedCodePack;
@@ -271,6 +294,19 @@ function runExtent(centerline3D: number[]): number {
     if (x > max) max = x;
   }
   return max - min;
+}
+
+/**
+ * v1.0.4 (A2 completeness): the face(s) a placed rect bar belongs to, matching the layout's
+ * `faceCounts` convention where a CORNER bar is counted on BOTH its edges. Used to reduce the
+ * authoritative `faceCounts` by removed bars so `face_min_bars` reflects removals exactly (a
+ * geometry recompute would diverge from the declared per-face counts — corners are shared).
+ */
+function faceMembership(bp: BarPosition): TensionFace[] {
+  if (bp.isCorner) {
+    return [bp.position.v > 0 ? "TOP" : "BOTTOM", bp.position.u > 0 ? "RIGHT" : "LEFT"];
+  }
+  return [bp.faceTag as TensionFace];
 }
 
 /**
@@ -324,6 +360,9 @@ function buildLongBars(
     inc(fb.groupId); return fb;
   };
   const ovByIndex = new Map<number, LongBarOverride>(overrides.map((o) => [o.barIndex, o]));
+  // v1.0.4 B2: per-zone axial start (a beam's right-support chapeau over its support = `L − extension`).
+  const zoneAxisStart = new Map<string, number>();
+  for (const lz of input.longitudinal) if (lz.axisStart !== undefined) zoneAxisStart.set(lz.groupId, lz.axisStart);
 
   const out: PlacedLongBar[] = [];
   for (let i = 0; i < layoutBars.length; i++) {
@@ -332,12 +371,12 @@ function buildLongBars(
     const ov = ovByIndex.get(i);
     let shape = g.shape;
     let diameter = g.diameter;
-    let axisStart = 0;
+    let axisStart = zoneAxisStart.get(g.groupId) ?? 0;
     let removed = false;
     if (ov) {
       removed = ov.removed === true;
       diameter = ov.diameter ?? g.diameter;
-      axisStart = ov.axisStart ?? 0;
+      axisStart = ov.axisStart ?? axisStart;
       if (ov.shape) {
         shape = generateShape(ov.shape, ov.params ?? {}, diameter, code, ov.hooks ? { hooks: ov.hooks } : undefined);
       }
@@ -354,9 +393,10 @@ function buildLongBars(
     const shortfall = g.count - (placed.get(g.groupId) ?? 0);
     if (shortfall <= 0) continue;
     const reps = lz.faces.flatMap((f) => repPosByFace.get(f) ?? []);
+    const zAxis = lz.axisStart ?? 0; // B2: place the under-seated zone (e.g. right chapeau) at its support
     for (let k = 0; k < shortfall; k++) {
       const pos = reps.length > 0 ? reps[k % reps.length]! : { u: 0, v: 0 };
-      out.push({ barIndex: nextIndex++, groupId: g.groupId, role: g.role, position: pos, shape: g.shape, diameter: g.diameter, axisStart: 0, removed: false, standalone: false });
+      out.push({ barIndex: nextIndex++, groupId: g.groupId, role: g.role, position: pos, shape: g.shape, diameter: g.diameter, axisStart: zAxis, removed: false, standalone: false });
     }
   }
   extra.forEach((eb) => {
@@ -481,7 +521,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     });
   }
 
-  // --- supplemental groups (already positioned by the placement resolver) ---
+  // --- supplemental groups (positioned by the placement resolver; B3: carry the section anchor) ---
   for (const sup of input.supplements ?? []) {
     const shape = generateShape(sup.shape, sup.params, sup.diameter, code);
     groups.push({
@@ -490,6 +530,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       diameter: sup.diameter,
       count: sup.count,
       shape,
+      ...(sup.anchor !== undefined ? { anchor: sup.anchor } : {}),
     });
   }
 
@@ -539,6 +580,27 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     }
   }
 
+  // --- v1.0.4 (A2 completeness fix): the REAL placed bar count + per-face counts drive min_bars /
+  // face_min_bars, so a removal that drops the count below the code minimum (or empties a face) is
+  // caught — was: the nominal `layout.count`, which let a below-minimum column export green. Only
+  // computed when the addressable channel is active (`longBars`); grouped docs pass `undefined` →
+  // the validator falls back to the layout counts → byte-identical. ---
+  let placedCount: number | undefined;
+  let placedUnderfilledFaces: TensionFace[] | undefined;
+  if (longBars !== undefined) {
+    placedCount = longBars.filter((pb) => !pb.removed).length;
+    if (layout.faceCounts) {
+      const real: Record<string, number> = { ...layout.faceCounts };
+      for (const pb of longBars) {
+        if (!pb.removed || pb.standalone) continue;
+        const bp = layout.bars[pb.barIndex];
+        if (!bp) continue;
+        for (const f of faceMembership(bp)) real[f] = (real[f] ?? 0) - 1;
+      }
+      placedUnderfilledFaces = FACES.filter((f) => (layout.faceCounts![f] ?? 0) > 0 && (real[f] ?? 0) < 2);
+    }
+  }
+
   // --- validation via the profile registry (no element branching) ---
   const validate = getValidationProfile(input.profile);
   const validation = validate({
@@ -552,6 +614,9 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     layout,
     longitudinal: solvedLong,
     transverse: solvedTrans,
+    ...(input.supports !== undefined ? { supports: input.supports } : {}),
+    ...(placedCount !== undefined ? { placedCount } : {}),
+    ...(placedUnderfilledFaces !== undefined ? { placedUnderfilledFaces } : {}),
     phiLMax: phiLMax || input.phiLInset,
     code,
   });

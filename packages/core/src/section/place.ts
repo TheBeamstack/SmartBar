@@ -244,11 +244,21 @@ export function placeBars(result: SolveResult): PlacedBar[] {
   for (const g of groups) {
     if (LONG_ROLES.has(g.role) || g.role === "TRANSVERSE" || placedTransverse.has(g.groupId)) continue;
     if (g.shape.archetypeId === "EPINGLE") continue; // anchored-only (G5); never render centred
+    // v1.0.4 B3 ([REF-SYS-756c]): render an anchored supplement in its TRUE section position — an
+    // OPEN shape (skin bar, corner diagonal) runs longitudinally at its (u,v); a CLOSED loop (diamond
+    // tie) is placed at its anchor. No anchor → the legacy centred presence render (byte-identical).
+    const anchor = g.anchor;
+    let points: number[];
+    if (anchor && !g.shape.closed) {
+      points = placeLongitudinal(g.shape.centerline3D, anchor.u, anchor.v, 0);
+    } else {
+      points = placeLoop(g.shape.centerline3D, length / 2, anchor);
+    }
     out.push({
       groupId: g.groupId,
       diameter: g.diameter,
       role: g.role,
-      points: placeLoop(g.shape.centerline3D, length / 2),
+      points,
       closed: g.shape.closed,
     });
   }

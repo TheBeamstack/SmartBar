@@ -16,7 +16,7 @@ import type {
   MaterialContext,
 } from "../types/codepack";
 import type { RectLayoutResult } from "../layout/rect";
-import type { ZoneGeometry } from "../types/layout";
+import type { ZoneGeometry, FaceTag } from "../types/layout";
 
 /** Optional pack surface the engine reads when present (still fully pack-agnostic). */
 export interface CodePackExtras {
@@ -121,10 +121,20 @@ export interface ColumnZoneInputs {
   /**
    * v1.0.4 A2: exact provided steel area (mm²) = Σ(π/4)·Øᵢ² over the REAL placed set (overrides +
    * removed + assigned extras), replacing the count×area shortcut for `provided_area`/`ratio_limits`.
-   * Absent → the grouped `N·barArea(phiL)` path (byte-identical to pre-A2). `min_bars` still counts
-   * the layout bars.
+   * Absent → the grouped `N·barArea(phiL)` path (byte-identical to pre-A2).
    */
   asProvExact?: number;
+  /**
+   * v1.0.4 (A2 completeness): REAL placed longitudinal bar count over the addressable channel
+   * (removals excluded, extras included). Drives `min_bars` so removing bars below the code minimum
+   * FAILs (and blocks export). Absent → the nominal `layout.count` (grouped docs, byte-identical).
+   */
+  placedCount?: number;
+  /**
+   * v1.0.4 (A2 completeness): faces left with < 2 bars after removals, replacing
+   * `layout.underfilledFaces` for `face_min_bars`. Absent → the layout value (byte-identical).
+   */
+  placedUnderfilledFaces?: FaceTag[];
 }
 
 export interface ColumnValidationContext {
@@ -150,6 +160,10 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
   const out: ValidationItem[] = [];
   const Ac = geometry.b * geometry.h;
   const N = layout.count;
+  // A2 completeness: min_bars / face_min judge the REAL placed set when the addressable channel is
+  // active (removals), else the nominal layout (byte-identical).
+  const nBars = inputs.placedCount ?? N;
+  const underfilled = inputs.placedUnderfilledFaces ?? layout.underfilledFaces;
   const asProv = inputs.asProvExact ?? N * barArea(inputs.phiL);
   const bands = code.warnBands ?? { spacing: 0.05, anchorage: 0.05, cover: 0.1 };
 
@@ -175,25 +189,25 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
   out.push(
     item(
       "min_bars",
-      N >= 4 ? "PASS" : "FAIL",
-      N,
+      nBars >= 4 ? "PASS" : "FAIL",
+      nBars,
       4,
       ref,
-      N >= 4 ? `Nombre de barres ${N} ≥ 4` : `Nombre de barres ${N} < 4 (minimum poteau)`,
-      N >= 4 ? `Bar count ${N} ≥ 4` : `Bar count ${N} < 4 (column minimum)`,
+      nBars >= 4 ? `Nombre de barres ${nBars} ≥ 4` : `Nombre de barres ${nBars} < 4 (minimum poteau)`,
+      nBars >= 4 ? `Bar count ${nBars} ≥ 4` : `Bar count ${nBars} < 4 (column minimum)`,
       [inputs.longGroupId],
     ),
   );
-  if (layout.underfilledFaces.length > 0) {
+  if (underfilled.length > 0) {
     out.push(
       item(
         "face_min_bars",
         "FAIL",
-        layout.underfilledFaces.join(","),
+        underfilled.join(","),
         2,
         ref,
-        `Face(s) ${layout.underfilledFaces.join(", ")} avec < 2 barres (impossible)`,
-        `Face(s) ${layout.underfilledFaces.join(", ")} have < 2 bars (impossible)`,
+        `Face(s) ${underfilled.join(", ")} avec < 2 barres (impossible)`,
+        `Face(s) ${underfilled.join(", ")} have < 2 bars (impossible)`,
         [inputs.longGroupId],
       ),
     );

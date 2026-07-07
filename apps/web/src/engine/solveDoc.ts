@@ -484,6 +484,10 @@ function beamInput(
       d: dApprox,
       goodBond: false, // top bars over a support cast poor-bond (§7.7)
     });
+    // B2 ([REF-SYS-260]): place each chapeau over ITS support — left starts at 0, right ends at L
+    // (axisStart = L − its own length). The addressable channel honours this; the grouped fast path
+    // renders it representatively (unchanged) when a beam has no relevés/overrides.
+    const axisStart = side === "right" ? Math.max(0, doc.geometry.L - cur.extension) : 0;
     longitudinal.push({
       zone: `As_top_support_${side}`,
       groupId: `C_${side}`,
@@ -495,6 +499,7 @@ function beamInput(
       asReq: sup.chapeau.asReq,
       tensionFace: "TOP",
       providedCount: n,
+      axisStart,
     });
   };
   if (supL.chapeau.enabled) pushChapeau(supL, "left", nChapeauL);
@@ -530,6 +535,11 @@ function beamInput(
     ],
     ...(longOverrides.length > 0 ? { longOverrides } : {}),
     ...(extraBars.length > 0 ? { extraBars } : {}),
+    // B2 ([REF-SYS-260]): the two supports feed the per-support §7.7 anchorage check (each its own l_bd).
+    supports: [
+      { id: "left", anchorage: supL.anchorage, width: supL.width },
+      { id: "right", anchorage: supR.anchorage, width: supR.width },
+    ],
     ...seismicBlock(
       doc.seismic,
       { kind: "BEAM", length: doc.geometry.L, bMin: doc.geometry.b, hSectionMax: doc.geometry.h },
@@ -852,6 +862,8 @@ function resolveDocSupplements(
       params: supplementShapeParams(man.shape, doc, r.params.span),
       diameter: r.diameter,
       count: 1,
+      // B3: thread the resolved section placement so the add-on renders anchored, not centred.
+      ...(r.position !== undefined ? { anchor: { u: r.position.u, v: r.position.v, angleDeg: r.angleDeg ?? 0 } } : {}),
     });
   }
   return { inputs, warnings };

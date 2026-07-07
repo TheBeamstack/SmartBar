@@ -73,11 +73,53 @@ describe("H8 — addressable-bar validity", () => {
   });
 
   it("legacy-safe: a benign Ø-only override on a spacious grid never FAILs/WARNs", () => {
-    // A2 fold: a Ø override is now spacing-checked (it can crowd its grid neighbour), but the wide
-    // reference column stays comfortably above the minimum → the only addressable item is a PASS.
+    // A2 fold: a Ø override is now spacing- AND section-bounds-checked (its enlarged Ø can crowd a
+    // neighbour or eat the cover), but the modest Ø25 on the wide reference column stays within both
+    // → the only addressable items are PASSes.
     const r = solveElement(column({ overrides: [{ barIndex: 0, diameter: 25 }] }));
     expect(r.longBars).toBeDefined(); // per-bar channel active
     expect(addressableRules(r).every((v) => v.status === "PASS")).toBe(true);
-    expect(addressableRules(r).some((v) => v.rule === "addressable_section_bounds")).toBe(false); // no extras
+    expect(rule(r, "addressable_section_bounds")?.status).toBe("PASS"); // override IS bounds-checked now
+  });
+
+  it("Finding-2 fix: an OVERSIZED Ø override that eats the cover FAILs section_bounds + blocks export", () => {
+    // barIndex 0 is the top corner at (−102, 252) (group Ø20, cover 30). Override to Ø40 → the bar
+    // surface passes the cover line (envU = 150−30−20 = 100 < |−102|) → 🔴, previously unflagged
+    // (the grouped `cover` check reads the group Ø, and section_bounds only saw standalone extras).
+    const r = solveElement(column({ overrides: [{ barIndex: 0, diameter: 40 }] }));
+    const item = rule(r, "addressable_section_bounds");
+    expect(item?.status).toBe("FAIL");
+    expect(item?.tier).toBe(1);
+    expect(r.status).toBe("FAIL"); // export-lock gate
+  });
+});
+
+describe("A2 completeness — min_bars / face_min over the real placed set (Finding-1 fix)", () => {
+  it("removing bars below the column minimum FAILs min_bars (was: PASS on the nominal layout)", () => {
+    // the reference column has 6 bars; remove 3 → 3 real bars < 4. Before the fix min_bars reported
+    // the layout count (6, PASS) → an un-buildable 3-bar column exported green.
+    const overrides = [0, 1, 2].map((barIndex) => ({ barIndex, removed: true }));
+    const r = solveElement(column({ overrides }));
+    const mb = rule(r, "min_bars");
+    expect(mb?.value).toBe(3); // real placed count, not the layout's 6
+    expect(mb?.status).toBe("FAIL");
+    expect(r.status).toBe("FAIL"); // export blocked
+  });
+
+  it("removing a corner bar drops its face below 2 → face_min_bars FAILs (min_bars still ≥4)", () => {
+    // barIndex 2 = top-right corner; removing it leaves the RIGHT face with 1 bar. Total stays 5 (≥4),
+    // so this is isolated to the per-face check.
+    const r = solveElement(column({ overrides: [{ barIndex: 2, removed: true }] }));
+    expect(rule(r, "min_bars")?.value).toBe(5);
+    const fm = rule(r, "face_min_bars");
+    expect(fm?.status).toBe("FAIL");
+    expect(String(fm?.value)).toContain("RIGHT");
+  });
+
+  it("legacy no-op: a grouped column's min_bars / face_min are byte-identical (layout counts)", () => {
+    const r = solveElement(column());
+    expect(r.longBars).toBeUndefined();
+    expect(rule(r, "min_bars")?.value).toBe(6); // nominal layout count
+    expect(rule(r, "face_min_bars")).toBeUndefined(); // symmetric layout → not flagged
   });
 });

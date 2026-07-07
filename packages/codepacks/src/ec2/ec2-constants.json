@@ -18,6 +18,7 @@
     "eta2_large_phi": 0.92,
     "largePhiThreshold_mm": 32,
     "alpha6Over50pct": 1.5,
+    "alpha1Hooked": 0.7,
     "lbMinFactorOfLbrqd": 0.3,
     "lbMinPhiMultiple": 10,
     "lbMinFloor_mm": 100

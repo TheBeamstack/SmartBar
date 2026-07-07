@@ -228,6 +228,11 @@ export interface ResolvedSupplement {
   params: Record<string, number>;
   /** centroid of the add-on in the section frame (mm), when point-placed. */
   position?: PointUV;
+  /**
+   * v1.0.4 B3 ([REF-SYS-756c], §5.4): in-plane orientation of the add-on (degrees) — a corner
+   * diagonal along its bar pair, an interior diamond tie at 45°, a skin bar at 0°. Absent → 0.
+   */
+  angleDeg?: number;
   /** PASS while every referenced bar exists; WARN when a base bar was deleted/moved out. */
   status: "PASS" | "WARN";
   /** human cue when a rebind is needed (§5.5). */
@@ -300,8 +305,48 @@ export function resolveSupplement(
     };
   }
 
-  // generic / point placements (DIAGONALE, DIAMANT, SKIN, …) resolve from explicit params
-  return { ...base, params: { ...(binding.params ?? {}) }, status: "PASS" };
+  // v1.0.4 B3 ([REF-SYS-756c], §5.4): anchored section placement for the remaining archetypes —
+  // each resolves a REAL position (+ orientation) from the base layout instead of rendering centred
+  // at the origin (the legacy "centred-for-presence", D-P3-6). The bar envelope (outermost bar u/v)
+  // gives the face lines; corners come from the bound pair.
+  const params = { ...(binding.params ?? {}) };
+  let uMax = 0;
+  let vMax = 0;
+  for (const bp of baseBars) {
+    uMax = Math.max(uMax, Math.abs(bp.position.u));
+    vMax = Math.max(vMax, Math.abs(bp.position.v));
+  }
+
+  if (rule === "CORNER_DIAGONAL") {
+    // a diagonal bar spanning the two bound corner bars: sit on their midpoint, oriented A→B.
+    const [i, j] = binding.barIndices;
+    const placed = resolveBarPairPlacement(baseBars, i ?? -1, j ?? -1);
+    if (!placed.valid) {
+      return {
+        ...base,
+        params: {},
+        status: "WARN",
+        message_fr: `${supplement.id}: barre de référence supprimée — re-lier ou retirer la diagonale`,
+        message_en: `${supplement.id}: referenced bar deleted — rebind or remove the diagonal`,
+        ...(placed.brokenIndices ? { brokenIndices: placed.brokenIndices } : {}),
+      };
+    }
+    return { ...base, params, position: placed.position!, angleDeg: placed.angleDeg ?? 0, status: "PASS" };
+  }
+
+  if (rule === "INTERIOR_DIAMOND") {
+    // a diamond confinement tie: centred but rotated 45° (its corners engage the mid-face bars).
+    return { ...base, params, position: { u: 0, v: 0 }, angleDeg: 45, status: "PASS" };
+  }
+
+  if (rule === "SIDE_FACES") {
+    // a skin/side bar on a lateral face at mid-height (the representative bar; multi-bar fanout per
+    // `count_per_side` + the opposite face rides the same anchor seam — B3 follow-up).
+    return { ...base, params, position: { u: uMax, v: 0 }, angleDeg: 0, status: "PASS" };
+  }
+
+  // generic / explicit-param placements
+  return { ...base, params, status: "PASS" };
 }
 
 // ---------------------------------------------------------------------------

@@ -112,6 +112,19 @@ export function governingAswSpacing(tz: SolvedTransZone): number {
     : tz.spacing;
 }
 
+/**
+ * v1.0.4 B2 — one element support (a beam's V1/V2) as fed to the validator: the provided bottom-bar
+ * anchorage length into the support + its bearing width, for the per-support §7.7 anchorage check.
+ */
+export interface SupportInput {
+  /** support identity (e.g. "left" / "right" = V1 / V2). */
+  id: string;
+  /** provided bottom-bar anchorage length into this support (mm). */
+  anchorage: number;
+  /** support bearing width (mm). */
+  width: number;
+}
+
 export interface ProfileContext {
   element: string;
   /** section family (RECT default; CIRCULAR / SLAB added in P4a). */
@@ -132,6 +145,15 @@ export interface ProfileContext {
   stair?: StairContext;
   longitudinal: SolvedLongZone[];
   transverse: SolvedTransZone[];
+  /** v1.0.4 B2 — element supports (beam V1/V2) for the per-support anchorage check; absent → none. */
+  supports?: SupportInput[];
+  /**
+   * v1.0.4 (A2 completeness) — the REAL placed bar count / underfilled faces over the addressable
+   * channel (removals excluded), so min_bars / face_min reflect removals. Absent → the validator
+   * uses the nominal layout counts (grouped docs, byte-identical).
+   */
+  placedCount?: number;
+  placedUnderfilledFaces?: TensionFace[];
   /** largest longitudinal ø present (tie-ø rule). */
   phiLMax: number;
   code: ExtendedCodePack;
@@ -171,6 +193,9 @@ export function validateColumnProfile(ctx: ProfileContext): ValidationItem[] {
       asProvExact: lz.asProv,
       // A2: Asw checked on the governing (widest) tie region (uniform set → tieSpacing, identical).
       aswSpacing: governingAswSpacing(tz),
+      // A2 completeness: real placed bar count + underfilled faces (removals). Absent → layout counts.
+      ...(ctx.placedCount !== undefined ? { placedCount: ctx.placedCount } : {}),
+      ...(ctx.placedUnderfilledFaces !== undefined ? { placedUnderfilledFaces: ctx.placedUnderfilledFaces } : {}),
     },
     code: ctx.code,
   });
@@ -390,6 +415,41 @@ export function validateBeamProfile(ctx: ProfileContext): ValidationItem[] {
         [flexZone.groupId],
       ),
     );
+  }
+
+  // --- v1.0.4 B2 (§7.7): per-support bottom-bar anchorage LENGTH. Each support (V1/V2) is checked
+  // independently: the provided anchorage into the support must reach the required design anchorage
+  // for the span (tension) bars — a *hooked* l_bd (an end-support bottom bar is anchored with a
+  // standard hook), reduced by As,req/As,prov. Asymmetric supports → two distinct verdicts; a
+  // symmetric beam gives two identical PASSes (the default hooked anchorage clears the requirement). ---
+  if (flexZone && ctx.supports && ctx.supports.length > 0) {
+    const asRatio = flexZone.asProv > 0 ? Math.min(1, flexZone.asReq / flexZone.asProv) : 1;
+    const needA = code.lbd({
+      diameter: flexZone.diameter,
+      material: ctx.material,
+      goodBond: true,
+      hooked: true,
+      asReqOverProv: asRatio,
+    });
+    for (const sup of ctx.supports) {
+      const ok = sup.anchorage >= needA;
+      out.push(
+        item(
+          `support_anchorage:${sup.id}`,
+          ok ? "PASS" : "WARN",
+          round(sup.anchorage),
+          round(needA),
+          ref,
+          ok
+            ? `Ancrage barres inf. sur appui ${sup.id} ${round(sup.anchorage)} mm ≥ l_bd ${round(needA)} mm`
+            : `Ancrage barres inf. sur appui ${sup.id} ${round(sup.anchorage)} mm < l_bd ${round(needA)} mm — prolonger / crocheter`,
+          ok
+            ? `Bottom-bar anchorage at support ${sup.id} ${round(sup.anchorage)} mm ≥ l_bd ${round(needA)} mm`
+            : `Bottom-bar anchorage at support ${sup.id} ${round(sup.anchorage)} mm < l_bd ${round(needA)} mm — extend / hook`,
+          [flexZone.groupId],
+        ),
+      );
+    }
   }
 
   return out;
