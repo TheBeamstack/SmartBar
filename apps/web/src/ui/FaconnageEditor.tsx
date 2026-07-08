@@ -110,11 +110,17 @@ export function FaconnageEditor({ shapeId, diameter, faconnage, memberLength, on
 
   const setHook = (end: "start" | "end", c: HookChoice) => {
     const nextHooks = { ...hooks, [end]: c };
+    // H10 ([v1.0.4]): a hook edit must NEVER be dropped because a *parameter* is mid-invalid. Validate
+    // and commit the hook against the last-VALID params (`committed`), not the in-progress `params`
+    // buffer — otherwise, while the user is still fixing a bad number, `tryGen(params, …)` throws and
+    // the hook change is silently swallowed. `committed` equals `params` whenever the buffer is valid
+    // (editParam commits on every valid edit), so this only changes behaviour during an invalid edit:
+    // the hook lands on the last-good shape while the invalid param stays in the field for the user.
     try {
-      tryGen(params, nextHooks);
-      onChange({ faconnage: { ...faconnage, shapeParams: params, hooks: nextHooks } });
+      tryGen(committed, nextHooks);
+      onChange({ faconnage: { ...faconnage, shapeParams: committed, hooks: nextHooks } });
     } catch {
-      /* unreachable for hook-only changes, but guard anyway */
+      /* even the last-valid shape can't take this hook (unreachable in practice) — keep last good */
     }
   };
 

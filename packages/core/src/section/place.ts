@@ -16,8 +16,10 @@
  *   - Supplements are surfaced for presence (centred at mid-length) — precise placement is a
  *     later pass (D-P3-6), and the coupe engine treats them like transverse loops.
  *
- * Representative note: slab-family DISTRIBUTION bars are placed along `+Y` like the main steel
- * (per-metre representative model, D-P4a-5) — their true cross-direction run is a P6 refinement.
+ * Slab-family DISTRIBUTION bars (v1.0.4 C1, [REF-SYS-810]): a linear répartition bar flagged
+ * `across` runs ACROSS the width (world-X) at its span station — its true cross-direction geometry,
+ * so the transverse coupe reads the main bars as dots + the distribution layer as a line. (A welded
+ * topping MESH keeps the per-metre representative panel.) Provided steel stays per-metre (unchanged).
  */
 import type { SolveResult, SolvedGroup } from "../pipeline/element";
 import type { TransverseAnchor, TransverseRegion } from "../types/layout";
@@ -195,8 +197,13 @@ export function placeBars(result: SolveResult): PlacedBar[] {
       const g = byZone.get(bp.faceTag) ?? (bp.faceTag === "TOP" ? topLong : mainLong) ?? mainLong;
       if (!g) continue;
       const cl = g.shape.centerline3D;
-      // honour the group's bent shape; fall back to a straight full-length run if it has no polyline.
-      const points = cl.length >= 6
+      // v1.0.4 C1 ([REF-SYS-810]): a DISTRIBUTION bar flagged `across` runs the full section width
+      // (world-X) at its span station `axial` and depth `v` — perpendicular to the main steel, so the
+      // transverse coupe shows it as a true line across the width. Otherwise honour the group's bent
+      // shape; fall back to a straight full-length run if it has no polyline.
+      const points = bp.across
+        ? [-(member.b ?? 0) / 2, bp.axial ?? 0, bp.position.v, (member.b ?? 0) / 2, bp.axial ?? 0, bp.position.v]
+        : cl.length >= 6
         ? placeLongitudinal(cl, bp.position.u, bp.position.v, 0)
         : [bp.position.u, 0, bp.position.v, bp.position.u, length, bp.position.v];
       out.push({

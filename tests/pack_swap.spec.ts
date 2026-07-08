@@ -48,10 +48,12 @@ describe("pack swap — BAEL vs EC2, identical pipeline", () => {
     expect(find(bael, "ratio_limits").limit).not.toBe(find(ec2, "ratio_limits").limit);
   });
 
-  it("cover requirement differs (BAEL EXTERIOR 30 vs EC2 EXTERIOR 25+Δ=35) → opposite status at c=30", () => {
+  it("cover requirement differs (BAEL EXTERIOR 30 vs EC2 EXTERIOR 25+Δ=35) → differing status at c=30", () => {
     expect(Number(find(bael, "cover").limit)).toBeCloseTo(30, 6);
     expect(Number(find(ec2, "cover").limit)).toBeCloseTo(35, 6);
-    expect(find(bael, "cover").status).toBe("PASS");
+    // v1.0.4: c=30 meets the BAEL minimum (30) but sits AT the bare minimum, below the §7.12
+    // comfort target 30·1.1=33 → 🟠 WARN (the new comfort band); EC2 requires 35 so 30 < 35 → 🔴 FAIL.
+    expect(find(bael, "cover").status).toBe("WARN");
     expect(find(ec2, "cover").status).toBe("FAIL"); // 30 < 35
   });
 

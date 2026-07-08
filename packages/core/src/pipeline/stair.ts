@@ -14,7 +14,7 @@ import type { BarRole } from "../types/reinforcing-element";
 import type { ZoneGeometry, BarPosition } from "../types/layout";
 import type { MaterialContext } from "../types/codepack";
 import { generateShape } from "../geometry/registry";
-import { slabProvidedPerMetre, slabEffectiveDepth, solveSlabBars } from "../layout/slab";
+import { slabProvidedPerMetre, slabEffectiveDepth, solveSlabBars, solveSlabDistributionBars, isDistributionLinear } from "../layout/slab";
 import { rollupStatus, type ExtendedCodePack } from "../validation/index";
 import {
   getValidationProfile,
@@ -80,14 +80,17 @@ export function solveStair(input: StairSolveInput): SolveResult {
     if (z.slabRole === "MAIN" && mainGroupId === "") mainGroupId = z.groupId;
     const d = slabEffectiveDepth(t, input.cover, z.diameter);
     const asProvPerM = slabProvidedPerMetre(z.diameter, z.spacing);
+    const role = z.role ?? (z.slabRole === "SECONDARY" ? "DISTRIBUTION" : "PRIMARY_LONGITUDINAL");
+    const shape = generateShape(z.shape, z.params, z.diameter, code);
+    const span = geometry.n_steps * geometry.g;
     zonesGeom.push({ zone: z.zone, d, dPrime: input.cover, tensionCentroid: { u: 0, v: z.v ?? 0 } });
     groups.push({
       groupId: z.groupId,
-      role: z.role ?? (z.slabRole === "SECONDARY" ? "DISTRIBUTION" : "PRIMARY_LONGITUDINAL"),
+      role,
       diameter: z.diameter,
-      count: Math.floor(width / z.spacing) + 1,
+      count: Math.floor(width / z.spacing) + 1, // BBS unchanged (C1: render-only; count reconciliation flagged)
       zone: z.zone,
-      shape: generateShape(z.shape, z.params, z.diameter, code),
+      shape,
     });
     slabZones.push({
       zone: z.zone,
@@ -99,7 +102,12 @@ export function solveStair(input: StairSolveInput): SolveResult {
       d,
       role: z.slabRole,
     });
-    bars.push(...solveSlabBars(width, z.spacing, z.v ?? t / 2 - input.cover, z.zone));
+    const v = z.v ?? t / 2 - input.cover;
+    // v1.0.4 C1: a DISTRIBUTION linear bar runs ACROSS the flight width at span (going) stations
+    // (exact coupe); a MAIN/TOP bar keeps the along-span row (`across` never set → byte-identical).
+    bars.push(...(isDistributionLinear(role, shape)
+      ? solveSlabDistributionBars(span, z.spacing, v, z.zone)
+      : solveSlabBars(width, z.spacing, v, z.zone)));
   }
 
   const slab: SlabContext = { thickness: t, zones: slabZones };

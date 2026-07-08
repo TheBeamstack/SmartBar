@@ -96,6 +96,38 @@ export function item(
   };
 }
 
+/**
+ * Shared cover check (§7.3 durability+fire FAIL + §7.12 comfort-target WARN band). Below the code
+ * minimum → 🔴 FAIL; meets the minimum but below the comfort target `reqCover·(1+band)` → 🟠 WARN;
+ * comfortably above → 🟢 PASS. Same `< limit ? FAIL : < limit·(1+band) ? WARN : PASS` shape as
+ * clear_spacing / tie_spacing / Asw, applied uniformly to every element validator (data-driven: one
+ * "cover" rule, one behaviour). ⚠ the comfort band (`band` = pack `warnBands.cover`, G-TOL) is
+ * PROVISIONAL pending owner/engineer sign-off (owner_tasks B-5).
+ */
+export function coverItem(
+  cover: number,
+  reqCover: number,
+  band: number,
+  codeRef: string,
+  affectedGroupIds: string[],
+): ValidationItem {
+  const comfort = reqCover * (1 + band);
+  const status: ValidationStatus = cover < reqCover ? "FAIL" : cover < comfort ? "WARN" : "PASS";
+  const message_fr =
+    status === "FAIL"
+      ? `Enrobage ${round(cover)} mm < requis ${round(reqCover)} mm`
+      : status === "WARN"
+      ? `Enrobage ${round(cover)} mm ≥ requis ${round(reqCover)} mm mais < cible de confort ${round(comfort)} mm`
+      : `Enrobage ${round(cover)} mm (requis ${round(reqCover)} mm)`;
+  const message_en =
+    status === "FAIL"
+      ? `Cover ${round(cover)} mm < required ${round(reqCover)} mm`
+      : status === "WARN"
+      ? `Cover ${round(cover)} mm ≥ required ${round(reqCover)} mm but < comfort target ${round(comfort)} mm`
+      : `Cover ${round(cover)} mm (required ${round(reqCover)} mm)`;
+  return item("cover", status, round(cover), round(reqCover), codeRef, message_fr, message_en, affectedGroupIds);
+}
+
 export interface ColumnZoneInputs {
   /** longitudinal group: As_total zone. */
   longGroupId: string;
@@ -289,25 +321,8 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
     fire: ctx.fire,
     material: ctx.material,
   });
-  // cover meeting durability + fire PASSES (§7.3). The §7.12 "comfort target" WARN band is a
-  // separate, softer semantic deferred to a later phase to avoid noisy false warnings.
-  const coverStatus: ValidationStatus = ctx.cover < reqCover ? "FAIL" : "PASS";
-  out.push(
-    item(
-      "cover",
-      coverStatus,
-      round(ctx.cover),
-      round(reqCover),
-      ref,
-      coverStatus === "FAIL"
-        ? `Enrobage ${round(ctx.cover)} mm < requis ${round(reqCover)} mm`
-        : `Enrobage ${round(ctx.cover)} mm (requis ${round(reqCover)} mm)`,
-      coverStatus === "FAIL"
-        ? `Cover ${round(ctx.cover)} mm < required ${round(reqCover)} mm`
-        : `Cover ${round(ctx.cover)} mm (required ${round(reqCover)} mm)`,
-      [inputs.longGroupId],
-    ),
-  );
+  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band — shared, uniform across elements.
+  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, [inputs.longGroupId]));
 
   // 7.5 tie spacing (zone courante)
   const sTmax = code.tieSpacingMax({

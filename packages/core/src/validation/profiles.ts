@@ -19,6 +19,7 @@ import {
   type ValidationItem,
   type ExtendedCodePack,
   item,
+  coverItem,
   round,
   mm2,
   barArea,
@@ -309,23 +310,8 @@ export function validateBeamProfile(ctx: ProfileContext): ValidationItem[] {
     ...(ctx.fire !== undefined ? { fire: ctx.fire } : {}),
     material: ctx.material,
   });
-  const coverStatus: ValidationStatus = ctx.cover < reqCover ? "FAIL" : "PASS";
-  out.push(
-    item(
-      "cover",
-      coverStatus,
-      round(ctx.cover),
-      round(reqCover),
-      ref,
-      coverStatus === "FAIL"
-        ? `Enrobage ${round(ctx.cover)} mm < requis ${round(reqCover)} mm`
-        : `Enrobage ${round(ctx.cover)} mm (requis ${round(reqCover)} mm)`,
-      coverStatus === "FAIL"
-        ? `Cover ${round(ctx.cover)} mm < required ${round(reqCover)} mm`
-        : `Cover ${round(ctx.cover)} mm (required ${round(reqCover)} mm)`,
-      ctx.longitudinal.map((z) => z.groupId),
-    ),
-  );
+  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band (shared helper, uniform across elements).
+  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, ctx.longitudinal.map((z) => z.groupId)));
 
   // effective depth governing shear = the span (sagging) zone's computed d
   const flexZone =
@@ -574,23 +560,8 @@ export function validateCircularColumnProfile(ctx: ProfileContext): ValidationIt
     ...(ctx.fire !== undefined ? { fire: ctx.fire } : {}),
     material: ctx.material,
   });
-  const coverStatus: ValidationStatus = ctx.cover < reqCover ? "FAIL" : "PASS";
-  out.push(
-    item(
-      "cover",
-      coverStatus,
-      round(ctx.cover),
-      round(reqCover),
-      ref,
-      coverStatus === "FAIL"
-        ? `Enrobage ${round(ctx.cover)} mm < requis ${round(reqCover)} mm`
-        : `Enrobage ${round(ctx.cover)} mm (requis ${round(reqCover)} mm)`,
-      coverStatus === "FAIL"
-        ? `Cover ${round(ctx.cover)} mm < required ${round(reqCover)} mm`
-        : `Cover ${round(ctx.cover)} mm (required ${round(reqCover)} mm)`,
-      ctx.longitudinal.map((z) => z.groupId),
-    ),
-  );
+  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band (shared helper, uniform across elements).
+  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, ctx.longitudinal.map((z) => z.groupId)));
 
   // spiral / hoop confinement: spacing (pitch) ≤ code max, tie ø, leg-counted Asw (§7.5)
   for (const tz of ctx.transverse) {
@@ -742,23 +713,8 @@ function slabZoneChecks(ctx: ProfileContext): ValidationItem[] {
     ...(ctx.fire !== undefined ? { fire: ctx.fire } : {}),
     material: ctx.material,
   });
-  const coverStatus: ValidationStatus = ctx.cover < reqCover ? "FAIL" : "PASS";
-  out.push(
-    item(
-      "cover",
-      coverStatus,
-      round(ctx.cover),
-      round(reqCover),
-      ref,
-      coverStatus === "FAIL"
-        ? `Enrobage ${round(ctx.cover)} mm < requis ${round(reqCover)} mm`
-        : `Enrobage ${round(ctx.cover)} mm (requis ${round(reqCover)} mm)`,
-      coverStatus === "FAIL"
-        ? `Cover ${round(ctx.cover)} mm < required ${round(reqCover)} mm`
-        : `Cover ${round(ctx.cover)} mm (required ${round(reqCover)} mm)`,
-      slab.zones.map((z) => z.groupId),
-    ),
-  );
+  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band (shared helper, uniform across elements).
+  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, slab.zones.map((z) => z.groupId)));
 
   return out;
 }

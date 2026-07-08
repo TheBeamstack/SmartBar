@@ -37,6 +37,18 @@ export interface BarPosition {
   faceTag: FaceTag;
   layerIndex: number;
   isCorner: boolean;
+  /**
+   * v1.0.4 C1 ([REF-SYS-810]): a slab/stair DISTRIBUTION (secondary) bar that runs ACROSS the
+   * section width (world-X) at a span station, instead of along the member axis (+Y) like the main
+   * steel. When true, `axial` is the world-Y station and the bar spans the full width at
+   * `position.v`; `position.u` is unused for placement. This is what makes the transverse coupe show
+   * the main bars as dots + the distribution layer as a TRUE line across the width (not a second row
+   * of dots — the pre-C1 representative model). Absent/false → the along-member placement (every
+   * non-slab element + a mesh topping are byte-identical).
+   */
+  across?: boolean;
+  /** world-Y span station (mm) for an `across` bar (C1). */
+  axial?: number;
 }
 
 /** Computed flexural geometry per zone ([REF-SYS-611]). */

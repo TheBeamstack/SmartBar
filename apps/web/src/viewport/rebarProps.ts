@@ -71,10 +71,56 @@ export interface Scene {
   failingIds: string[];
 }
 
+/** Geometry-only placed bar (before the viewport's failing/selected colouring is applied). */
+interface PlacedGeom {
+  groupId: string;
+  points: number[];
+  diameter: number;
+  closed: boolean;
+  barIndex?: number;
+}
+
+/** A group whose shape is a welded mat (TREILLIS_MESH) — carries the bespoke wire fields. */
+function meshFields(shape: unknown): { pitchX: number; pitchY: number } | null {
+  const s = shape as { nWiresX?: number; pitchX?: number; pitchY?: number };
+  if (!("nWiresX" in (s as object))) return null;
+  if (!(typeof s.pitchX === "number" && typeof s.pitchY === "number" && s.pitchX > 0 && s.pitchY > 0)) return null;
+  return { pitchX: s.pitchX, pitchY: s.pitchY };
+}
+
+/**
+ * v1.0.4 D2 (spec Part V D2) — indicative→faithful welded MESH render. A `TREILLIS_MESH` group (two-way
+ * slab mats, joist topping) is a grid, not a bent bar; render it as its actual orthogonal wire grid at
+ * the mat's layer depth instead of a single (mis-oriented) panel outline. Pure + deterministic — the
+ * wire layout is unit-tested; the GPU acceptance is the owner's pass (§D-3). Frame: width = X
+ * (`member.b`), span = +Y (`member.length`), depth = Z (the zone's tension-centroid v).
+ */
+export function meshGridBars(result: SolveResult): PlacedGeom[] {
+  const out: PlacedGeom[] = [];
+  const m = result.member;
+  const b = m.b ?? 0;
+  const length = m.length;
+  if (b <= 0 || length <= 0) return out;
+  for (const g of result.groups) {
+    const mf = meshFields(g.shape);
+    if (!mf) continue;
+    const v = result.zones.find((z) => z.zone === g.zone)?.tensionCentroid.v ?? 0;
+    // wires running ACROSS the width (world-X), spaced along the span (Y) at pitchY.
+    for (let y = 0; y <= length + 1e-6; y += mf.pitchY) {
+      out.push({ groupId: g.groupId, points: [-b / 2, y, v, b / 2, y, v], diameter: g.diameter, closed: false });
+    }
+    // wires running ALONG the span (world-Y), spaced across the width (X) at pitchX.
+    for (let x = -b / 2; x <= b / 2 + 1e-6; x += mf.pitchX) {
+      out.push({ groupId: g.groupId, points: [x, 0, v, x, length, v], diameter: g.diameter, closed: false });
+    }
+  }
+  return out;
+}
+
 /**
  * Build the full render scene. Pure: same (result, dragMode, selected) → identical Scene.
- * Geometry is taken verbatim from core's `placeBars`; this layer only adds the per-bar
- * failing/selected flags (colouring) and the drag-mode render directive.
+ * Geometry is taken verbatim from core's `placeBars` (plus the D2 mesh grid for welded mats); this
+ * layer only adds the per-bar failing/selected flags (colouring) and the drag-mode render directive.
  */
 export function buildScene(
   result: SolveResult,
@@ -88,7 +134,12 @@ export function buildScene(
   const isFailing = (id: string) => failingIds.includes(id);
   const isSelected = (id: string) => selectedGroupIds.includes(id);
 
-  const bars: BarInstance[] = placeBars(result).map((b) => ({
+  // D2: replace a welded mat's (mis-oriented) placeBars outline with its true wire grid.
+  const meshIds = new Set(result.groups.filter((g) => meshFields(g.shape)).map((g) => g.groupId));
+  const placed: PlacedGeom[] = placeBars(result).filter((b) => !meshIds.has(b.groupId));
+  const geom: PlacedGeom[] = [...placed, ...meshGridBars(result)];
+
+  const bars: BarInstance[] = geom.map((b) => ({
     groupId: b.groupId,
     points: b.points,
     diameter: b.diameter,

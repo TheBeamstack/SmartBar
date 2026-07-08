@@ -14,6 +14,7 @@ import { Rebar } from "./Rebar";
 import { memberGroupRotationFor, rollUpVector, type Vec3 } from "./cameraState";
 import { ProjectionRig, ViewController, ViewCubeGizmo, ViewControls } from "./ViewCube";
 import { CoupeHandles } from "./CoupeOverlay";
+import { steppedStairSpec } from "./steppedStair";
 
 const MM_TO_SCENE = 0.01; // mm → scene units (a 3 m column ≈ 30 units)
 
@@ -105,30 +106,20 @@ function ConcreteVolume({ concrete }: { concrete: ConcreteEnvelope }) {
 }
 
 /**
- * G8 (spec §8.1) — stepped stair concrete. The engine models the stair as a FLAT rect envelope
- * (slab-family, D-P4b-3); here — UI only, for E-STR-01 — we rebuild the concrete as a real stepped
- * profile from the stair geometry (`g` going · `r` riser · `n_steps` · `flight_width`). Each step is a
- * disjoint box (distinct going range along the member axis → no overlap), so the transparent solid
- * reads as an actual stair. Centred on the member frame, matching the flat box it replaces.
+ * G8 (spec §8.1) + D1 (v1.0.4, spec Part V D1) — stepped stair concrete. The engine models the stair
+ * as a FLAT rect envelope (slab-family, D-P4b-3); here — UI only, for E-STR-01 — we rebuild the
+ * concrete as a real stepped profile from the stair geometry. The box layout (incl. the D1 landing
+ * slab) is the PURE `steppedStairSpec` (headless-tested); this component only renders its boxes.
+ * Each step is a disjoint solid box; the D1 landing is a flat top slab modelling `landing_L`.
  */
 function SteppedStair({ geometry, width }: { geometry: Record<string, number>; width: number }) {
-  const g = geometry.g ?? 280;
-  const r = geometry.r ?? 170;
-  const n = Math.max(1, Math.round(geometry.n_steps ?? 14));
-  const b = geometry.flight_width ?? width;
-  const L = n * g; // total going (run) along the member axis
-  const R = n * r; // total rise
-  const steps = Array.from({ length: n }, (_, i) => {
-    const height = (i + 1) * r; // solid to the base → a full staircase silhouette
-    const yc = -L / 2 + i * g + g / 2; // centred along the run (member +Y)
-    const zc = -R / 2 + height / 2; // centred over the rise (section +Z)
-    return { i, height, yc, zc };
-  });
+  const { steps, landing } = steppedStairSpec(geometry, width);
+  const boxes = landing ? [...steps, landing] : steps;
   return (
     <group>
-      {steps.map((st) => (
-        <mesh key={st.i} position={[0, st.yc, st.zc]}>
-          <boxGeometry args={[b, g, st.height]} />
+      {boxes.map((box, i) => (
+        <mesh key={i} position={box.position}>
+          <boxGeometry args={box.size} />
           {concreteMaterial()}
           <Edges threshold={15} color={EDGE_COLOR} />
         </mesh>

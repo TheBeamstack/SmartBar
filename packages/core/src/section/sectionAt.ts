@@ -225,17 +225,22 @@ export function sectionAt(
   const lines: CoupeBarLine[] = paCandidates
     .filter((c) => c.d >= -1.0 && c.d <= lookBehind + EPS)
     .map(({ d: _d, ...rest }) => rest);
-  // §9.5.3 guarantee: if a transverse group's set landed entirely outside look-behind (cut between
-  // two stirrups, the nearer one in front), still show its NEAREST set behind the plane.
-  for (const tset of member.transverse) {
-    if (lines.some((l) => l.groupId === tset.groupId)) continue;
+  // §9.5.3 guarantee: if a group's near-parallel set landed entirely outside look-behind (a cut
+  // between two members, the nearer one in front), still show its NEAREST set behind the plane. This
+  // covers a transverse set (cut between two stirrups) AND — v1.0.4 C1 ([REF-SYS-810]) — a slab/stair
+  // DISTRIBUTION layer (a cut between two répartition bars), so the transverse coupe always reads the
+  // distribution layer as a line, not just when the cut happens to land on one.
+  const guaranteeGroups = new Set<string>(member.transverse.map((t) => t.groupId));
+  for (const g of result.groups) if (g.role === "DISTRIBUTION") guaranteeGroups.add(g.groupId);
+  for (const gid of guaranteeGroups) {
+    if (lines.some((l) => l.groupId === gid)) continue;
     const behind = paCandidates
-      .filter((c) => c.groupId === tset.groupId && c.d > EPS)
+      .filter((c) => c.groupId === gid && c.d > EPS)
       .sort((a, b) => a.d - b.d);
     const nearest = behind[0]?.d;
     if (nearest === undefined) continue;
     for (const c of paCandidates) {
-      if (c.groupId === tset.groupId && Math.abs(c.d - nearest) < 1e-3) {
+      if (c.groupId === gid && Math.abs(c.d - nearest) < 1e-3) {
         const { d: _d, ...rest } = c;
         lines.push(rest);
       }

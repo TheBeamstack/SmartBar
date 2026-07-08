@@ -12,7 +12,7 @@ import type { BarRole } from "../types/reinforcing-element";
 import type { ZoneGeometry, BarPosition } from "../types/layout";
 import type { MaterialContext } from "../types/codepack";
 import { generateShape } from "../geometry/registry";
-import { slabProvidedPerMetre, slabEffectiveDepth, solveSlabBars } from "../layout/slab";
+import { slabProvidedPerMetre, slabEffectiveDepth, solveSlabBars, solveSlabDistributionBars, isDistributionLinear } from "../layout/slab";
 import { rollupStatus, type ExtendedCodePack } from "../validation/index";
 import {
   getValidationProfile,
@@ -69,14 +69,19 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     phiLMax = Math.max(phiLMax, z.diameter);
     const d = slabEffectiveDepth(geometry.t, input.cover, z.diameter);
     const asProvPerM = slabProvidedPerMetre(z.diameter, z.spacing);
+    const role = z.role ?? (z.slabRole === "SECONDARY" ? "DISTRIBUTION" : "PRIMARY_LONGITUDINAL");
+    const shape = generateShape(z.shape, z.params, z.diameter, code);
     zonesGeom.push({ zone: z.zone, d, dPrime: input.cover, tensionCentroid: { u: 0, v: z.v ?? 0 } });
     groups.push({
       groupId: z.groupId,
-      role: z.role ?? (z.slabRole === "SECONDARY" ? "DISTRIBUTION" : "PRIMARY_LONGITUDINAL"),
+      role,
       diameter: z.diameter,
+      // NOTE (C1): the fabrication count stays the pre-C1 representative value (BBS unchanged — no
+      // golden moved). The distribution quantity reconciliation (count from the SPAN) is flagged for
+      // owner/engineer sign-off (it changes a fabrication quantity). See the §9 handoff.
       count: Math.floor(geometry.Ly / z.spacing) + 1,
       zone: z.zone,
-      shape: generateShape(z.shape, z.params, z.diameter, code),
+      shape,
     });
     slabZones.push({
       zone: z.zone,
@@ -88,7 +93,12 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
       d,
       role: z.slabRole,
     });
-    bars.push(...solveSlabBars(geometry.Ly, z.spacing, z.v ?? geometry.t / 2 - input.cover, z.zone));
+    const v = z.v ?? geometry.t / 2 - input.cover;
+    // v1.0.4 C1: a DISTRIBUTION linear bar runs ACROSS the width at span stations (exact coupe); a
+    // MAIN/TOP bar (or a mesh topping) keeps the along-span row (`across` never set → byte-identical).
+    bars.push(...(isDistributionLinear(role, shape)
+      ? solveSlabDistributionBars(geometry.Lx, z.spacing, v, z.zone)
+      : solveSlabBars(geometry.Ly, z.spacing, v, z.zone)));
   }
 
   const slab: SlabContext = {
