@@ -97,33 +97,30 @@ export function item(
 }
 
 /**
- * Shared cover check (§7.3 durability+fire FAIL + §7.12 comfort-target WARN band). Below the code
- * minimum → 🔴 FAIL; meets the minimum but below the comfort target `reqCover·(1+band)` → 🟠 WARN;
- * comfortably above → 🟢 PASS. Same `< limit ? FAIL : < limit·(1+band) ? WARN : PASS` shape as
- * clear_spacing / tie_spacing / Asw, applied uniformly to every element validator (data-driven: one
- * "cover" rule, one behaviour). ⚠ the comfort band (`band` = pack `warnBands.cover`, G-TOL) is
- * PROVISIONAL pending owner/engineer sign-off (owner_tasks B-5).
+ * Shared cover check (§7.3 durability + fire). Cover BELOW the code minimum → 🔴 FAIL; cover that
+ * MEETS the minimum → 🟢 PASS. A cover exactly at the durability+fire minimum is **code-compliant**,
+ * so it is 🟢 — not amber (validity-tier philosophy, core_logic §4.2: 🟢 = "within the rules").
+ * Shared, so every element validator applies the ONE cover rule identically (data-driven).
+ *
+ * Review-note (2026-07-08, Zayd): a §7.12 "comfort-target" WARN band was tried but reverted — it
+ * turned the shipped default column/beam (cover at the code minimum) amber "À vérifier", and any
+ * design on a binding minimum (fire / cast-against-earth) with it. If a comfort nudge is ever wanted
+ * it must be advisory-only (must NOT roll up to the drawing stamp). Owner decision: owner_tasks B-5a.
  */
 export function coverItem(
   cover: number,
   reqCover: number,
-  band: number,
   codeRef: string,
   affectedGroupIds: string[],
 ): ValidationItem {
-  const comfort = reqCover * (1 + band);
-  const status: ValidationStatus = cover < reqCover ? "FAIL" : cover < comfort ? "WARN" : "PASS";
+  const status: ValidationStatus = cover < reqCover ? "FAIL" : "PASS";
   const message_fr =
     status === "FAIL"
       ? `Enrobage ${round(cover)} mm < requis ${round(reqCover)} mm`
-      : status === "WARN"
-      ? `Enrobage ${round(cover)} mm ≥ requis ${round(reqCover)} mm mais < cible de confort ${round(comfort)} mm`
       : `Enrobage ${round(cover)} mm (requis ${round(reqCover)} mm)`;
   const message_en =
     status === "FAIL"
       ? `Cover ${round(cover)} mm < required ${round(reqCover)} mm`
-      : status === "WARN"
-      ? `Cover ${round(cover)} mm ≥ required ${round(reqCover)} mm but < comfort target ${round(comfort)} mm`
       : `Cover ${round(cover)} mm (required ${round(reqCover)} mm)`;
   return item("cover", status, round(cover), round(reqCover), codeRef, message_fr, message_en, affectedGroupIds);
 }
@@ -321,8 +318,8 @@ export function validateColumn(ctx: ColumnValidationContext): ValidationItem[] {
     fire: ctx.fire,
     material: ctx.material,
   });
-  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band — shared, uniform across elements.
-  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, [inputs.longGroupId]));
+  // §7.3 cover (durability + fire) — shared helper, applied uniformly across elements.
+  out.push(coverItem(ctx.cover, reqCover, ref, [inputs.longGroupId]));
 
   // 7.5 tie spacing (zone courante)
   const sTmax = code.tieSpacingMax({

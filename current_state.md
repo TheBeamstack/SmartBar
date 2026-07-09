@@ -73,7 +73,8 @@ in the browser — no server, free hosting.**
 | **v1.0.4 B3 (2nd slice) + C2 + C1 (station-aware slice)** — **B3:** SKIN multi-bar **fanout** (`resolveSupplement` → `anchors[]` = `count_per_side` × both lateral faces; adapter emits one input/anchor → N rendered+scheduled skin bars) + supplements now feed **A2 accounting** (a SKIN bar's steel joins the zone's As,prov; an interior DIAMANT tie adds Asw/m to the transverse zones at the derived `cos(45°)` orientation factor — ⚠ leg-crossing convention flagged G-BAEL/EC2). **C2:** spliced-segment BBS rows now draw the segment's OWN centreline (`segmentArcBounds` + `sliceCenterline2D`, not the whole-bar fallback) + robust leader anti-overlap (rail stretched to a legible min-pitch, no stacking at density); flows through pdf/dxf unchanged. **C1:** `defaultCoupeFor` **station-aware** — seeds the default cut at the richest station (most longitudinal bars), gated to the addressable channel so grouped docs keep mid-length byte-identical; new pure `suggestCoupeStations`. All legacy byte-identical (no golden moved). | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-07 |
 | **v1.0.4 façonnage Phase-6 (H16/H17/H18/H19/H12) + H14 + B1** — **Phase-6 UI batch:** H16 FaconnageEditor honours manifest `max`/`step` (new `ShapeParam.step`); H17 rich invalid feedback (real reason + retained last-valid sketch + `aria-invalid`); H18 AddressableBars on the shared i18n bundle (`t(lang).addressable`, not inline `tr()`); H19 per-leg `min>0` (core generator rejects a non-positive leg + UI floors at 1 mm); H12 DROITE length coupled to member (read-only) with a custom-length toggle (owner **A-7**). **H14+B1 (per-bar splices):** overrides/extras carry `splices?`/`autoSplice?`; `buildLongBars` computes each bar's `SpliceResult` (explicit + H14 auto-split at PROVISIONAL 12000 stock); BBS schedules segments + shop-drawing slices each; new pure `evaluateLapStagger` (sourced EC2 §8.7.2 ≤½/section within 0.3·l0) → per-zone `lap_stagger` PASS/WARN; per-bar seismic laps. UI auto-split toggle. Two pre-existing test assertions updated (H3↔H19 message; the new H12 checkbox); no golden moved. | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-07 |
 | **v1.0.4 B3 (3rd slice) + E1 + E2 (canonical `.rcfg` + migration)** — **B3:** the A2 supplement-accounting fold now credits an OPEN along-member add-on — SKIN **or** CORNER-DIAGONAL — to the zone's As (was skin-only); closed diamond → Asw unchanged. **E1:** new `reinforcementFromResult(result)` (exporters) maps the solved `groups[]` → canonical §10 `ReinforcingElement[]` (element-agnostic: role→distribution/placement); `SolvedGroup` carries `params`/`supplementId`; `docToRcfg` now **populates** `baseGroups`/`supplementalGroups` (was empty) by solving the doc (try/catch → empty fallback); `.rcfg` bumped to **v1.2** (additive, idempotent version migration). **E2:** `migration_chain` corpus (every fixture migrates + idempotent + future-version pass-through + unknown-kind survival). **Validated all 8 elements** doc→rcfg→recover round-trip (backend↔frontend lossless). **C1 slab-exactness DEFERRED** (needs a geometry re-model + G-COUPE acceptance — flagged). No golden moved. | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-07 |
-| **v1.0.4 C1 slab-coupe exactness + D1/D2 (3D fidelity) + H10 + cover WARN tier** — **C1 (slab re-model):** a slab/stair-waist DISTRIBUTION linear bar now runs ACROSS the width at SPAN stations (`solveSlabDistributionBars` + `BarPosition.across`/`axial`; `placeBars` cross-width line; `sectionAt` §9.5.3 nearest-behind generalised to the distribution layer → transverse coupe = main dots + true distribution line). Welded MESH keeps the representative panel (`isDistributionLinear` gate); per-metre As unchanged; **no golden moved** (BBS distribution count kept — reconciliation flagged for sign-off). **D1:** pure `steppedStairSpec` + the top `landing_L` slab modelled (was ignored). **D2:** welded MESH renders as its true wire grid (`meshGridBars`) not a mis-oriented outline. **H10:** hook edit validated/committed against last-valid params (never dropped mid-invalid-param). **Cover:** §7.12 comfort-target WARN tier (`coverItem`, pack band, uniform across validators). +32 tests. | ✅ **CODE DONE + tested** · NOT pushed | Amer, 2026-07-08 |
+| **v1.0.4 C1 slab-coupe exactness + D1/D2 (3D fidelity) + H10 + cover WARN tier** — **C1 (slab re-model):** a slab/stair-waist DISTRIBUTION linear bar now runs ACROSS the width at SPAN stations (`solveSlabDistributionBars` + `BarPosition.across`/`axial`; `placeBars` cross-width line; `sectionAt` §9.5.3 nearest-behind generalised to the distribution layer → transverse coupe = main dots + true distribution line). Welded MESH keeps the representative panel (`isDistributionLinear` gate); per-metre As unchanged; **no golden moved** (BBS distribution count kept — reconciliation flagged for sign-off). **D1:** pure `steppedStairSpec` + the top `landing_L` slab modelled (was ignored). **D2:** welded MESH renders as its true wire grid (`meshGridBars`) not a mis-oriented outline. **H10:** hook edit validated/committed against last-valid params (never dropped mid-invalid-param). **Cover:** §7.12 comfort-target WARN tier (`coverItem`, pack band, uniform across validators). +32 tests. **→ SUPERSEDED in part by Zayd's 2026-07-08 review (row below): cover WARN reverted to FAIL/PASS (F1); the distribution BBS count reconciled to the drawing (F2); the joist mesh coupe stray-lines gated out (F3).** | ✅ **CODE DONE + tested** · NOT pushed | Amer, 2026-07-08 |
+| **v1.0.4 adversarial review of Amer's C1/D1/D2/H10/cover work + 3 fixes** — **F1** cover comfort-band WARN reverted → cover at/above the code minimum is 🟢 PASS (the default column & beam had silently flipped to amber "À vérifier"); shared `coverItem` helper kept. **F2** the slab/stair DISTRIBUTION fabrication **count** now = the span-distributed set actually placed (`solveSlabDistributionBars(...).length`) so BBS + bending table + 3D/coupe agree (default one-way slab 13→20, stair 5→16; the previous width-derived count under-counted the takeoff ~35–69%). **F3** `sectionAt` guarantee gated on `isDistributionLinear` so a welded topping MESH no longer draws stray representative coupe lines (joist 5→0). D1/D2/H10 verified correct as-built. | ✅ **CODE DONE + tested** · NOT pushed | Zayd, 2026-07-08 |
 
 **Where things stand (2026-06-28).** The app is feature-complete through v1.0.1, **plus the first six v1.0.2
 phases are now implemented (NOT yet pushed — awaiting the owner's "push")**: **P1/F7** (the 2D section picker +
@@ -129,19 +130,21 @@ baseline of 463/93 — the new `nav_mode` + `export_supports` web suites); `npm 
 coverage` **93.88% stmts** (≥90% threshold; core-only scope — P8/P9/P7b are `apps/web`+`exporters` code, outside
 the core-only coverage include). **PUSHED to `origin/feat/p1-m1-engine`.**
 
-**Current green gate (v1.0.4 through C1-slab-exactness + D1/D2 + H10 + cover-WARN, 2026-07-08 — local, pending owner push):**
-`npm run check` ✓ — **657 tests / 129 files**; `npm run coverage` core **95.12%** (≥90; now hits the 95 target);
-`npm run coverage:adapter` **96.76%** (no regression); `npm run build:web` ✓ (50.7s). Backend↔frontend validated
+**Current green gate (v1.0.4 through C1/D1/D2/H10 + the 2026-07-08 review-fixes, local, pending owner push):**
+`npm run check` ✓ — **658 tests / 129 files**; `npm run coverage` core **95.11%** (≥90; ~95 target);
+`npm run coverage:adapter` **96.76%** (no regression); `npm run build:web` ✓. Backend↔frontend validated
 (prior): all 8 elements round-trip doc→`.rcfg`(canonical + `app_document`)→recover losslessly. History: v1.0.4 Phase 1
 (H1/H3/H4) then Phase 2 (H11/H9/H2), Phase 3 (H15/H6/H7), A3/H13 (EC2 reachable) — Amer — Phase 4 (H8) + **A2**
 (steel accounting As/d/H5 + per-region Asw + clear-spacing fold) — Zayd — then the **A2 adversarial review + two
 verdict-fixes + B2 + B3 (first slice)** — Amer — then **B3 2nd/3rd slices + C2 + C1 (station-aware coupe) + E1 + E2** —
 Zayd, 2026-07-07 — then **C1 slab-coupe exactness (slab/stair distribution re-model) + D1 (stair landing) + D2 (mesh
-grid) + H10 + the §7.12 cover comfort-target WARN tier** — Amer, 2026-07-08. See the §9 entries. Two goldens
-re-baselined **intentionally** at A2 (extras count toward As — owner decision); **no other golden moved** — C1's slab
-re-model is render/coupe-only (BBS distribution count unchanged, byte-identical) and the only status flip is one
-`pack_swap` cover assertion PASS→WARN (the new comfort band, not a golden). The standing engineer sign-offs
-(G-BAEL/EC2/RPS/COUPE/TOL) + the owner GPU/visual passes remain open (acceptance, not code).
+grid) + H10 + a §7.12 cover comfort-target WARN tier** — Amer, 2026-07-08 — then Zayd's **adversarial review of that
+work + 3 fixes** (F1 cover-WARN reverted to FAIL/PASS so the default column/beam open 🟢; F2 slab/stair distribution
+BBS **count reconciled** to the span-distributed set so drawing=schedule; F3 the joist topping-mesh stray coupe lines
+gated out), 2026-07-08. See the §9 entries. Two goldens re-baselined **intentionally** at A2 (extras count toward As —
+owner decision); the F2 fix intentionally moves the slab/stair distribution BBS **count** (owner-directed correctness
+fix, ratification tracked B-10; no golden snapshot moved — the slab tests assert validation + `bars.length` only). The
+standing engineer sign-offs (G-BAEL/EC2/RPS/COUPE/TOL) + the owner GPU/visual passes remain open (acceptance, not code).
 **The headless gate can't see WebGL** — the ViewCube/persp⇄ortho/coupe handle (v1.0.1) **and the new F7 3D bar
 click + the live 2D section-picker feel + the anchored cross-tie 3D render (F2)** are code-complete but await a
 visual pass on the owner's Windows GPU (`cd apps/web && npm run dev`, port 5180); their pure logic is
@@ -379,6 +382,121 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 ---
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
+
+### 2026-07-08 (review + fixes) — **Adversarial review of Amer's C1/D1/D2/H10/cover-WARN work + 3 fixes applied** — by **Zayd** (Hetzner dev box) — **CODE DONE, tested, green — NOT pushed**
+
+**Scope.** Owner directed a general adversarial review of Amer's `1d1d161` (14 changed + 6 new files) vs parent
+`b0658c6`, **then "make the needed fixes and update all relevant docs incl. owner_tasks."** Pulled `--ff-only` (Amer's
+entry below is the newest §9 — sanity check passed). Method: `git diff` the actual code, then drove the **real adapter**
+(`defaultDocFor → solveDoc`, not Amer's hand-built `solveSlab(...)` inputs) for all 8 default docs, plus compared each
+disputed behaviour against the parent commit's code. Throwaway probes used + deleted. **Suite was green (657/129) —
+treated as proof of nothing.** Three findings survived; **all three fixed** (below). New gate: **658 tests / 129 files**,
+`npm run check` ✓, coverage core **95.11%** / adapter **96.76%** (no regression), `build:web` ✓. **NOT pushed.**
+
+**Owner decision recorded (F1):** the cover comfort-band WARN was **reverted** — a code decision the owner delegated
+via "make the needed fixes"; flagged as reversible (owner_tasks **B-5a**). **F2** moves the slab/stair distribution BBS
+count intentionally (owner-directed correctness fix; ratification tracked as owner_tasks **B-10**).
+
+**F1 [HIGH · CONFIRMED] — the DEFAULT column and beam now open AMBER "À vérifier"; §9 under-reported the cover flip.**
+- Input → output: open the app's default **E-COL-01** or **E-BEM-01** (both ship cover = 30 mm, reqCover = 30 mm).
+  New `coverItem`: `cover < req ? FAIL : cover < req·(1+0.1) ? WARN : PASS` → 30 < 33 → **WARN** → rolls up to overall
+  **WARN** → stamps the drawing **"À vérifier / Review required"**. Verified against parent `b0658c6`: pre-change both
+  were **PASS 🟢** (`cover < req ? FAIL : PASS` → 30<30 false → PASS). Clean **🟢→🟠 regression on the two flagship
+  default docs** — the first thing every user sees.
+- Why Amer's tests missed it: `all_elements.spec.ts` asserts only `status !== "FAIL"` (WARN passes), and the §9 entry
+  reports "**one status flip** (`pack_swap` fixture)" — the far more important default-doc flip is not mentioned.
+- Semantic concern (matches core_logic §4.2): cover *exactly at the code minimum* is **compliant** ("within the rules"),
+  not "discouraged / near a limit / unusual". Making the code minimum amber inverts the tier philosophy — and it fires
+  for **every** design sitting on a binding minimum (fire-rated, CAST_AGAINST_EARTH covers are usually AT their higher
+  minimum), so it is systematically noisy, not a rare nudge.
+- Proposed fix (owner to rule — this is a B-5/§7.12 semantics decision, not a pure bug): either (a) keep the FAIL line
+  only and DROP the comfort-target WARN band (revert to FAIL/PASS), or (b) keep the band but do **not** let it roll up
+  to the drawing stamp (comfort is advisory, not "À vérifier"), or (c) re-baseline the shipped default covers above the
+  comfort target so the defaults open 🟢. Recommend (a) or (b): a code-compliant design should not open amber. If the
+  band stays, its value + roll-up behaviour is **owner_tasks B-5** and must be signed (G-TOL).
+- **✅ FIXED (2026-07-08, option a):** `coverItem` reverted to FAIL/PASS — cover at or above the durability+fire
+  minimum is 🟢 PASS. Kept Amer's shared `coverItem` helper (the uniformity win: one cover rule across all validators),
+  dropped the `band` param + the WARN branch. Verified live: all 8 default docs back to overall PASS / cover PASS.
+  Tests: `cover_warn.spec.ts` → renamed `cover_tier.spec.ts` (at-minimum = PASS + FAIL/PASS uniform across column &
+  beam); reverted the `pack_swap` BAEL c=30 assertion to PASS. Reversible per owner_tasks **B-5a**.
+
+**F2 [HIGH · CONFIRMED] — default slab & stair: the drawing/3D shows MORE distribution bars than the BBS schedules;
+the steel takeoff undercounts distribution steel.**
+- Input → output (real default docs): **E-SLB-01** — `placeBars`/3D renders **20** across-width distribution bars
+  (span Lx=5000 ÷ spacing 250); the BBS + shop-drawing bending table + steel summary schedule **count = 13**
+  (`floor(Ly/spacing)+1`, width-derived) → Ø8 summary = 13 bars / 15.4 kg where the drawn geometry is ~20 bars /
+  ~23.7 kg (**~35 % undercount**). **E-STR-01** — render **16** vs BBS **5** (**~69 % undercount**). The `steelRatio
+  kg/m³` (core_logic §7 "standard sanity-check") is understated accordingly.
+- This is the inconsistency Amer flagged, but the framing under-sells it: "BBS byte-identical / no golden moved" is
+  literally true, yet the **DEFAULT** slab and stair now ship a drawing that **visibly contradicts its own schedule**,
+  and the pre-existing distribution count was already the *wrong* number (width-derived, not span-derived). Net: C1
+  correctly fixed the per-bar *length* (render now = cutLength = Ly) but converted a latent length inconsistency into a
+  visible **count** inconsistency on the default docs. It is a lateral move with the real fix deferred.
+- Rule note: the hard rule ("don't move a BBS/cutLength golden for a legacy doc") genuinely *forbade* Amer from
+  changing the count unasked, so deferring was rule-correct. The gap is that this needs to be an **explicit owner
+  decision item**, not just a §9 flag (see owner_tasks recommendation below), and the severity (default docs, ~35–69 %,
+  drawing⇄schedule contradiction) should be stated plainly.
+- Proposed fix (owner-gated fabrication-quantity change): reconcile the distribution `count` to the SPAN
+  (`solveSlabDistributionBars` already emits the true set — set `group.count = that length`, i.e. `floor((span−2·margin)
+  /spacing)+1`) so BBS/table/3D agree. This DOES move the slab/stair distribution BBS count golden → needs owner/
+  engineer sign-off (owner_tasks, new C-item proposed).
+- **✅ FIXED (2026-07-08):** `pipeline/slab.ts` + `pipeline/stair.ts` now set a linear DISTRIBUTION group's
+  `count = solveSlabDistributionBars(...).length` (the span-distributed set actually placed), so the BBS, the bending
+  table and the 3D/coupe agree. MAIN/TOP + mesh topping keep the width-derived representative count → unchanged.
+  Verified live: default E-SLB-01 count 13→**20** (=rendered), E-STR-01 5→**16** (=rendered). This intentionally moves
+  the slab/stair distribution BBS count (the existing slab tests only assert validation + `bars.length`, so no golden
+  snapshot moved); ratification tracked as owner_tasks **B-10**. New assertions in `coupe_slab_exactness.spec.ts`.
+
+**F3 [MED · CONFIRMED] — the joist topping WELDED MESH now draws spurious representative lines in the transverse coupe
+(contradicts the "mesh topping stays byte-identical" claim).**
+- Input → output: default **E-SLB-03** transverse coupe. Parent `b0658c6`: **0** topping-mesh lines. Amer's
+  `sectionAt`: **5** `TM` lines. Root cause: the §9.5.3 "nearest-behind" guarantee was generalised to
+  `for (const g of result.groups) if (g.role === "DISTRIBUTION") guaranteeGroups.add(g.groupId)` — **not gated by
+  `isDistributionLinear`**, so it sweeps in the welded `TREILLIS_MESH` topping (role DISTRIBUTION) that the pipeline
+  itself deliberately leaves representative. Amer's §9 says the mesh topping "keeps the representative panel /
+  along-span render" and is byte-identical — the coupe is NOT byte-identical for the joist.
+- Proposed fix (safe, self-contained, no golden should move for linear-distribution docs): gate the guarantee set with
+  the same structural check the pipeline uses — add a DISTRIBUTION group to `guaranteeGroups` only when its shape is a
+  discrete linear bar (reuse `isDistributionLinear(g.role, g.shape)`), excluding mesh/coil. Add a joist-coupe assertion
+  so the 0→5 change can't recur silently.
+- **✅ FIXED (2026-07-08):** `sectionAt.ts` now gates the guarantee set on `isDistributionLinear(g.role, g.shape)`
+  (imported from `layout/slab`) instead of `g.role === "DISTRIBUTION"`, so a welded topping MESH is no longer swept in.
+  Verified live: default E-SLB-03 topping-mesh coupe lines 5→**0** (back to the pre-C1 render). Regression guard added
+  (`coupe_slab_exactness.spec.ts` F3 block: a mesh-topping slab yields 0 guaranteed lines for the mesh group).
+
+**Threads pulled that came back CLEAN (credit to Amer):**
+- **C1 geometry is physically correct**: frame is `member.length = Lx` (span, +Y), `member.b = Ly` (width, X); main
+  bars run along the span, `across` distribution bars span `member.b` at Lx stations. The adapter (`solveDoc.ts:612`)
+  already sets the distribution DROITE `L = Ly` (slab) / `flight_width` (stair) = `member.b`, so the **rendered length
+  equals the cutLength** (the one thing C1 *did* fix). The default one-way slab's default coupe **does** reveal the
+  distribution as a line (21 main dots + 1 dist line) — not only Amer's hand-built result.
+- **`isDistributionLinear` / `meshFields` are honest structural (marker) checks, not disguised element-type branches**:
+  the generated mesh shape really exposes `nWiresX`/`pitchX`/`pitchY` and the coil `coilLength`, so the guards match the
+  data. Two-way mats (both MAIN) and joist topping (mesh) correctly stay representative in `placeBars`.
+- **Float / determinism**: the `for (y += spacing)` loop is IEEE-754-deterministic (bit-stable cross-platform); the
+  `1e-6` bound epsilon + the empty-set fallback handle spacing > span, spacing > width, 1-step, and huge spans without
+  crash/empty (verified 300 mm and 1 000 000 mm spans, spacing 6000 > span).
+- **H10 is correct**: `setHook` commits against `committed` (last-valid params) so a hook edit lands while a *param* is
+  mid-invalid; `committed` equals the live buffer whenever valid, so no behaviour change on the happy path. Checked the
+  neighbouring drop-paths (shape switch mid-invalid → `pickShape` re-seeds+validates; import/undo → `committedKey`
+  resync effect wins). Minor pre-existing edge only: `pickShape` silently no-ops if a shape's default seed is invalid
+  under the current hooks (H11 keeps defaults valid, so unreachable today).
+- **D1/D2 are viewport-only, nothing leaked into core** (`steppedStair.ts`, `meshGridBars` live in `apps/web`): D1
+  landing top aligns with the top tread (`topZ − waist/2`); D2 mesh grid degrades to empty (not an infinite loop) on
+  NaN/degenerate `b`/`length` and is `pitchX/Y > 0`-guarded.
+
+**owner_tasks corrections (applied):** (1) added **B-10** — the C1 distribution fabrication-**count** reconciliation
+(F2) is now a tracked ratification item, not just a §9 flag; (2) added **B-5a** — the cover comfort-band *semantics*
+(should code-minimum be amber / roll up to the stamp — F1) as a distinct owner decision from the numeric band width
+(**B-5**); (3) annotated **D-4** that the joist-coupe line-count (F3) was a code bug (now fixed + guarded), not an
+acceptance judgment. Also corrected the **spec** C1 paragraph (count now reconciled, no longer "representative /
+flagged").
+
+**Gate (after fixes):** `npm run check` ✓ — **658 tests / 129 files** (657→658: `coupe_slab_exactness` +3 F2/F3
+assertions, `cover_tier` −2 vs the old `cover_warn`); `npm run coverage` core **95.11%** (≥90 ✓); `coverage:adapter`
+**96.76%** (no regression); `build:web` ✓. Only source touched by the fixes: `validation/index.ts`,
+`validation/profiles.ts`, `pipeline/slab.ts`, `pipeline/stair.ts`, `section/sectionAt.ts` (all core) + 3 test files.
+Tree clean (probes deleted). **NOT pushed** (owner controls push).
 
 ### 2026-07-08 — v1.0.4 **C1 slab-coupe exactness + D1/D2 (3D fidelity) + H10 + §7.12 cover WARN tier** — **CODE DONE, tested, green — NOT pushed** — by **Amer** (owner's local Windows PC)
 

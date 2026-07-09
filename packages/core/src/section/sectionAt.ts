@@ -18,6 +18,7 @@
  */
 import type { SolveResult } from "../pipeline/element";
 import { placeBars } from "./place";
+import { isDistributionLinear } from "../layout/slab";
 import {
   resolveLookBehind,
   DEFAULT_COUPE_CONVENTION,
@@ -230,8 +231,12 @@ export function sectionAt(
   // covers a transverse set (cut between two stirrups) AND — v1.0.4 C1 ([REF-SYS-810]) — a slab/stair
   // DISTRIBUTION layer (a cut between two répartition bars), so the transverse coupe always reads the
   // distribution layer as a line, not just when the cut happens to land on one.
+  // F3 review-fix (2026-07-08, Zayd): gate on `isDistributionLinear` — ONLY a discrete cross-width
+  // répartition bar earns the guarantee. A welded topping MESH (role DISTRIBUTION) is NOT a linear bar
+  // (it stays the representative panel in placeBars), so it must NOT be swept in — doing so drew stray
+  // representative lines in the joist coupe (regression vs the pre-C1 render).
   const guaranteeGroups = new Set<string>(member.transverse.map((t) => t.groupId));
-  for (const g of result.groups) if (g.role === "DISTRIBUTION") guaranteeGroups.add(g.groupId);
+  for (const g of result.groups) if (isDistributionLinear(g.role, g.shape)) guaranteeGroups.add(g.groupId);
   for (const gid of guaranteeGroups) {
     if (lines.some((l) => l.groupId === gid)) continue;
     const behind = paCandidates

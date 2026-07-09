@@ -1,10 +1,16 @@
 /**
- * v1.0.4 — §7.12 cover comfort-target WARN band. Cover below the durability+fire requirement is
- * 🔴 FAIL (unchanged); cover that MEETS the code minimum but sits below the comfort target
- * `reqCover·(1+band)` is now 🟠 WARN; comfortably above → 🟢 PASS. The band is the pack's
- * `warnBands.cover` (BAEL/EC2 default 0.1). Applied UNIFORMLY across element validators (a column via
- * `validateColumn`, a beam via the profile registry) — one "cover" rule, one behaviour.
- * ⚠ the comfort band (G-TOL) is PROVISIONAL pending owner/engineer sign-off (owner_tasks B-5).
+ * §7.3 cover check — FAIL/PASS, applied UNIFORMLY across element validators via the shared
+ * `coverItem` helper (a column through `validateColumn`, a beam through the profile registry).
+ *
+ * Cover BELOW the durability+fire minimum → 🔴 FAIL. Cover that MEETS the minimum (including exactly
+ * AT it) → 🟢 PASS: a cover at the code minimum is **code-compliant**, so it is green, not amber
+ * (validity-tier philosophy, core_logic §4.2 — 🟢 = "within the rules").
+ *
+ * History: a §7.12 "comfort-target" WARN band was tried (v1.0.4, Amer) and reverted (review F1, Zayd
+ * 2026-07-08) — it turned the shipped default column/beam (cover at the code minimum) amber
+ * "À vérifier", and every design sitting on a binding minimum (fire / cast-against-earth). If a
+ * comfort nudge is ever wanted it must be advisory-only and must NOT roll up to the drawing stamp
+ * (owner decision owner_tasks B-5a).
  */
 import { describe, it, expect } from "vitest";
 import { solveColumn, solveElement, type ElementSolveInput } from "@rebarconfig/core";
@@ -15,7 +21,7 @@ const droite = loadShape("droite");
 const cadre = loadShape("cadre_rect");
 const code = makeBaelPack();
 
-// BAEL EXTERIOR, Ø20 → reqCover = 30 mm; comfort target = 30·1.1 = 33 mm.
+// BAEL EXTERIOR, Ø20 → reqCover = 30 mm.
 function columnCoverItem(cover: number) {
   const r = solveColumn({
     element: "E-COL-01",
@@ -31,7 +37,7 @@ function columnCoverItem(cover: number) {
   return r.validation.find((v) => v.rule === "cover")!;
 }
 
-describe("cover — §7.12 comfort-target WARN band (column, validateColumn)", () => {
+describe("cover — §7.3 FAIL/PASS (column, validateColumn)", () => {
   it("below the code minimum (25 < 30) → 🔴 FAIL", () => {
     const c = columnCoverItem(25);
     expect(c.status).toBe("FAIL");
@@ -39,31 +45,25 @@ describe("cover — §7.12 comfort-target WARN band (column, validateColumn)", (
     expect(c.symbol).toBe("🔴");
   });
 
-  it("at the bare minimum (30, ≥ 30 but < comfort 33) → 🟠 WARN", () => {
+  it("exactly AT the code minimum (30) → 🟢 PASS (compliant, not amber)", () => {
     const c = columnCoverItem(30);
-    expect(c.status).toBe("WARN");
-    expect(c.tier).toBe(2);
-    expect(c.symbol).toBe("🟠");
-  });
-
-  it("just under the comfort target (32 < 33) → still 🟠 WARN", () => {
-    expect(columnCoverItem(32).status).toBe("WARN");
-  });
-
-  it("comfortably above the comfort target (35 ≥ 33) → 🟢 PASS", () => {
-    const c = columnCoverItem(35);
     expect(c.status).toBe("PASS");
     expect(c.tier).toBe(3);
+    expect(c.symbol).toBe("🟢");
   });
 
-  it("the WARN message names both the requirement and the comfort target", () => {
+  it("comfortably above the minimum (35) → 🟢 PASS", () => {
+    expect(columnCoverItem(35).status).toBe("PASS");
+  });
+
+  it("the PASS message names the requirement", () => {
     const c = columnCoverItem(31);
-    expect(c.message_en).toContain("comfort target");
-    expect(c.message_en).toContain("33");
+    expect(c.message_en).toContain("required");
+    expect(c.message_en).toContain("30");
   });
 });
 
-/** The SAME band fires through a profile validator (beam) — proves uniform, not column-only. */
+/** The SAME helper drives a profile validator (beam) — proves the cover rule is uniform, not column-only. */
 function beamCoverStatus(cover: number): string {
   const b = 300, h = 600, L = 6000, phiT = 8;
   const input: ElementSolveInput = {
@@ -88,11 +88,9 @@ function beamCoverStatus(cover: number): string {
   return solveElement(input).validation.find((v) => v.rule === "cover")!.status;
 }
 
-describe("cover — the comfort band is uniform across validators (beam, profile registry)", () => {
-  it("beam cover in the comfort band → 🟠 WARN (not silently PASS)", () => {
-    expect(beamCoverStatus(31)).toBe("WARN");
-  });
-  it("beam cover comfortably above → 🟢 PASS; below minimum → 🔴 FAIL", () => {
+describe("cover — the FAIL/PASS rule is uniform across validators (beam, profile registry)", () => {
+  it("beam cover at/above the minimum → 🟢 PASS; below → 🔴 FAIL", () => {
+    expect(beamCoverStatus(30)).toBe("PASS"); // exactly at the EXTERIOR minimum
     expect(beamCoverStatus(40)).toBe("PASS");
     expect(beamCoverStatus(20)).toBe("FAIL");
   });

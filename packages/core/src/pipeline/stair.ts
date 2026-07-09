@@ -83,12 +83,21 @@ export function solveStair(input: StairSolveInput): SolveResult {
     const role = z.role ?? (z.slabRole === "SECONDARY" ? "DISTRIBUTION" : "PRIMARY_LONGITUDINAL");
     const shape = generateShape(z.shape, z.params, z.diameter, code);
     const span = geometry.n_steps * geometry.g;
+    const v = z.v ?? t / 2 - input.cover;
+    // v1.0.4 C1: a DISTRIBUTION linear bar runs ACROSS the flight width at span (going) stations
+    // (exact coupe); a MAIN/TOP bar keeps the along-span row (`across` never set → byte-identical).
+    const linearDist = isDistributionLinear(role, shape);
+    const zoneBars = linearDist
+      ? solveSlabDistributionBars(span, z.spacing, v, z.zone)
+      : solveSlabBars(width, z.spacing, v, z.zone);
     zonesGeom.push({ zone: z.zone, d, dPrime: input.cover, tensionCentroid: { u: 0, v: z.v ?? 0 } });
     groups.push({
       groupId: z.groupId,
       role,
       diameter: z.diameter,
-      count: Math.floor(width / z.spacing) + 1, // BBS unchanged (C1: render-only; count reconciliation flagged)
+      // C1 review-fix (F2, 2026-07-08): a linear DISTRIBUTION bar is counted from the SPAN-distributed
+      // set actually placed (BBS/table/3D agree); MAIN/TOP keep the width-derived representative count.
+      count: linearDist ? zoneBars.length : Math.floor(width / z.spacing) + 1,
       zone: z.zone,
       shape,
     });
@@ -102,12 +111,7 @@ export function solveStair(input: StairSolveInput): SolveResult {
       d,
       role: z.slabRole,
     });
-    const v = z.v ?? t / 2 - input.cover;
-    // v1.0.4 C1: a DISTRIBUTION linear bar runs ACROSS the flight width at span (going) stations
-    // (exact coupe); a MAIN/TOP bar keeps the along-span row (`across` never set → byte-identical).
-    bars.push(...(isDistributionLinear(role, shape)
-      ? solveSlabDistributionBars(span, z.spacing, v, z.zone)
-      : solveSlabBars(width, z.spacing, v, z.zone)));
+    bars.push(...zoneBars);
   }
 
   const slab: SlabContext = { thickness: t, zones: slabZones };

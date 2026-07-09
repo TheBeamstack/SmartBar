@@ -171,6 +171,50 @@ describe("C1 — legacy no-op: no discrete distribution bar → representative r
   });
 });
 
+describe("C1 review-fix F2 — the fabrication COUNT matches the rendered/scheduled set", () => {
+  it("a linear distribution group's count == the number of across-width bars actually placed", () => {
+    const result = oneWaySlab();
+    const distGroup = result.groups.find((g) => g.groupId === "D")!;
+    const placedDist = placeBars(result).filter((p) => p.groupId === "D");
+    expect(distGroup.count).toBe(placedDist.length); // BBS/table quantity == drawn quantity
+    // and it is the SPAN-distributed count (Lx), not the width-derived floor(Ly/spacing)+1
+    expect(distGroup.count).not.toBe(Math.floor(LY / 250) + 1);
+    expect(distGroup.count).toBeGreaterThan(Math.floor(LY / 250) + 1); // 5000-span > 3000-width at 250
+  });
+
+  it("the MAIN (along-span) group keeps its width-derived representative count", () => {
+    const result = oneWaySlab();
+    const mainGroup = result.groups.find((g) => g.groupId === "M")!;
+    expect(mainGroup.count).toBe(Math.floor(LY / 150) + 1);
+  });
+});
+
+describe("C1 review-fix F3 — a welded topping MESH earns NO guaranteed coupe line", () => {
+  // a slab reinforced by a MAIN droite + a SECONDARY welded topping MESH (joist-topping shape).
+  function meshToppingSlab(): SolveResult {
+    return solveSlab({
+      element: "E-SLB-01",
+      profile: "SLAB_ONEWAY",
+      geometry: { Lx: LX, Ly: LY, t: 200 },
+      material: { f_c28: 25, f_e: 500 },
+      cover: 25,
+      exposure: "INTERIOR",
+      zones: [
+        { zone: "As_main", groupId: "M", slabRole: "MAIN", shape: droite, params: { L: LX }, diameter: 12, spacing: 150, asReqPerM: 700, v: -75 },
+        { zone: "As_topping", groupId: "TM", slabRole: "SECONDARY", shape: mesh, params: { pitch_x: 150, pitch_y: 150, Lx: LX, Ly: LY }, diameter: 6, spacing: 150, asReqPerM: 40 },
+      ],
+      code,
+    });
+  }
+  it("the topping mesh (role DISTRIBUTION but not a linear bar) is not swept into the guarantee", () => {
+    const result = meshToppingSlab();
+    const view = sectionAt(result, defaultCoupeFor(result));
+    expect(view.lines.filter((l) => l.groupId === "TM").length).toBe(0);
+    // main bars still read as dots
+    expect(view.circles.some((c) => c.groupId === "M")).toBe(true);
+  });
+});
+
 describe("C1 — the stair distribution layer runs across the flight width too", () => {
   const result = stair();
   it("distribution bars run across the flight width at span (going) stations", () => {

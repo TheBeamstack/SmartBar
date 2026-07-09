@@ -71,15 +71,22 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     const asProvPerM = slabProvidedPerMetre(z.diameter, z.spacing);
     const role = z.role ?? (z.slabRole === "SECONDARY" ? "DISTRIBUTION" : "PRIMARY_LONGITUDINAL");
     const shape = generateShape(z.shape, z.params, z.diameter, code);
+    const v = z.v ?? geometry.t / 2 - input.cover;
+    // v1.0.4 C1: a DISTRIBUTION linear bar runs ACROSS the width at span stations (exact coupe); a
+    // MAIN/TOP bar (or a mesh topping) keeps the along-span row (`across` never set → byte-identical).
+    const linearDist = isDistributionLinear(role, shape);
+    const zoneBars = linearDist
+      ? solveSlabDistributionBars(geometry.Lx, z.spacing, v, z.zone)
+      : solveSlabBars(geometry.Ly, z.spacing, v, z.zone);
     zonesGeom.push({ zone: z.zone, d, dPrime: input.cover, tensionCentroid: { u: 0, v: z.v ?? 0 } });
     groups.push({
       groupId: z.groupId,
       role,
       diameter: z.diameter,
-      // NOTE (C1): the fabrication count stays the pre-C1 representative value (BBS unchanged — no
-      // golden moved). The distribution quantity reconciliation (count from the SPAN) is flagged for
-      // owner/engineer sign-off (it changes a fabrication quantity). See the §9 handoff.
-      count: Math.floor(geometry.Ly / z.spacing) + 1,
+      // C1 review-fix (F2, 2026-07-08): the fabrication COUNT now matches the rendered/scheduled set —
+      // a linear DISTRIBUTION bar is counted from the SPAN-distributed bars actually placed (so the BBS,
+      // the bending table and the 3D/coupe agree); MAIN/TOP + mesh topping keep the width-derived count.
+      count: linearDist ? zoneBars.length : Math.floor(geometry.Ly / z.spacing) + 1,
       zone: z.zone,
       shape,
     });
@@ -93,12 +100,7 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
       d,
       role: z.slabRole,
     });
-    const v = z.v ?? geometry.t / 2 - input.cover;
-    // v1.0.4 C1: a DISTRIBUTION linear bar runs ACROSS the width at span stations (exact coupe); a
-    // MAIN/TOP bar (or a mesh topping) keeps the along-span row (`across` never set → byte-identical).
-    bars.push(...(isDistributionLinear(role, shape)
-      ? solveSlabDistributionBars(geometry.Lx, z.spacing, v, z.zone)
-      : solveSlabBars(geometry.Ly, z.spacing, v, z.zone)));
+    bars.push(...zoneBars);
   }
 
   const slab: SlabContext = {

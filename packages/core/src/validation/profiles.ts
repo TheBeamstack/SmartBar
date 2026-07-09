@@ -310,8 +310,8 @@ export function validateBeamProfile(ctx: ProfileContext): ValidationItem[] {
     ...(ctx.fire !== undefined ? { fire: ctx.fire } : {}),
     material: ctx.material,
   });
-  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band (shared helper, uniform across elements).
-  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, ctx.longitudinal.map((z) => z.groupId)));
+  // §7.3 cover (durability + fire) — shared helper, uniform across elements.
+  out.push(coverItem(ctx.cover, reqCover, ref, ctx.longitudinal.map((z) => z.groupId)));
 
   // effective depth governing shear = the span (sagging) zone's computed d
   const flexZone =
@@ -560,8 +560,8 @@ export function validateCircularColumnProfile(ctx: ProfileContext): ValidationIt
     ...(ctx.fire !== undefined ? { fire: ctx.fire } : {}),
     material: ctx.material,
   });
-  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band (shared helper, uniform across elements).
-  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, ctx.longitudinal.map((z) => z.groupId)));
+  // §7.3 cover (durability + fire) — shared helper, uniform across elements.
+  out.push(coverItem(ctx.cover, reqCover, ref, ctx.longitudinal.map((z) => z.groupId)));
 
   // spiral / hoop confinement: spacing (pitch) ≤ code max, tie ø, leg-counted Asw (§7.5)
   for (const tz of ctx.transverse) {
@@ -713,8 +713,8 @@ function slabZoneChecks(ctx: ProfileContext): ValidationItem[] {
     ...(ctx.fire !== undefined ? { fire: ctx.fire } : {}),
     material: ctx.material,
   });
-  // §7.3 durability+fire FAIL + §7.12 comfort-target WARN band (shared helper, uniform across elements).
-  out.push(coverItem(ctx.cover, reqCover, bands.cover, ref, slab.zones.map((z) => z.groupId)));
+  // §7.3 cover (durability + fire) — shared helper, uniform across elements.
+  out.push(coverItem(ctx.cover, reqCover, ref, slab.zones.map((z) => z.groupId)));
 
   return out;
 }
