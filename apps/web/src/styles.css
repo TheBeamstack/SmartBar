@@ -267,6 +267,26 @@ html, body, #root {
   border-radius: 6px;
   padding: 4px 6px;
 }
+/* v1.0.6 N1 (U6): plain number box (no slider) can take the freed width. */
+.field-num-wide { width: 96px; }
+.field-unit { font-size: 12px; color: var(--muted); }
+/* v1.0.6 N1 (U6): integer count stepper (− N +). The middle box is the numeric/keyboard twin. */
+.field-row.stepper { gap: 4px; }
+.stepper-num { width: 56px; text-align: center; }
+.stepper-btn {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.stepper-btn:disabled { opacity: 0.4; cursor: default; }
+.stepper-btn:hover:not(:disabled) { border-color: var(--accent, #6b8afd); }
 .field select {
   background: var(--panel-2);
   color: var(--text);
@@ -458,6 +478,21 @@ html, body, #root {
 }
 
 /* --- v1.0.2 F7 section picker + F2 cross-tie editor --- */
+/* v1.0.6 N2 (U2): the one unified section canvas + its tool status bar. */
+.section-canvas { margin: 4px 0 8px; border: 1px solid var(--border); border-radius: 8px; padding: 6px; }
+.section-canvas-status {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 12px; color: var(--muted); padding: 2px 4px 4px;
+}
+.section-canvas-status.linking { color: var(--text); font-weight: 600; }
+.crosstie-link, .supp-link {
+  font-size: 12px; padding: 4px 10px; margin: 2px 0 6px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+}
+.crosstie-link.link-armed, .supp-link.link-armed {
+  border-color: #22d3ee; color: #22d3ee; font-weight: 600;
+}
 .section-picker { margin: 6px 0 4px; }
 .section-picker-svg {
   width: 100%;

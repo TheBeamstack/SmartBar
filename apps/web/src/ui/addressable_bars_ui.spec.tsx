@@ -22,7 +22,10 @@ describe("G2 addressable-bars editor", () => {
   it("removing the selected bar records a removed override and drops it from the placement", () => {
     const { container } = render(<><Navbar /><Sidebar /></>);
     const panel = panelOf(container);
-    const barBtns = within(panel).getAllByRole("button").filter((b) => b.classList.contains("sp-list-btn"));
+    // v1.0.6 N2: the section picker moved out of this panel into the ONE shared SectionCanvas; pick a
+    // bar there (select mode by default) → this editor targets it via `selectedBars`.
+    const canvas = container.querySelector(".section-canvas") as HTMLElement;
+    const barBtns = within(canvas).getAllByRole("button").filter((b) => b.classList.contains("sp-list-btn") && !b.classList.contains("sp-list-extra"));
     expect(barBtns.length).toBeGreaterThan(0);
     fireEvent.click(barBtns[0]!);
     const sel = useStore.getState().selectedBars[0]!;

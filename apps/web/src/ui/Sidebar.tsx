@@ -10,11 +10,14 @@ import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { NumberField } from "./NumberField";
+import { NumberInput } from "./NumberInput";
+import { Stepper } from "./Stepper";
 import { SupplementsPanel } from "./SupplementsPanel";
 import { CrossTieEditor } from "./CrossTieEditor";
 import { RegionEditor } from "./RegionEditor";
 import { FaconnageEditor } from "./FaconnageEditor";
 import { AddressableBars } from "./AddressableBars";
+import { SectionCanvas } from "./SectionCanvas";
 import { cm2, perZoneReadout } from "./derived";
 import { isColumnDoc, isGenericDoc, isBeamDoc, type Splice, type CodePackId } from "../engine/document";
 import { GENERIC_SPECS, type GenericElementId } from "../engine/elementSpecs";
@@ -113,7 +116,7 @@ function SpliceEditor() {
             <option value="lap">{s.splice.lap}</option>
             <option value="coupler">{s.splice.coupler}</option>
           </select>
-          <NumberField label={s.splice.station} value={sp.at} min={0} max={memberLen} step={50} onChange={(v) => patch({ splices: splices.map((x, j) => (j === i ? { ...x, at: v } : x)) })} />
+          <NumberInput label={s.splice.station} value={sp.at} min={0} max={memberLen} step={50} onChange={(v) => patch({ splices: splices.map((x, j) => (j === i ? { ...x, at: v } : x)) })} />
           <button type="button" className="btn-mini" onClick={() => patch({ splices: splices.filter((_, j) => j !== i) })}>×</button>
         </div>
       ))}
@@ -141,22 +144,25 @@ function ColumnSchemeControls() {
 
   return (
     <>
+      {/* v1.0.6 N2 (U2): the ONE unified section canvas — its active tool decides what a bar click
+          means (select → addressable target; link → cross-tie / supplement). */}
+      <SectionCanvas />
       <h3>{s.primaryBars}</h3>
       <DiameterSelect value={L.diameter} onChange={(v) => setLongitudinal({ diameter: v })} />
       {symmetric ? (
         <>
-          <NumberField label={s.layout.verticalFaces} value={Math.max(L.nTop, L.nBottom)} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v, nBottom: v })} />
-          <NumberField label={s.layout.horizontalFaces} value={Math.max(L.nLeft, L.nRight)} min={0} max={8} onChange={(v) => setLongitudinal({ nLeft: v, nRight: v })} />
+          <Stepper label={s.layout.verticalFaces} value={Math.max(L.nTop, L.nBottom)} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v, nBottom: v })} />
+          <Stepper label={s.layout.horizontalFaces} value={Math.max(L.nLeft, L.nRight)} min={0} max={8} onChange={(v) => setLongitudinal({ nLeft: v, nRight: v })} />
         </>
       ) : (
         <>
-          <NumberField label={s.countsTop} value={L.nTop} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v })} />
-          <NumberField label={s.countsBottom} value={L.nBottom} min={0} max={8} onChange={(v) => setLongitudinal({ nBottom: v })} />
-          <NumberField label={s.countsLeft} value={L.nLeft} min={0} max={8} onChange={(v) => setLongitudinal({ nLeft: v })} />
-          <NumberField label={s.countsRight} value={L.nRight} min={0} max={8} onChange={(v) => setLongitudinal({ nRight: v })} />
+          <Stepper label={s.countsTop} value={L.nTop} min={0} max={8} onChange={(v) => setLongitudinal({ nTop: v })} />
+          <Stepper label={s.countsBottom} value={L.nBottom} min={0} max={8} onChange={(v) => setLongitudinal({ nBottom: v })} />
+          <Stepper label={s.countsLeft} value={L.nLeft} min={0} max={8} onChange={(v) => setLongitudinal({ nLeft: v })} />
+          <Stepper label={s.countsRight} value={L.nRight} min={0} max={8} onChange={(v) => setLongitudinal({ nRight: v })} />
         </>
       )}
-      <NumberField label={s.asRequired + " (mm²)"} value={L.asReq} min={0} max={20000} step={50} onChange={(v) => setLongitudinal({ asReq: v })} />
+      <NumberInput label={s.asRequired + " (mm²)"} value={L.asReq} min={0} max={20000} step={50} onChange={(v) => setLongitudinal({ asReq: v })} />
       <FaconnageEditor
         key={`${doc.element}-${L.groupId}`}
         shapeId={L.shapeId}
@@ -170,8 +176,8 @@ function ColumnSchemeControls() {
 
       <h3>{s.ties}</h3>
       <DiameterSelect value={T.diameter} onChange={(v) => setTie({ diameter: v })} />
-      <NumberField label={s.spacing} value={T.spacing} min={50} max={400} step={5} onChange={(v) => setTie({ spacing: v })} />
-      <NumberField label="Asw,req (mm²/m)" value={T.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setTie({ aswReqPerM: v })} />
+      <NumberInput label={s.spacing} value={T.spacing} min={50} max={400} step={5} onChange={(v) => setTie({ spacing: v })} />
+      <NumberInput label="Asw,req (mm²/m)" value={T.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setTie({ aswReqPerM: v })} />
 
       <CrossTieEditor />
       <RegionEditor />
@@ -198,13 +204,13 @@ function SupportControls({ side }: { side: "left" | "right" }) {
       {sup.chapeau.enabled && (
         <>
           <DiameterSelect value={sup.chapeau.diameter} onChange={(v) => setSupport(side, { chapeau: { diameter: v } })} />
-          <NumberField label={s.beam.topBars} value={sup.chapeau.nTop} min={2} max={8} onChange={(v) => setSupport(side, { chapeau: { nTop: v } })} />
-          <NumberField label={s.asRequired + " (mm²)"} value={sup.chapeau.asReq} min={0} max={20000} step={50} onChange={(v) => setSupport(side, { chapeau: { asReq: v } })} />
-          <NumberField label={s.beam.supportZone} value={sup.chapeau.length} min={0} max={3000} step={50} onChange={(v) => setSupport(side, { chapeau: { length: v } })} />
+          <Stepper label={s.beam.topBars} value={sup.chapeau.nTop} min={2} max={8} onChange={(v) => setSupport(side, { chapeau: { nTop: v } })} />
+          <NumberInput label={s.asRequired + " (mm²)"} value={sup.chapeau.asReq} min={0} max={20000} step={50} onChange={(v) => setSupport(side, { chapeau: { asReq: v } })} />
+          <NumberInput label={s.beam.supportZone} value={sup.chapeau.length} min={0} max={3000} step={50} onChange={(v) => setSupport(side, { chapeau: { length: v } })} />
         </>
       )}
-      <NumberField label={s.beam.anchorage} value={sup.anchorage} min={0} max={2000} step={10} onChange={(v) => setSupport(side, { anchorage: v })} />
-      <NumberField label={s.beam.supportWidth} value={sup.width} min={100} max={1000} step={10} onChange={(v) => setSupport(side, { width: v })} />
+      <NumberInput label={s.beam.anchorage} value={sup.anchorage} min={0} max={2000} step={10} onChange={(v) => setSupport(side, { anchorage: v })} />
+      <NumberInput label={s.beam.supportWidth} value={sup.width} min={100} max={1000} step={10} onChange={(v) => setSupport(side, { width: v })} />
     </>
   );
 }
@@ -228,7 +234,7 @@ function ReleveEditor() {
             <option value="left">V1</option>
             <option value="right">V2</option>
           </select>
-          <NumberField label={s.beam.releveCount} value={r.count} min={1} max={8} onChange={(v) => setReleves(releves.map((x, j) => (j === i ? { ...x, count: v } : x)))} />
+          <Stepper label={s.beam.releveCount} value={r.count} min={1} max={8} onChange={(v) => setReleves(releves.map((x, j) => (j === i ? { ...x, count: v } : x)))} />
           <DiameterSelect value={r.diameter} onChange={(v) => setReleves(releves.map((x, j) => (j === i ? { ...x, diameter: v } : x)))} />
           <button type="button" className="btn-mini" onClick={() => setReleves(releves.filter((_, j) => j !== i))}>×</button>
         </div>
@@ -251,10 +257,12 @@ function BeamSchemeControls() {
 
   return (
     <>
+      {/* v1.0.6 N2 (U2): the ONE unified section canvas (shared by bar-by-bar / cross-tie / supplement). */}
+      <SectionCanvas />
       <h3>{s.beam.spanSteel}</h3>
       <DiameterSelect value={span.diameter} onChange={(v) => setSpan({ diameter: v })} />
-      <NumberField label={s.beam.bottomBars} value={span.nBottom} min={2} max={8} onChange={(v) => setSpan({ nBottom: v })} />
-      <NumberField label={s.asRequired + " (mm²)"} value={span.asReq} min={0} max={20000} step={50} onChange={(v) => setSpan({ asReq: v })} />
+      <Stepper label={s.beam.bottomBars} value={span.nBottom} min={2} max={8} onChange={(v) => setSpan({ nBottom: v })} />
+      <NumberInput label={s.asRequired + " (mm²)"} value={span.asReq} min={0} max={20000} step={50} onChange={(v) => setSpan({ asReq: v })} />
       <FaconnageEditor
         key={`${doc.element}-${span.groupId}`}
         shapeId={span.shapeId}
@@ -274,7 +282,7 @@ function BeamSchemeControls() {
       {topBars.enabled && (
         <>
           <DiameterSelect value={topBars.diameter} onChange={(v) => setTopBars({ diameter: v })} />
-          <NumberField label={s.beam.montageBars} value={topBars.nTop} min={2} max={8} onChange={(v) => setTopBars({ nTop: v })} />
+          <Stepper label={s.beam.montageBars} value={topBars.nTop} min={2} max={8} onChange={(v) => setTopBars({ nTop: v })} />
         </>
       )}
 
@@ -284,8 +292,8 @@ function BeamSchemeControls() {
 
       <h3>{s.beam.stirrups}</h3>
       <DiameterSelect value={stirrup.diameter} onChange={(v) => setStirrup({ diameter: v })} />
-      <NumberField label={s.spacing} value={stirrup.spacing} min={50} max={400} step={5} onChange={(v) => setStirrup({ spacing: v })} />
-      <NumberField label="Asw,req (mm²/m)" value={stirrup.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setStirrup({ aswReqPerM: v })} />
+      <NumberInput label={s.spacing} value={stirrup.spacing} min={50} max={400} step={5} onChange={(v) => setStirrup({ spacing: v })} />
+      <NumberInput label="Asw,req (mm²/m)" value={stirrup.aswReqPerM} min={0} max={2000} step={10} onChange={(v) => setStirrup({ aswReqPerM: v })} />
       <button type="button" className="btn-mini" onClick={seedStirrupRegions}>{s.beam.seedRegions}</button>
 
       <CrossTieEditor />
@@ -310,16 +318,16 @@ function GenericSchemeControls() {
           <h3>{lang === "fr" ? z.label_fr : z.label_en}</h3>
           <DiameterSelect value={z.diameter} onChange={(v) => setZone(z.groupId, { diameter: v })} />
           {z.control === "count" ? (
-            <NumberField label={s.generic.count} value={z.count ?? 0} min={0} max={40} onChange={(v) => setZone(z.groupId, { count: v })} />
+            <Stepper label={s.generic.count} value={z.count ?? 0} min={0} max={40} onChange={(v) => setZone(z.groupId, { count: v })} />
           ) : (
-            <NumberField label={s.spacing} value={z.spacing ?? 150} min={50} max={400} step={5} onChange={(v) => setZone(z.groupId, { spacing: v })} />
+            <NumberInput label={s.spacing} value={z.spacing ?? 150} min={50} max={400} step={5} onChange={(v) => setZone(z.groupId, { spacing: v })} />
           )}
           {z.kind === "transverse" ? (
-            <NumberField label="Asw,req (mm²/m)" value={z.asReqPerM ?? 0} min={0} max={2000} step={10} onChange={(v) => setZone(z.groupId, { asReqPerM: v })} />
+            <NumberInput label="Asw,req (mm²/m)" value={z.asReqPerM ?? 0} min={0} max={2000} step={10} onChange={(v) => setZone(z.groupId, { asReqPerM: v })} />
           ) : z.control === "count" ? (
-            <NumberField label={s.asRequired + " (mm²)"} value={z.asReq ?? 0} min={0} max={40000} step={50} onChange={(v) => setZone(z.groupId, { asReq: v })} />
+            <NumberInput label={s.asRequired + " (mm²)"} value={z.asReq ?? 0} min={0} max={40000} step={50} onChange={(v) => setZone(z.groupId, { asReq: v })} />
           ) : (
-            <NumberField label={s.generic.asReqPerM} value={z.asReqPerM ?? 0} min={0} max={4000} step={10} onChange={(v) => setZone(z.groupId, { asReqPerM: v })} />
+            <NumberInput label={s.generic.asReqPerM} value={z.asReqPerM ?? 0} min={0} max={4000} step={10} onChange={(v) => setZone(z.groupId, { asReqPerM: v })} />
           )}
         </div>
       ))}
@@ -331,7 +339,7 @@ function GenericSchemeControls() {
             <input type="checkbox" checked={doc.restrainedCorner ?? false} onChange={(e) => setGenericFlag({ restrainedCorner: e.target.checked })} />
             <span className="field-label">{s.generic.restrainedCorner}</span>
           </label>
-          <NumberField label={s.generic.cornerTorsion} value={doc.cornerTorsionProvided ?? 0} min={0} max={2000} step={10} onChange={(v) => setGenericFlag({ cornerTorsionProvided: v })} />
+          <NumberInput label={s.generic.cornerTorsion} value={doc.cornerTorsionProvided ?? 0} min={0} max={2000} step={10} onChange={(v) => setGenericFlag({ cornerTorsionProvided: v })} />
         </div>
       )}
       {doc.element === "E-STR-01" && (
@@ -460,7 +468,7 @@ function SeismicControls() {
         </select>
       </label>
       {cur && (
-        <NumberField
+        <Stepper
           label={s.seismic.zone}
           value={cur.zone}
           min={1}
@@ -491,8 +499,8 @@ function ProjectTab() {
           <option value="EC2">Eurocode 2</option>
         </select>
       </label>
-      <NumberField label={s.material.concrete} value={doc.material.f_c28} min={20} max={60} step={1} onChange={(v) => setMaterial({ f_c28: v })} />
-      <NumberField label={s.material.steel} value={doc.material.f_e} min={400} max={600} step={50} onChange={(v) => setMaterial({ f_e: v })} />
+      <NumberInput label={s.material.concrete} value={doc.material.f_c28} min={20} max={60} step={1} onChange={(v) => setMaterial({ f_c28: v })} />
+      <NumberInput label={s.material.steel} value={doc.material.f_e} min={400} max={600} step={50} onChange={(v) => setMaterial({ f_e: v })} />
       <label className="field">
         <span className="field-label">{s.exposure}</span>
         <select value={doc.exposure} onChange={(e) => setExposure(e.target.value)}>

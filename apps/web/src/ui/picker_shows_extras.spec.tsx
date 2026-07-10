@@ -16,10 +16,12 @@ describe("H7 — extras on the section picker", () => {
   it("renders a pickable entry for each independent extra bar; picking it selects by id", () => {
     const { container } = render(<><Navbar /><Sidebar /></>);
     const panel = () => container.querySelector(".addressable") as HTMLElement;
+    // v1.0.6 N2: extras are added from the panel but PICKED on the ONE shared SectionCanvas.
+    const canvas = () => container.querySelector(".section-canvas") as HTMLElement;
     fireEvent.click(within(panel()).getByText(/Ajouter une barre|Add a bar/)); // → extra "x1"
 
-    // the picker's keyboard list now carries an "x1" button (dashed extra style)
-    const x1Btn = within(panel()).getAllByRole("button").find((b) => b.classList.contains("sp-list-extra") && b.textContent === "x1");
+    // the shared canvas's keyboard list now carries an "x1" button (dashed extra style)
+    const x1Btn = within(canvas()).getAllByRole("button").find((b) => b.classList.contains("sp-list-extra") && b.textContent === "x1");
     expect(x1Btn).toBeDefined();
 
     fireEvent.click(x1Btn!);
@@ -35,10 +37,11 @@ describe("H7 — extras on the section picker", () => {
   it("selecting a layout bar clears the extra selection", () => {
     const { container } = render(<><Navbar /><Sidebar /></>);
     const panel = () => container.querySelector(".addressable") as HTMLElement;
+    const canvas = () => container.querySelector(".section-canvas") as HTMLElement;
     fireEvent.click(within(panel()).getByText(/Ajouter une barre|Add a bar/));
     useStore.getState().setSelectedExtraId("x1");
 
-    const layoutBtn = within(panel()).getAllByRole("button").find((b) => b.classList.contains("sp-list-btn") && !b.classList.contains("sp-list-extra"))!;
+    const layoutBtn = within(canvas()).getAllByRole("button").find((b) => b.classList.contains("sp-list-btn") && !b.classList.contains("sp-list-extra"))!;
     fireEvent.click(layoutBtn);
     expect(useStore.getState().selectedExtraId).toBeNull();
     expect(useStore.getState().selectedBars.length).toBe(1);

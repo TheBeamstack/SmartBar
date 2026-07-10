@@ -11,18 +11,15 @@ import { useStore } from "../store/useStore";
 import { t, type Strings } from "../i18n/strings";
 import { isColumnDoc, isBeamDoc, type BarOverrideEdit, type BarFaconnage } from "../engine/document";
 import { barLabel } from "../engine/barLabels";
-import { SectionPicker } from "./SectionPicker";
 import { FaconnageEditor } from "./FaconnageEditor";
-import { NumberField } from "./NumberField";
+import { NumberInput } from "./NumberInput";
 
 export function AddressableBars() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
   const result = useStore((s) => s.result);
   const selectedBars = useStore((s) => s.selectedBars);
-  const setSelectedBars = useStore((s) => s.setSelectedBars);
   const selectedExtraId = useStore((s) => s.selectedExtraId);
-  const setSelectedExtraId = useStore((s) => s.setSelectedExtraId);
   const setBarOverrides = useStore((s) => s.setBarOverrides);
   const setExtraBars = useStore((s) => s.setExtraBars);
   const s = t(lang).addressable;
@@ -67,12 +64,9 @@ export function AddressableBars() {
   return (
     <div className="addressable">
       <h3>{s.title}</h3>
+      {/* v1.0.6 N2 (U2): the section picker is no longer embedded here — pick a bar on the ONE shared
+          SectionCanvas (top of the scheme controls, in select mode) and this editor targets it. */}
       <p className="muted sp-hint">{s.hint}</p>
-      <SectionPicker
-        onPick={(i) => { setSelectedBars([i]); setSelectedExtraId(null); }}
-        onPickExtra={(id) => { setSelectedExtraId(id); setSelectedBars([]); }}
-        selectedExtraId={selectedExtraId}
-      />
 
       {target !== undefined && (
         <div className="addressable-bar">
@@ -85,9 +79,9 @@ export function AddressableBars() {
           </div>
           {!cur?.removed && (
             <>
-              <NumberField label={s.diameter} value={cur?.diameter ?? group.diameter} min={6} max={40} step={1} onChange={(v) => upsert(target, { diameter: v })} />
+              <NumberInput label={s.diameter} value={cur?.diameter ?? group.diameter} min={6} max={40} step={1} onChange={(v) => upsert(target, { diameter: v })} />
               <CoupledLength s={s} shapeId={cur?.shapeId ?? group.shapeId} length={cur?.length} memberLen={memberLen} onChange={(v) => upsert(target, { length: v })} />
-              <NumberField label={s.axialPos} value={cur?.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => upsert(target, { axialPos: v })} />
+              <NumberInput label={s.axialPos} value={cur?.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => upsert(target, { axialPos: v })} />
               <label className="addressable-autosplit">
                 <input type="checkbox" checked={cur?.autoSplice ?? false} onChange={(e) => upsert(target, { autoSplice: e.target.checked })} />
                 {s.autoSplit}
@@ -138,12 +132,12 @@ export function AddressableBars() {
               <button type="button" onClick={() => removeExtra(e.id)} aria-label={`${s.removeBar} ${e.id}`}>×</button>
             </div>
             <div className="addressable-extra-pos">
-              <NumberField label={s.u} value={e.u} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { u: v })} />
-              <NumberField label={s.level} value={e.v} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { v })} />
-              <NumberField label="Ø (mm)" value={e.diameter} min={6} max={40} step={1} onChange={(v) => patchExtra(e.id, { diameter: v })} />
+              <NumberInput label={s.u} value={e.u} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { u: v })} />
+              <NumberInput label={s.level} value={e.v} min={-2000} max={2000} step={5} onChange={(v) => patchExtra(e.id, { v })} />
+              <NumberInput label="Ø (mm)" value={e.diameter} min={6} max={40} step={1} onChange={(v) => patchExtra(e.id, { diameter: v })} />
             </div>
             <CoupledLength s={s} shapeId={e.shapeId} length={e.length} memberLen={memberLen} onChange={(v) => patchExtra(e.id, { length: v })} />
-            <NumberField label={s.axialPos} value={e.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => patchExtra(e.id, { axialPos: v })} />
+            <NumberInput label={s.axialPos} value={e.axialPos ?? 0} min={0} max={20000} step={10} onChange={(v) => patchExtra(e.id, { axialPos: v })} />
             <label className="addressable-autosplit">
               <input type="checkbox" checked={e.autoSplice ?? false} onChange={(ev) => patchExtra(e.id, { autoSplice: ev.target.checked })} />
               {s.autoSplit}
@@ -183,7 +177,7 @@ function CoupledLength({
   onChange: (v: number | undefined) => void;
 }) {
   if (shapeId !== "DROITE") {
-    return <NumberField label={s.length} value={length ?? memberLen} min={1} max={20000} step={10} onChange={onChange} />;
+    return <NumberInput label={s.length} value={length ?? memberLen} min={1} max={20000} step={10} onChange={onChange} />;
   }
   const custom = length !== undefined;
   return (
@@ -193,7 +187,7 @@ function CoupledLength({
         {s.customLength}
       </label>
       {custom ? (
-        <NumberField label={s.length} value={length ?? memberLen} min={1} max={20000} step={10} onChange={onChange} />
+        <NumberInput label={s.length} value={length ?? memberLen} min={1} max={20000} step={10} onChange={onChange} />
       ) : (
         <output className="addressable-coupled" aria-label={s.length}>{s.lengthCoupled}: {memberLen} mm</output>
       )}

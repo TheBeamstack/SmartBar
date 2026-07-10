@@ -9,28 +9,19 @@ import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { schemeManifest, supplementManifest } from "../engine/manifests";
-import { isColumnDoc, isBeamDoc } from "../engine/document";
-import { SectionPicker } from "./SectionPicker";
-import { useBarLink } from "./useBarLink";
-
-let instanceCounter = 0;
-const nextInstanceId = () => `S${++instanceCounter}`;
 
 export function SupplementsPanel() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
   const result = useStore((s) => s.result);
-  const addSupplement = useStore((s) => s.addSupplement);
   const removeSupplement = useStore((s) => s.removeSupplement);
   const rebindSupplement = useStore((s) => s.rebindSupplement);
+  const sectionLink = useStore((s) => s.sectionLink);
+  const beginLink = useStore((s) => s.beginLink);
+  const cancelLink = useStore((s) => s.cancelLink);
   const s = t(lang);
 
   const catalog = schemeManifest(doc.scheme).supplementalCatalog ?? [];
-  const baseGroupId = isColumnDoc(doc)
-    ? doc.longitudinal.groupId
-    : isBeamDoc(doc)
-      ? doc.span.groupId
-      : (doc.zones[0]?.groupId ?? "");
 
   const selectedBars = useStore((s) => s.selectedBars);
   const [supId, setSupId] = useState(catalog[0] ?? "");
@@ -39,24 +30,17 @@ export function SupplementsPanel() {
     const m = supplementManifest(id);
     return (lang === "fr" ? m.label_fr : m.label_en) ?? id;
   };
+  const diaFor = (id: string) =>
+    supplementManifest(id).params?.find((p) => p.key === "diameter")?.default ?? 8;
 
   // a supplement instance is broken when the engine emitted a supplement:<id> WARN for it
   const warnFor = (instanceId: string) =>
     result.validation.find((v) => v.rule === `supplement:${instanceId}`);
 
-  const linkSupplement = (a: number, b: number) => {
-    if (!supId) return;
-    const man = supplementManifest(supId);
-    const defaultDia = man.params?.find((p) => p.key === "diameter")?.default ?? 8;
-    addSupplement({
-      instanceId: nextInstanceId(),
-      supplementId: supId,
-      group: baseGroupId,
-      barIndices: [a, b],
-      diameter: defaultDia,
-    });
-  };
-  const pick = useBarLink(linkSupplement);
+  // v1.0.6 N2 (U2): arming "link" routes the shared SectionCanvas here — two bar picks bind this
+  // supplement type (the store owns instance-id + group; the panel supplies which type + its Ø).
+  const linkArmed = sectionLink?.kind === "supplement";
+  const armLink = (id: string) => beginLink({ kind: "supplement", supplementId: id, diameter: diaFor(id) });
 
   return (
     <div className="supplements">
@@ -68,7 +52,11 @@ export function SupplementsPanel() {
         <div className="supp-add">
           <label className="field">
             <span className="field-label">{s.supplements.title}</span>
-            <select value={supId} onChange={(e) => setSupId(e.target.value)} aria-label={s.supplements.title}>
+            <select
+              value={supId}
+              onChange={(e) => { setSupId(e.target.value); if (linkArmed) armLink(e.target.value); }}
+              aria-label={s.supplements.title}
+            >
               {catalog.map((id) => (
                 <option key={id} value={id}>
                   {label(id)}
@@ -77,7 +65,14 @@ export function SupplementsPanel() {
             </select>
           </label>
           <p className="muted sp-hint">{s.supplements.pickHint}</p>
-          <SectionPicker onPick={pick} />
+          <button
+            type="button"
+            className={`supp-link ${linkArmed ? "link-armed" : ""}`}
+            aria-pressed={linkArmed}
+            onClick={() => (linkArmed ? cancelLink() : armLink(supId))}
+          >
+            {s.supplements.linkOnSection}
+          </button>
         </div>
       )}
 

@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
-import { NumberField } from "./NumberField";
+import { NumberInput } from "./NumberInput";
 import { isColumnDoc, isBeamDoc, type TransverseRegion } from "../engine/document";
 import { memberAxisLength, effectiveRegions, normalizeRegions, symmetricEndsRegions } from "../engine/regions";
 
@@ -121,9 +121,9 @@ export function RegionEditor() {
 
       <details className="region-symmetric">
         <summary>{s.regions.symmetric}</summary>
-        <NumberField label={s.regions.endZone} value={endZone} min={0} max={Math.round(length / 2)} step={50} onChange={setEndZone} />
-        <NumberField label={s.regions.endSpacing} value={endSp} min={10} max={600} step={5} onChange={setEndSp} />
-        <NumberField label={s.regions.midSpacing} value={midSp} min={10} max={600} step={5} onChange={setMidSp} />
+        <NumberInput label={s.regions.endZone} value={endZone} min={0} max={Math.round(length / 2)} step={50} onChange={setEndZone} />
+        <NumberInput label={s.regions.endSpacing} value={endSp} min={10} max={600} step={5} onChange={setEndSp} />
+        <NumberInput label={s.regions.midSpacing} value={midSp} min={10} max={600} step={5} onChange={setMidSp} />
         <button type="button" onClick={() => commit(symmetricEndsRegions(length, endZone, endSp, midSp))}>
           {s.regions.apply}
         </button>

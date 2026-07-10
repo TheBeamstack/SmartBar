@@ -32,6 +32,7 @@ export interface Strings {
     rebind: string;
     boundTo: string;
     pickHint: string;
+    linkOnSection: string;
   };
   crossTies: {
     title: string;
@@ -43,6 +44,14 @@ export interface Strings {
     clear: string;
     hookAngle: string;
     hookAngleFree: string;
+    linkOnSection: string;
+  };
+  // v1.0.6 N2 (U2): the one unified section canvas + its tool status.
+  sectionCanvas: {
+    title: string;
+    selectHint: string;
+    linkHint: string;
+    cancel: string;
   };
   regions: {
     title: string;
@@ -285,6 +294,7 @@ const FR: Strings = {
     rebind: "Re-lier",
     boundTo: "Liée aux barres",
     pickHint: "Cliquez deux barres sur la coupe pour les relier.",
+    linkOnSection: "Lier sur la coupe",
   },
   crossTies: {
     title: "Épingles (cross-ties)",
@@ -296,6 +306,13 @@ const FR: Strings = {
     clear: "Tout effacer",
     hookAngle: "Angle de crochet",
     hookAngleFree: "Angle (°)",
+    linkOnSection: "Lier deux barres",
+  },
+  sectionCanvas: {
+    title: "Coupe",
+    selectHint: "Sélection — cliquez une barre",
+    linkHint: "Liaison — cliquez deux barres",
+    cancel: "Annuler",
   },
   regions: {
     title: "Espacement par zones",
@@ -537,6 +554,7 @@ const EN: Strings = {
     rebind: "Rebind",
     boundTo: "Bound to bars",
     pickHint: "Click two bars on the section to link them.",
+    linkOnSection: "Link on the section",
   },
   crossTies: {
     title: "Cross-ties (épingles)",
@@ -548,6 +566,13 @@ const EN: Strings = {
     clear: "Clear all",
     hookAngle: "Hook angle",
     hookAngleFree: "Angle (°)",
+    linkOnSection: "Link two bars",
+  },
+  sectionCanvas: {
+    title: "Section",
+    selectHint: "Select — click a bar",
+    linkHint: "Link — click two bars",
+    cancel: "Cancel",
   },
   regions: {
     title: "Spacing by region",

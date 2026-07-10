@@ -44,6 +44,16 @@ import {
 import { rcfgToInstances } from "../engine/projectRcfg";
 import { DEFAULT_VIEW_ID } from "../viewport/cameraState";
 
+/** v1.0.6 N2 (U2): the active section-canvas tool. Add-bar/row tools arrive in N5. */
+export type SectionTool = "select" | "link";
+/** What a completed two-bar link on the section canvas creates (set by the driving panel). */
+export type SectionLink =
+  | { kind: "crosstie" }
+  | { kind: "supplement"; supplementId: string; diameter: number };
+
+/** Module-scoped counter for supplement instance ids (stable within a session, like the old panel). */
+let suppInstanceCounter = 0;
+
 export interface AppState {
   doc: ElementDoc;
   result: SolveResult;
@@ -161,6 +171,19 @@ export interface AppState {
   selectedExtraId: string | null;
   setSelectedExtraId: (id: string | null) => void;
 
+  // v1.0.6 N2 (U2, [REF-UI-555]) — ONE unified section canvas. `sectionTool` decides what a bar
+  // click means; `sectionLink` (set while linking) says what a completed 2-bar link does; the three
+  // former embedded pickers (bar-by-bar / cross-tie / supplement) now route through this one state.
+  // Session-only (NOT in `.rcfg`), like projection/rollRad/navMode.
+  sectionTool: SectionTool;
+  sectionLink: SectionLink | null;
+  pendingLinkBar: number | null;
+  setSectionTool: (tool: SectionTool) => void;
+  beginLink: (link: SectionLink) => void;
+  cancelLink: () => void;
+  pickSectionBar: (index: number) => void;
+  pickSectionExtra: (id: string) => void;
+
   // supplements (§5.5)
   addSupplement: (edit: SupplementEdit) => void;
   removeSupplement: (instanceId: string) => void;
@@ -252,6 +275,9 @@ export const useStore = create<AppState>((set, get) => {
     selectedGroupIds: [],
     selectedBars: [],
     selectedExtraId: null,
+    sectionTool: "select",
+    sectionLink: null,
+    pendingLinkBar: null,
     expert: false,
     lang: "fr",
     showSection: false,
@@ -399,6 +425,59 @@ export const useStore = create<AppState>((set, get) => {
     setSelectedBars: (indices) => set({ selectedBars: indices }),
     setSelectedExtraId: (id) => set({ selectedExtraId: id }),
 
+    // v1.0.6 N2 (U2) — the ONE section canvas tool router.
+    setSectionTool: (tool) =>
+      set(tool === "select" ? { sectionTool: "select", sectionLink: null, pendingLinkBar: null } : { sectionTool: tool }),
+    beginLink: (link) =>
+      set({ sectionTool: "link", sectionLink: link, pendingLinkBar: null, selectedBars: [], selectedExtraId: null }),
+    cancelLink: () => set({ sectionTool: "select", sectionLink: null, pendingLinkBar: null, selectedBars: [] }),
+    pickSectionExtra: (id) => set({ selectedExtraId: id, selectedBars: [], pendingLinkBar: null }),
+    pickSectionBar: (index) => {
+      const { sectionTool, sectionLink, pendingLinkBar } = get();
+      // SELECT: pick one bar (drives the addressable-bar override target + the 3D highlight).
+      if (sectionTool !== "link" || !sectionLink) {
+        set({ selectedBars: [index], selectedExtraId: null });
+        return;
+      }
+      // LINK: first click arms; re-clicking the pending bar de-selects; a second distinct bar completes.
+      if (pendingLinkBar === null) {
+        set({ pendingLinkBar: index, selectedBars: [index], selectedExtraId: null });
+        return;
+      }
+      if (pendingLinkBar === index) {
+        set({ pendingLinkBar: null, selectedBars: [] });
+        return;
+      }
+      const a = pendingLinkBar;
+      const b = index;
+      if (sectionLink.kind === "crosstie") {
+        const doc = get().doc;
+        const cfg = isColumnDoc(doc) ? doc.tie : isBeamDoc(doc) ? doc.stirrup : null;
+        if (cfg) {
+          const dup = cfg.crossTies.some(
+            (ct) => (ct.barA === a && ct.barB === b) || (ct.barA === b && ct.barB === a),
+          );
+          if (!dup) get().setCrossTies([...cfg.crossTies, { barA: a, barB: b }]);
+        }
+      } else {
+        const doc = get().doc;
+        const group = isColumnDoc(doc)
+          ? doc.longitudinal.groupId
+          : isBeamDoc(doc)
+            ? doc.span.groupId
+            : (doc.zones[0]?.groupId ?? "");
+        get().addSupplement({
+          instanceId: `S${++suppInstanceCounter}`,
+          supplementId: sectionLink.supplementId,
+          group,
+          barIndices: [a, b],
+          diameter: sectionLink.diameter,
+        });
+      }
+      // stay armed for more links; just clear the pending pick
+      set({ pendingLinkBar: null, selectedBars: [] });
+    },
+
     setBeamGeometry: (patch) =>
       set(edit(asBeam(get().doc, (d) => ({ ...d, geometry: { ...d.geometry, ...patch } })))),
     setSpan: (patch) =>
@@ -535,6 +614,9 @@ export const useStore = create<AppState>((set, get) => {
         selectedGroupIds: [],
         selectedBars: [],
         selectedExtraId: null,
+        sectionTool: "select",
+        sectionLink: null,
+        pendingLinkBar: null,
         expert: false,
         projection: "perspective",
         viewRequest: null,

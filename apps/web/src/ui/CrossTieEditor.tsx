@@ -10,9 +10,7 @@ import { t } from "../i18n/strings";
 import { isColumnDoc, isBeamDoc, type CrossTie } from "../engine/document";
 import { autoCrossTies, presetCrossTies } from "../engine/crossTies";
 import { barLabel } from "../engine/barLabels";
-import { SectionPicker } from "./SectionPicker";
-import { useBarLink } from "./useBarLink";
-import { NumberField } from "./NumberField";
+import { NumberInput } from "./NumberInput";
 
 const HOOK_PRESETS = [90, 135, 180];
 
@@ -22,6 +20,9 @@ export function CrossTieEditor() {
   const result = useStore((s) => s.result);
   const setCrossTies = useStore((s) => s.setCrossTies);
   const setCrossTieHookAngle = useStore((s) => s.setCrossTieHookAngle);
+  const sectionLink = useStore((s) => s.sectionLink);
+  const beginLink = useStore((s) => s.beginLink);
+  const cancelLink = useStore((s) => s.cancelLink);
   const s = t(lang).crossTies;
 
   const cfg = isColumnDoc(doc) ? doc.tie : isBeamDoc(doc) ? doc.stirrup : null;
@@ -38,8 +39,8 @@ export function CrossTieEditor() {
     setCrossTies(out);
   };
 
-  const onLink = (a: number, b: number) => mergeTies([{ barA: a, barB: b }]);
-  const pick = useBarLink(onLink);
+  // v1.0.6 N2 (U2): arming "link" routes the shared SectionCanvas here — two bar picks make a cross-tie.
+  const linkArmed = sectionLink?.kind === "crosstie";
 
   const tieName = (ct: CrossTie) =>
     `${barLabel(ct.barA, bars)} ↔ ${barLabel(ct.barB, bars)}`;
@@ -49,7 +50,14 @@ export function CrossTieEditor() {
       <h3>{s.title}</h3>
       <p className="muted sp-hint">{s.hint}</p>
 
-      <SectionPicker onPick={pick} />
+      <button
+        type="button"
+        className={`crosstie-link ${linkArmed ? "link-armed" : ""}`}
+        aria-pressed={linkArmed}
+        onClick={() => (linkArmed ? cancelLink() : beginLink({ kind: "crosstie" }))}
+      >
+        {s.linkOnSection}
+      </button>
 
       <div className="crosstie-actions">
         <button type="button" onClick={() => mergeTies(autoCrossTies(bars))}>{s.auto}</button>
@@ -75,7 +83,7 @@ export function CrossTieEditor() {
             </button>
           ))}
         </div>
-        <NumberField label={s.hookAngleFree} value={hookAngle} min={45} max={180} step={5} onChange={(v) => setCrossTieHookAngle(v)} />
+        <NumberInput label={s.hookAngleFree} value={hookAngle} min={45} max={180} step={5} onChange={(v) => setCrossTieHookAngle(v)} />
       </div>
 
       <ul className="crosstie-list">

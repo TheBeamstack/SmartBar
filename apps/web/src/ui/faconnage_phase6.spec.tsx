@@ -73,7 +73,9 @@ describe("H12 — DROITE length coupled to the member with a toggle", () => {
   it("shows the coupled (read-only) length by default and reveals the field on toggle", () => {
     const { container } = render(<><Navbar /><Sidebar /></>);
     const panel = container.querySelector(".addressable") as HTMLElement;
-    const barBtns = within(panel).getAllByRole("button").filter((b) => b.classList.contains("sp-list-btn"));
+    // v1.0.6 N2: pick the bar on the ONE shared SectionCanvas (select mode) → this editor targets it.
+    const canvas = container.querySelector(".section-canvas") as HTMLElement;
+    const barBtns = within(canvas).getAllByRole("button").filter((b) => b.classList.contains("sp-list-btn") && !b.classList.contains("sp-list-extra"));
     fireEvent.click(barBtns[0]!);
 
     expect(panel.querySelector(".addressable-coupled")).toBeTruthy(); // coupled read-only display

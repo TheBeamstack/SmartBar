@@ -36,12 +36,16 @@ describe("P3 catalog + supplements UI", () => {
     expect(screen.getByText(/Appui V2/)).toBeInTheDocument();
   });
 
-  it("adds an épingle by clicking two bars in the F2 cross-tie picker (a11y list path)", () => {
+  it("adds an épingle by arming cross-tie link then clicking two bars on the shared canvas", () => {
     const { container } = renderApp();
-    // v1.0.3 G5: épingles are added through the ONE cross-tie model (the cross-tie editor's section
-    // picker), not the legacy supplement path. Click two distinct bar buttons to link a pair.
+    // v1.0.6 N2 (U2): the cross-tie editor no longer embeds its own picker. Arm "link two bars" (routes
+    // the ONE shared SectionCanvas to cross-tie mode), then click two distinct bars there.
     const editor = container.querySelector(".crosstie-editor") as HTMLElement;
-    const barButtons = within(editor).getAllByRole("button").filter((b) => b.classList.contains("sp-list-btn"));
+    fireEvent.click(within(editor).getByRole("button", { name: /Lier deux barres|Link two bars/ }));
+    expect(useStore.getState().sectionTool).toBe("link");
+
+    const canvas = container.querySelector(".section-canvas") as HTMLElement;
+    const barButtons = within(canvas).getAllByRole("button").filter((b) => b.classList.contains("sp-list-btn") && !b.classList.contains("sp-list-extra"));
     expect(barButtons.length).toBeGreaterThanOrEqual(2);
     fireEvent.click(barButtons[0]!);
     fireEvent.click(barButtons[barButtons.length - 1]!);
