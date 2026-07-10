@@ -17,7 +17,7 @@ import { slabProvidedPerMetre, slabEffectiveDepth, solveSlabBars } from "../layo
 import { rollupStatus, type ExtendedCodePack } from "../validation/index";
 import { getValidationProfile, type SolvedSlabZone, type SlabContext } from "../validation/profiles";
 import type { PlacedBarInput } from "../types/placed-bar";
-import { resolvePlacedBars } from "../section/resolvePlacedBars";
+import { resolvePlacedBars, analyzePlacedBarLaps } from "../section/resolvePlacedBars";
 import { validatePlacedBarRules } from "../validation/placedBarRules";
 import type { SolveResult, SolvedGroup } from "./element";
 
@@ -152,6 +152,12 @@ export function solveJoist(input: JoistSolveInput): SolveResult {
         includeGeometry: true,
       }, code),
     );
+  }
+
+  // v1.0.5 M5 (Track S): a freely placed joist/rib bar carrying its OWN splices gets the per-bar stagger
+  // check; the per-metre topping-mesh distribution is never spliced. Fires only on a real placed lap.
+  if (longBars) {
+    validation.push(...analyzePlacedBarLaps(longBars, code).staggerItems);
   }
 
   return {

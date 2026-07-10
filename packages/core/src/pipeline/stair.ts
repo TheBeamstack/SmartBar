@@ -23,7 +23,7 @@ import {
   type StairContext,
 } from "../validation/profiles";
 import type { PlacedBarInput } from "../types/placed-bar";
-import { resolvePlacedBars } from "../section/resolvePlacedBars";
+import { resolvePlacedBars, analyzePlacedBarLaps } from "../section/resolvePlacedBars";
 import { validatePlacedBarRules } from "../validation/placedBarRules";
 import type { SolveResult, SolvedGroup } from "./element";
 
@@ -180,6 +180,12 @@ export function solveStair(input: StairSolveInput): SolveResult {
         includeGeometry: true,
       }, code),
     );
+  }
+
+  // v1.0.5 M5 (Track S): a freely placed waist bar carrying its OWN splices gets the per-bar stagger check.
+  // Fires only when a placed bar actually laps → legacy stair byte-identical.
+  if (longBars) {
+    validation.push(...analyzePlacedBarLaps(longBars, code).staggerItems);
   }
 
   return {

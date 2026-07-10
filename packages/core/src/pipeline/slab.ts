@@ -21,7 +21,7 @@ import {
   type SlabContext,
 } from "../validation/profiles";
 import type { PlacedBarInput } from "../types/placed-bar";
-import { resolvePlacedBars } from "../section/resolvePlacedBars";
+import { resolvePlacedBars, analyzePlacedBarLaps } from "../section/resolvePlacedBars";
 import type { SolveResult, SolvedGroup } from "./element";
 
 export interface SlabZoneInput {
@@ -169,6 +169,13 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
         includeGeometry: true,
       }, code),
     );
+  }
+
+  // v1.0.5 M5 (Track S): a freely placed slab bar carrying its OWN splices gets the per-bar stagger check.
+  // The slab's per-metre DISTRIBUTION mat is NEVER spliced (supplied in stock lengths, spec Part IV) — only
+  // a user's free `placed` bar can lap here. Fires only when a placed bar actually laps → byte-identical.
+  if (longBars) {
+    validation.push(...analyzePlacedBarLaps(longBars, code).staggerItems);
   }
 
   return {

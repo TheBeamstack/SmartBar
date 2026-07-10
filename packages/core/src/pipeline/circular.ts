@@ -20,7 +20,8 @@ import {
   type SolvedTransZone,
 } from "../validation/profiles";
 import type { PlacedBarInput } from "../types/placed-bar";
-import { resolvePlacedBars } from "../section/resolvePlacedBars";
+import { resolvePlacedBars, analyzePlacedBarLaps } from "../section/resolvePlacedBars";
+import { spliceBar, autoSplices, type Splice, type SpliceResult } from "../geometry/splice";
 import { validatePlacedBarRules } from "../validation/placedBarRules";
 import type { SolveResult, SolvedGroup } from "./element";
 
@@ -36,6 +37,13 @@ export interface CircularLongInput {
   asReq: number; // mm²
   /** the pitch-circle longitudinal zone (gets min-bars/ratio/arc-spacing checks). */
   primary?: boolean;
+  /**
+   * v1.0.5 M5 (Track S, [REF-SYS-770]): manual lap/coupler splice stations along this zone's cage bars
+   * (a long pile/column cage). Absent → unspliced.
+   */
+  splices?: Splice[];
+  /** v1.0.5 M5: auto-split this zone's bars at the stock length (> 12 m cages). */
+  autoSplice?: boolean;
 }
 
 export interface CircularTransInput {
@@ -105,13 +113,30 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
     phiLMax = Math.max(phiLMax, lz.diameter);
     const zoneGeom = FLAT_ZONE(lz.zone);
     zones.push(zoneGeom);
+    const shape = generateShape(lz.shape, lz.params, lz.diameter, code);
+    // v1.0.5 M5 (Track S): split a long cage's bars at their lap/coupler stations (or auto at the stock
+    // length — pile cages routinely exceed 12 m). The overlap comes from `code.l0`; the segments feed the
+    // schedule (BBS) and the group-level stagger WARN below. Absent → unspliced (byte-identical).
+    let splice: SpliceResult | undefined;
+    const splicePts: Splice[] = [
+      ...(lz.splices ?? []),
+      ...(lz.autoSplice ? autoSplices(shape.cutLength) : []),
+    ];
+    if (splicePts.length > 0) {
+      splice = spliceBar(shape.cutLength, splicePts, code, {
+        diameter: lz.diameter,
+        material: input.material,
+        fractionLapped: 1,
+      });
+    }
     groups.push({
       groupId: lz.groupId,
       role: lz.role ?? "PRIMARY_LONGITUDINAL",
       diameter: lz.diameter,
       count: lz.count,
       zone: lz.zone,
-      shape: generateShape(lz.shape, lz.params, lz.diameter, code),
+      shape,
+      ...(splice ? { splice } : {}),
     });
     solvedLong.push({
       zone: lz.zone,
@@ -164,6 +189,24 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
     code,
   });
 
+  // v1.0.5 M5 (Track S, §4.2): a group-level lap lands every cage bar's splice at the same station
+  // (coincident), so WARN to stagger them (WARN-only). Mirrors the RECT group-splice WARN in element.ts.
+  for (const g of groups) {
+    if (!g.splice || !g.splice.segments.some((s) => s.lapForward)) continue;
+    validation.push({
+      rule: `lap_stagger:${g.zone ?? g.groupId}`,
+      status: "WARN",
+      value: g.splice.lapLength,
+      limit: null,
+      codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+      message_fr: `Recouvrements alignés (l_r=${Math.round(g.splice.lapLength)} mm) — décaler (quinconce) les barres adjacentes`,
+      message_en: `Laps coincident (l_r=${Math.round(g.splice.lapLength)} mm) — stagger adjacent bars`,
+      affectedGroupIds: [g.groupId],
+      tier: 2,
+      symbol: "🟠",
+    });
+  }
+
   // v1.0.5 M2 (P-B): resolve any freely placed bars through the shared pass, APPENDED to the base
   // pitch-circle mat (kept in `bars`). placeBars/computeBBS/sectionAt read `longBars` additively.
   const memberLength = geometry.H ?? geometry.L ?? geometry.D;
@@ -199,6 +242,13 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
         includeGeometry: true,
       }, code),
     );
+  }
+
+  // v1.0.5 M5 (Track S): a freely placed cage bar carrying its OWN splices gets the per-bar stagger check
+  // (no seismic overlay is composed on the circular pipeline, so `lap_in_critical_zone` is inherently N/A
+  // here — flagged). Fires only when a placed bar actually laps → legacy byte-identical.
+  if (longBars) {
+    validation.push(...analyzePlacedBarLaps(longBars, code).staggerItems);
   }
 
   return {

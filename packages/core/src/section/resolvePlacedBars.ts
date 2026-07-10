@@ -36,8 +36,9 @@ import {
 } from "../types/placed-bar";
 import type { BarShapeResult, UserHook } from "../geometry/segment-grammar";
 import { generateShape } from "../geometry/registry";
-import { spliceBar, autoSplices, type Splice, type SpliceResult } from "../geometry/splice";
-import type { ExtendedCodePack } from "../validation/index";
+import { spliceBar, autoSplices, evaluateLapStagger, type Splice, type SpliceResult } from "../geometry/splice";
+import type { LapExtent } from "../types/seismic";
+import type { ExtendedCodePack, ValidationItem } from "../validation/index";
 import type { PlacedLongBar, SolvedGroup } from "../pipeline/element";
 
 /** Default commercial stock length (mm) for per-bar auto-splitting — ⚠ PROVISIONAL, G-BAEL. */
@@ -280,4 +281,75 @@ export function resolvePlacedBars(placed: PlacedBarInput[], ctx: ResolvePlacedCo
     }
   }
   return out;
+}
+
+/** The result of analysing the lap splices carried by a set of resolved placed bars (v1.0.5 M5). */
+export interface PlacedLapAnalysis {
+  /** lap extents along the member — feed the seismic `lap_in_critical_zone` where an overlay is composed. */
+  lapExtents: LapExtent[];
+  /** per-zone STAGGER PASS/WARN items (EC2 §8.7.2). */
+  staggerItems: ValidationItem[];
+}
+
+/** Absolute lap stations (mm from the member origin) of a spliced bar. */
+function lapStationsOf(sp: SpliceResult, axisStart: number): number[] {
+  const out: number[] = [];
+  let acc = 0;
+  for (const seg of sp.segments) {
+    acc += seg.cutLength - (seg.lapForward ? sp.lapLength : 0);
+    if (seg.lapForward) out.push(axisStart + acc);
+  }
+  return out;
+}
+
+/**
+ * v1.0.5 M5 (Track S, [REF-SYS-770] §B1): analyse the lap splices carried by a set of resolved placed
+ * bars — the per-zone **STAGGER** check (EC2 §8.7.2: ≤ ½ of a zone's bars lapped within one 0.3·l0
+ * section → PASS, else WARN) + the **lap extents** (which drive the seismic `lap_in_critical_zone` where
+ * an overlay is composed, i.e. column/beam). Extracted from `pipeline/element.ts` so EVERY pipeline (RECT
+ * + the four generic shims) judges a spliced free bar identically. Pure; a bar with no forward lap
+ * contributes nothing (so a doc with no spliced placed bars yields empty → byte-identical).
+ */
+export function analyzePlacedBarLaps(longBars: PlacedLongBar[], code: ExtendedCodePack): PlacedLapAnalysis {
+  const lapExtents: LapExtent[] = [];
+  const staggerItems: ValidationItem[] = [];
+  const byZone = new Map<string, { stations: number[][]; total: number; lapLength: number; anyLap: boolean }>();
+  for (const pb of longBars) {
+    if (pb.removed) continue;
+    const z = byZone.get(pb.groupId) ?? { stations: [], total: 0, lapLength: 0, anyLap: false };
+    z.total++;
+    if (pb.splice && pb.splice.segments.some((s) => s.lapForward)) {
+      const stations = lapStationsOf(pb.splice, pb.axisStart);
+      z.stations.push(stations);
+      z.lapLength = pb.splice.lapLength;
+      z.anyLap = true;
+      for (const at of stations) {
+        lapExtents.push({ groupId: pb.groupId, start: at - pb.splice.lapLength / 2, end: at + pb.splice.lapLength / 2 });
+      }
+    }
+    byZone.set(pb.groupId, z);
+  }
+  const codeRef = (code as { codeRef?: string }).codeRef ?? code.id;
+  for (const [groupId, z] of byZone) {
+    if (!z.anyLap) continue;
+    const st = evaluateLapStagger(z.stations, z.lapLength, z.total);
+    const pct = Math.round(st.worstFraction * 100);
+    staggerItems.push({
+      rule: `lap_stagger:${groupId}`,
+      status: st.pass ? "PASS" : "WARN",
+      value: pct,
+      limit: 50,
+      codeRef,
+      message_fr: st.pass
+        ? `Recouvrements décalés (${pct} % par section ≤ 50 %)`
+        : `Recouvrements alignés (${pct} % > 50 % dans 0,3·l0=${Math.round(st.window)} mm) — décaler (quinconce)`,
+      message_en: st.pass
+        ? `Laps staggered (${pct} % per section ≤ 50 %)`
+        : `Laps clustered (${pct} % > 50 % within 0.3·l0=${Math.round(st.window)} mm) — stagger`,
+      affectedGroupIds: [groupId],
+      tier: st.pass ? 3 : 2,
+      symbol: st.pass ? "🟢" : "🟠",
+    });
+  }
+  return { lapExtents, staggerItems };
 }

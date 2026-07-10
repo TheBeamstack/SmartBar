@@ -781,6 +781,8 @@ function circularInput(doc: GenericDoc, code: BaelPack): CircularSolveInput {
         count: z.count ?? 0,
         asReq: z.asReq ?? 0,
         ...(z.primary ? { primary: true } : {}),
+        ...(z.autoSplice ? { autoSplice: true } : {}), // M5 Track S: long cage auto-split
+        ...(z.splices !== undefined ? { splices: z.splices } : {}),
       })),
     transverse: doc.zones
       .filter((z) => z.kind === "transverse")

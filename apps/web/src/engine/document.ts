@@ -366,6 +366,13 @@ export interface ZoneEdit {
   nLegs?: number;
   /** F5 spacing regions (transverse zones only); absent → uniform `spacing`. */
   regions?: TransverseRegion[];
+  /**
+   * v1.0.5 M5 (Track S): lap/coupler splices on a LONGITUDINAL zone — used for a long circular cage
+   * (pile / spiral column). Absent → unspliced. Slab/mesh distribution never carries these (Part IV).
+   */
+  splices?: Splice[];
+  /** v1.0.5 M5: auto-split this longitudinal zone's bars at the stock length (> 12 m cages). */
+  autoSplice?: boolean;
 }
 
 /**
