@@ -37,6 +37,12 @@ export interface RcfgReinforcement {
   mode: "guided" | "advanced";
   baseGroups: ReinforcingElement[];
   supplementalGroups: ReinforcingElement[];
+  /**
+   * v1.0.5 M7 (Track E): the user's freely-detailed steel as canonical `PLACED_BAR` elements — the
+   * per-bar as-built truth (bundles / rows / layers / curtailed bars) that a `BarGroup` cannot express.
+   * Additive + optional: an older reader ignores it (forward-compat, §10); absent → no free bars.
+   */
+  placedBars?: ReinforcingElement[];
 }
 
 export interface RcfgDocument {

@@ -6,7 +6,7 @@
  * to a one-instance project. Forward-compat: unknown fields/kinds/instances are preserved (D-P0-2).
  */
 import type { RcfgProject } from "@rebarconfig/exporters";
-import type { SectionCut } from "@rebarconfig/core";
+import type { SectionCut, SolveResult } from "@rebarconfig/core";
 import { docToRcfg, rcfgToDoc } from "./rcfgDoc";
 import { makeInstance, defaultMark, type ElementInstance } from "./project";
 
@@ -23,14 +23,17 @@ export interface RcfgProjectEnvelope extends RcfgProject {
 export function projectToRcfg(
   instances: readonly ElementInstance[],
   meta: { projectName?: string; drawnBy?: string } = {},
+  /** v1.0.5 M7: live solved results by instance id (e.g. the active instance's store `result`) — passed
+   *  to `docToRcfg` to STOP the double-solve for those instances; others re-solve as before. */
+  resultsById?: Record<string, SolveResult>,
 ): RcfgProjectEnvelope {
   const elements: RcfgElementEntry[] = instances.map((inst) => ({
-    ...docToRcfg(inst.doc, inst.cuts, meta),
+    ...docToRcfg(inst.doc, inst.cuts, meta, resultsById?.[inst.id]),
     mark: inst.mark,
     quantity: inst.quantity,
   }));
   const first = instances[0]
-    ? docToRcfg(instances[0].doc, instances[0].cuts, meta)
+    ? docToRcfg(instances[0].doc, instances[0].cuts, meta, resultsById?.[instances[0].id])
     : ({} as RcfgProject);
   return { ...first, rcfg_version: PROJECT_RCFG_VERSION, elements };
 }

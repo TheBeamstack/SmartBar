@@ -40,7 +40,10 @@ export function useAutosave() {
         const reconciled: ElementInstance[] = state.instances.map((i) =>
           i.id === state.activeInstanceId ? { ...i, doc: state.doc, cuts: state.cuts } : i,
         );
-        void managerRef.current!.save(projectToRcfg(reconciled));
+        // v1.0.5 M7: reuse the active instance's live `result` (no double-solve of what's on screen).
+        void managerRef.current!.save(
+          projectToRcfg(reconciled, {}, { [state.activeInstanceId]: state.result }),
+        );
       }, DEBOUNCE_MS);
     });
     return () => {

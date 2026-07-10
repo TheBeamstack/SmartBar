@@ -10,11 +10,50 @@ import type {
   SolveResult,
   ReinforcingElement,
   BarGroup,
+  PlacedBarElement,
+  PlacedLongBar,
   Distribution,
   DistributionSegment,
 } from "@rebarconfig/core";
 
 const SUPPLEMENTAL_ROLES = new Set(["SKIN", "SUPPLEMENTAL"]);
+
+/**
+ * v1.0.5 M7 (Track E, audit B4) — map one resolved placed bar onto the canonical `PLACED_BAR`
+ * element. Faithful per-bar as-built geometry (position / cut length / curtailment / anchorage /
+ * splice tally / the row/bundle/layer it expanded from), so the canonical arrays are lossless without
+ * the private `meta.app_document`. `removed` bars are skipped (they aren't fabricated).
+ */
+function placedBarElement(pb: PlacedLongBar): PlacedBarElement {
+  return {
+    id: `${pb.groupId}#${pb.barIndex}`,
+    kind: "PLACED_BAR",
+    role: pb.role,
+    shapeArchetypeId: pb.shape.archetypeId,
+    diameter: pb.diameter,
+    position: { u: pb.position.u, v: pb.position.v },
+    axisStart: pb.axisStart,
+    cutLength: pb.shape.cutLength,
+    ...(pb.startStation !== undefined ? { startStation: pb.startStation } : {}),
+    ...(pb.endStation !== undefined ? { endStation: pb.endStation } : {}),
+    ...(pb.anchorage ? { anchorage: { ...pb.anchorage } } : {}),
+    ...(pb.placedKind ? { placedKind: pb.placedKind } : {}),
+    ...(pb.placedParentId !== undefined ? { placedParentId: pb.placedParentId } : {}),
+    ...(pb.splice
+      ? { splice: { segments: pb.splice.segments.length, couplerCount: pb.splice.couplerCount, lapLength: pb.splice.lapLength } }
+      : {}),
+  };
+}
+
+/**
+ * v1.0.5 M7: the freely-detailed steel (`result.longBars`) as canonical `PLACED_BAR` elements. Present
+ * only when the pipeline emitted per-bar placements; a plain grouped element (no `longBars`) yields
+ * `[]`. Skips `removed` bars. This is additive to the group-based `baseGroups`/`supplementalGroups`
+ * (which still carry the transverse steel + the scheme summary) — a consumer prefers these when present.
+ */
+export function placedBarsFromResult(result: SolveResult): ReinforcingElement[] {
+  return (result.longBars ?? []).filter((pb) => !pb.removed).map(placedBarElement);
+}
 
 /** Split the solved groups into the canonical base + supplemental `ReinforcingElement[]`. */
 export function reinforcementFromResult(result: SolveResult): {

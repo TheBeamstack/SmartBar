@@ -1,0 +1,37 @@
+{
+  "rcfg_version": "1.0.2",
+  "region": "FR",
+  "codePack": "BAEL-FR",
+  "seismic": { "code": "RPS-2011", "zone": 3, "ductility": "ND2" },
+  "units": { "length": "mm", "area": "mm2" },
+  "element": {
+    "type": "E-BEM-01",
+    "geometry": { "b": 300, "h": 600, "L": 6000 },
+    "material": { "f_c28": 25, "f_e": 500, "exposure": "XC1", "d_g": 20 },
+    "cover_mm": 30,
+    "As_req": { "As_span_bottom": 900 }
+  },
+  "reinforcement": {
+    "schemeId": "BEAM_SPAN_CHAPEAUX_RELEVES",
+    "mode": "guided",
+    "baseGroups": [],
+    "supplementalGroups": [],
+    "placedBars": [
+      {
+        "id": "As_span_bottom#0",
+        "kind": "PLACED_BAR",
+        "role": "PRIMARY_LONGITUDINAL",
+        "shapeArchetypeId": "DROITE",
+        "diameter": 20,
+        "position": { "u": -110, "v": -260 },
+        "axisStart": 0,
+        "cutLength": 4000,
+        "startStation": 1000,
+        "endStation": 5000,
+        "anchorage": { "start": "hook", "end": "straight" },
+        "placedKind": "single"
+      }
+    ]
+  },
+  "meta": { "note": "v1.0.5 M7 — a reader that predates PLACED_BAR must preserve this kind on round-trip (§10)." }
+}

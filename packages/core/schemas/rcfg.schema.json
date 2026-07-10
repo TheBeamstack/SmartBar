@@ -51,7 +51,8 @@
         "schemeId": { "type": "string" },
         "mode": { "enum": ["guided", "advanced"] },
         "baseGroups": { "type": "array", "items": { "$ref": "#/$defs/reinforcingElement" } },
-        "supplementalGroups": { "type": "array", "items": { "$ref": "#/$defs/reinforcingElement" } }
+        "supplementalGroups": { "type": "array", "items": { "$ref": "#/$defs/reinforcingElement" } },
+        "placedBars": { "type": "array", "items": { "$ref": "#/$defs/reinforcingElement" } }
       }
     },
     "meta": { "type": "object" }

@@ -56,4 +56,22 @@ describe("E2 — migration chain + forward-compat corpus", () => {
     expect(migrated["vendorX"]).toEqual({ keep: true });
     expect(migrated.reinforcement.baseGroups[0]!.kind).toBe("TENDON"); // unknown kind survived
   });
+
+  // v1.0.5 M7 (Track E): forward-compat for our OWN new kind — a reader that predates PLACED_BAR must
+  // round-trip a file containing it without dropping the kind or its per-bar detail (the D-P0-2 guarantee
+  // now exercised by PLACED_BAR, not just a synthetic vendor kind).
+  it("round-trips a PLACED_BAR file without dropping the new kind or its per-bar detail", () => {
+    const raw = fs.readFileSync(path.join(validDir, "placed-bar-forward-compat.rcfg.json"), "utf8");
+    const loaded = parseRcfg(raw); // migrates 1.0.2 → current
+    expect(loaded.rcfg_version).toBe(CURRENT_RCFG_VERSION);
+    const roundTripped = parseRcfg(serializeRcfg(loaded));
+    const bar = roundTripped.reinforcement.placedBars![0] as Record<string, unknown>;
+    expect(bar["kind"]).toBe("PLACED_BAR"); // our new kind survived
+    expect(bar["shapeArchetypeId"]).toBe("DROITE");
+    expect(bar["cutLength"]).toBe(4000);
+    expect(bar["startStation"]).toBe(1000); // per-bar curtailment detail intact
+    expect(bar["endStation"]).toBe(5000);
+    expect(bar["anchorage"]).toEqual({ start: "hook", end: "straight" });
+    expect(roundTripped.seismic).toEqual({ code: "RPS-2011", zone: 3, ductility: "ND2" });
+  });
 });

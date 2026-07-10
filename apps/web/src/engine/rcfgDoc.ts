@@ -15,11 +15,12 @@
  *  - **Forward-compat (NORMATIVE, §10):** unknown top-level fields / kinds / cut fields survive,
  *    because `parseRcfg`/`serializeRcfg` are JSON in/out and `rcfgToDoc` only *reads* `app_document`.
  */
-import { type RcfgProject, reinforcementFromResult, CURRENT_RCFG_VERSION } from "@rebarconfig/exporters";
-import type { SectionCut } from "@rebarconfig/core";
+import { type RcfgProject, reinforcementFromResult, placedBarsFromResult, CURRENT_RCFG_VERSION } from "@rebarconfig/exporters";
+import type { SectionCut, SolveResult, RcfgSeismic } from "@rebarconfig/core";
 import {
   type ElementDoc,
   type ElementId,
+  type SeismicEdit,
   isColumnDoc,
   isGenericDoc,
 } from "./document";
@@ -33,6 +34,13 @@ const REGION = "FR";
 /** A3/H13 ([v1.0.4]): the canonical code-pack id follows the doc's picker (default BAEL). The full
  *  ElementDoc — including `codePack` — also rides `meta.app_document`, so the SPA reload is lossless. */
 const codePackId = (doc: ElementDoc): string => ((doc.codePack ?? "BAEL") === "EC2" ? "EC2" : "BAEL-FR");
+
+/** v1.0.5 M7 (Track E): the doc's live seismic regime → the canonical `RcfgSeismic` (null = gravity).
+ *  Only column/beam docs carry `seismic`; generic docs never do. `SeismicEdit` maps 1:1 onto §10. */
+const seismicOf = (doc: ElementDoc): RcfgSeismic | null => {
+  const s = (doc as { seismic?: SeismicEdit }).seismic;
+  return s ? { code: s.code, zone: s.zone, ductility: s.ductility } : null;
+};
 
 /** Per-zone required steel (mm² for longitudinal, mm²/m for transverse) — the canonical `As_req`. */
 function asReqOf(doc: ElementDoc): Record<string, number> {
@@ -61,13 +69,21 @@ export function docToRcfg(
   doc: ElementDoc,
   sectionCuts: SectionCut[],
   meta: { projectName?: string; drawnBy?: string } = {},
+  /** v1.0.5 M7: the store's live `result` — pass it to STOP the double-solve (`solveDoc` re-run only
+   *  when absent, e.g. a non-active project instance with no cached result). */
+  result?: SolveResult,
 ): RcfgProject {
-  // v1.0.4 E1: populate the canonical §10 `reinforcement[]` from the solved element (element-agnostic).
+  // v1.0.4 E1 + v1.0.5 M7: populate the canonical §10 arrays from the solved element (element-agnostic).
+  // v1.0.5 M7: also emit the per-bar `PLACED_BAR` list (bundles/rows/layers/curtailed bars) — the
+  // canonical arrays are now LOSSLESS for interchange, not just a group summary + the app_document blob.
   // Robust: a solve failure falls back to empty arrays — the SPA still reloads from `meta.app_document`.
   let baseGroups: RcfgProject["reinforcement"]["baseGroups"] = [];
   let supplementalGroups: RcfgProject["reinforcement"]["supplementalGroups"] = [];
+  let placedBars: RcfgProject["reinforcement"]["placedBars"] = [];
   try {
-    ({ baseGroups, supplementalGroups } = reinforcementFromResult(solveDoc(doc)));
+    const solved = result ?? solveDoc(doc); // M7: reuse the live result — no re-solve when provided
+    ({ baseGroups, supplementalGroups } = reinforcementFromResult(solved));
+    placedBars = placedBarsFromResult(solved);
   } catch {
     /* keep empty arrays — canonical export best-effort, app_document carry is authoritative for the SPA */
   }
@@ -75,7 +91,8 @@ export function docToRcfg(
     rcfg_version: CURRENT_RCFG_VERSION,
     region: REGION,
     codePack: codePackId(doc),
-    seismic: null, // gravity (no seismic regime picker in the UI yet — D-P4b-5)
+    // v1.0.5 M7 (Track E): the live seismic regime is now written (was hardcoded null, D-P4b-5).
+    seismic: seismicOf(doc),
     units: { length: "mm", area: "mm2" },
     element: {
       type: doc.element,
@@ -97,6 +114,9 @@ export function docToRcfg(
       // SPA still reloads from meta.app_document (lossless); these serve interchange / a future IFC.
       baseGroups,
       supplementalGroups,
+      // v1.0.5 M7: the per-bar as-built list — makes the canonical arrays lossless (bundles/rows/
+      // layers/curtailed bars), so app_document is a convenience carry, no longer the sole truth.
+      placedBars,
     },
     section_cuts: sectionCuts,
     meta: {

@@ -11,8 +11,10 @@ import type { RcfgDocument, SectionCut, SolveResult } from "@rebarconfig/core";
 import { defaultCoupeFor } from "@rebarconfig/core";
 
 /** The current writer version; older files are migrated up to it on load. v1.0.4 E1: bumped to 1.2
- *  when the canonical `reinforcement[]` arrays are populated (additive — the migration is version-only). */
-export const CURRENT_RCFG_VERSION = "1.2";
+ *  when the canonical `reinforcement[]` arrays were populated. v1.0.5 M7 (Track E): bumped to 1.3 when
+ *  the per-bar `PLACED_BAR` list + `seismic`/`codePack` became canonical (all additive — migration is
+ *  version-only; an older file's absent `placedBars`/null seismic stays valid, nothing dropped). */
+export const CURRENT_RCFG_VERSION = "1.3";
 
 /**
  * A `.rcfg` document plus the persisted user coupes (§9.5). `section_cuts` is additive; because
@@ -48,11 +50,13 @@ export function parseRcfg(text: string): RcfgProject {
 /** A single ordered version step. Each is additive + idempotent (preserves every existing field). */
 type Migration = (doc: RcfgProject) => RcfgProject;
 const MIGRATIONS: Record<string, Migration> = {
-  // v1.0.4 E1: 1.0/1.1 → 1.2 is version-only (the canonical `reinforcement[]` arrays became populated;
-  // an older file's empty/partial arrays stay valid — nothing is dropped, forward-compat preserved).
-  "1.0": (doc) => ({ ...doc, rcfg_version: "1.2" }),
-  "1.0.2": (doc) => ({ ...doc, rcfg_version: "1.2" }),
-  "1.1": (doc) => ({ ...doc, rcfg_version: "1.2" }),
+  // Every step is version-only + additive (no field dropped, forward-compat preserved). v1.0.4 E1
+  // populated the canonical `reinforcement[]`; v1.0.5 M7 added the per-bar `PLACED_BAR` list + seismic/
+  // codePack. An older file's absent `placedBars` / partial arrays stay valid — nothing is dropped.
+  "1.0": (doc) => ({ ...doc, rcfg_version: "1.3" }),
+  "1.0.2": (doc) => ({ ...doc, rcfg_version: "1.3" }),
+  "1.1": (doc) => ({ ...doc, rcfg_version: "1.3" }),
+  "1.2": (doc) => ({ ...doc, rcfg_version: "1.3" }),
 };
 
 /**
