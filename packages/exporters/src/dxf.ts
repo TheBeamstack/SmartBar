@@ -182,13 +182,16 @@ function fitPolyline(
 function bendingTableToDxf(rows: BendingRow[], b: DxfBuilder, x0: number, yTop: number): DxfBuilder {
   const rowH = TEXT_H * 1.8;
   const sketchW = TEXT_H * 5;
-  const cols = [0, sketchW + TEXT_H, sketchW + TEXT_H * 5, sketchW + TEXT_H * 9, sketchW + TEXT_H * 13]; // Ø, cut, nb, total
+  // v1.0.5 Track O (M6): + a French façonnage-code column (croquis coté sketch already present). R12
+  // DXF text is ASCII-only, so render the ASCII `code` (D/CH/ET/…), not the accented label. §O-1.
+  const cols = [0, sketchW + TEXT_H, sketchW + TEXT_H * 5, sketchW + TEXT_H * 9, sketchW + TEXT_H * 13, sketchW + TEXT_H * 17]; // Ø, cut, nb, total, faç
   b.text("TEXTE", x0, yTop + rowH, TEXT_H, "TABLEAU DE FACONNAGE");
   b.text("TEXTE", x0, yTop, TEXT_H, "Rep.");
   b.text("TEXTE", x0 + cols[1]!, yTop, TEXT_H, "O");
   b.text("TEXTE", x0 + cols[2]!, yTop, TEXT_H, "Long.");
   b.text("TEXTE", x0 + cols[3]!, yTop, TEXT_H, "Nb");
   b.text("TEXTE", x0 + cols[4]!, yTop, TEXT_H, "Total");
+  b.text("TEXTE", x0 + cols[5]!, yTop, TEXT_H, "Fac.");
   rows.forEach((r, i) => {
     const y = yTop - (i + 1) * rowH;
     b.text("TEXTE", x0, y, TEXT_H, r.mark);
@@ -200,6 +203,7 @@ function bendingTableToDxf(rows: BendingRow[], b: DxfBuilder, x0: number, yTop: 
     b.text("TEXTE", x0 + cols[2]!, y, TEXT_H, `${Math.round(r.cutLength_mm)}`);
     b.text("TEXTE", x0 + cols[3]!, y, TEXT_H, `${r.countPerElement}`);
     b.text("TEXTE", x0 + cols[4]!, y, TEXT_H, `${r.totalCount}`);
+    b.text("TEXTE", x0 + cols[5]!, y, TEXT_H, r.faconnage.code);
   });
   return b;
 }

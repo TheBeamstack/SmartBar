@@ -188,15 +188,18 @@ function drawCoupe(page: PDFPage, view: CoupeView, font: PDFFont, rect: { x: num
 /** Draw the BBS table; returns the y of the last row drawn. */
 function drawBbsTable(page: PDFPage, bbs: BarBendingSchedule, font: PDFFont, fontB: PDFFont, top: number): number {
   const x = MARGIN;
-  const cols = [0, 36, 78, 150, 200, 270, 340]; // mark, Ø, shape, count, cut(mm), length(m), weight(kg)
-  const headers = ["Rep.", "Ø", "Forme", "Nb", "Long.(mm)", "Total(m)", "Poids(kg)"];
+  // v1.0.5 Track O (M6): French façonnage BBS layout — repère / nombre / Ø / longueur de coupe /
+  // façonnage / (total) / masse. The "Façonnage" column renders the French designation, replacing the
+  // raw archetype id (`shapeArchetypeId` stays the data key). ⚠ nomenclature PROVISIONAL (§O-1).
+  const cols = [0, 30, 60, 92, 152, 258, 312]; // rep, nb, Ø, L.coupe(mm), façonnage, total(m), masse(kg)
+  const headers = ["Rep.", "Nb", "Ø", "L. coupe", "Façonnage", "Total(m)", "Masse(kg)"];
   let y = top;
   page.drawText("Nomenclature des aciers (BBS)", { x, y, size: 9, font: fontB, color: rgb(0, 0, 0) });
   y -= 12;
   headers.forEach((h, i) => page.drawText(h, { x: x + cols[i]!, y, size: 7, font: fontB, color: rgb(0, 0, 0) }));
   y -= 10;
   for (const l of bbs.lines) {
-    const row = [l.mark, `${l.diameter}`, l.shapeArchetypeId, `${l.count}`, l.cutLength_mm.toFixed(0), l.totalLength_m.toFixed(2), l.weight_kg.toFixed(2)];
+    const row = [l.mark, `${l.count}`, `${l.diameter}`, l.cutLength_mm.toFixed(0), l.faconnage.label, l.totalLength_m.toFixed(2), l.weight_kg.toFixed(2)];
     row.forEach((c, i) => page.drawText(c, { x: x + cols[i]!, y, size: 7, font, color: rgb(0, 0, 0) }));
     y -= 10;
     if (y < MARGIN + 30) break;

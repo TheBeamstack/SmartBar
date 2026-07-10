@@ -202,6 +202,8 @@ export interface Strings {
     mark: string;
     diameter: string;
     shape: string;
+    /** v1.0.5 Track O (M6): French façonnage designation column header. */
+    faconnage: string;
     count: string;
     cutLength: string;
     totalLength: string;
@@ -453,6 +455,7 @@ const FR: Strings = {
     mark: "Rep.",
     diameter: "Ø",
     shape: "Forme",
+    faconnage: "Façonnage",
     count: "Nb",
     cutLength: "Long. (mm)",
     totalLength: "Total (m)",
@@ -704,6 +707,7 @@ const EN: Strings = {
     mark: "Mark",
     diameter: "Ø",
     shape: "Shape",
+    faconnage: "Shaping",
     count: "Qty",
     cutLength: "Cut (mm)",
     totalLength: "Total (m)",

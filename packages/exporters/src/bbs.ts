@@ -13,6 +13,7 @@
  */
 import type { SolveResult, SolvedGroup, ValidationStatus } from "@rebarconfig/core";
 import { transverseStations, regionStations } from "@rebarconfig/core";
+import { faconnageFor, type FaconnageDesignation } from "./faconnageCodes";
 
 /** One transverse set descriptor off the member placement (spacing + optional F5 regions). */
 type MemberTransverse = SolveResult["member"]["transverse"][number];
@@ -29,6 +30,12 @@ export interface BbsLine {
   /** the source group ids merged into this line. */
   groupIds: string[];
   shapeArchetypeId: string;
+  /**
+   * v1.0.5 Track O (M6): the French façonnage designation rendered on the schedule (code + label).
+   * `shapeArchetypeId` stays the data key; this is the labelling layer. ⚠ PROVISIONAL until the owner
+   * supplies the NF/BAEL nomenclature table (`faconnageCodes.ts`, §O-1).
+   */
+  faconnage: FaconnageDesignation;
   role: string;
   /** Ø (mm). */
   diameter: number;
@@ -263,6 +270,7 @@ export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendi
       mark: formatMark(markPrefix, i + 1),
       groupIds: r.groupIds,
       shapeArchetypeId: r.shapeArchetypeId,
+      faconnage: faconnageFor(r.shapeArchetypeId),
       role: r.role,
       diameter: r.diameter,
       count: r.count,

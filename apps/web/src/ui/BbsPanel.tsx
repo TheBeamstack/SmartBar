@@ -23,11 +23,13 @@ export function BbsPanel() {
       <table className="bbs-table">
         <thead>
           <tr>
+            {/* v1.0.5 Track O (M6): French façonnage BBS layout — repère / nombre / Ø / longueur de
+                coupe / façonnage / total / masse. The Façonnage column renders the designation. */}
             <th>{s.bbs.mark}</th>
-            <th>{s.bbs.diameter}</th>
-            <th>{s.bbs.shape}</th>
             <th className="num">{s.bbs.count}</th>
+            <th>{s.bbs.diameter}</th>
             <th className="num">{s.bbs.cutLength}</th>
+            <th>{s.bbs.faconnage}</th>
             <th className="num">{s.bbs.totalLength}</th>
             <th className="num">{s.bbs.weight}</th>
           </tr>
@@ -41,10 +43,10 @@ export function BbsPanel() {
             bbs.lines.map((l) => (
               <tr key={l.mark}>
                 <td>{l.mark}</td>
-                <td>Ø{l.diameter}</td>
-                <td>{l.shapeArchetypeId}</td>
                 <td className="num">{l.count}</td>
+                <td>Ø{l.diameter}</td>
                 <td className="num">{l.cutLength_mm.toFixed(0)}</td>
+                <td title={l.faconnage.archetypeId}>{l.faconnage.label}</td>
                 <td className="num">{l.totalLength_m.toFixed(2)}</td>
                 <td className="num">{l.weight_kg.toFixed(2)}</td>
               </tr>

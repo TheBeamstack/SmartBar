@@ -10,6 +10,7 @@
  * Depends on @rebarconfig/core; NO React/three/DOM in the pure transforms (BBS/DXF/.rcfg model).
  */
 export * from "./bbs";
+export * from "./faconnageCodes";
 export * from "./dxf";
 export * from "./export-lock";
 export * from "./fiche";

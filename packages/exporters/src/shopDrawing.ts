@@ -83,6 +83,8 @@ export interface ShopSupportLabel {
 export interface BendingRow {
   mark: string;
   shapeArchetypeId: string;
+  /** v1.0.5 Track O (M6): the French façonnage designation (code + label) — see `faconnageCodes.ts`. */
+  faconnage: BbsLine["faconnage"];
   diameter: number;
   cutLength_mm: number;
   /** count within one element. */
@@ -232,6 +234,7 @@ export function shopDrawing(result: SolveResult, opts: ShopDrawingOptions = {}):
     return {
       mark: l.mark,
       shapeArchetypeId: l.shapeArchetypeId,
+      faconnage: l.faconnage,
       diameter: l.diameter,
       cutLength_mm: l.cutLength_mm,
       countPerElement: l.count,
