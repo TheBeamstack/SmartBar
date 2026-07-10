@@ -113,10 +113,9 @@ one unified `selection` folds the two old channels (`selectedBars`⊕`selectedGr
 object that drives a contextual `Inspector` (edit just the selected bar/extra/cross-tie), a compact always-visible
 element-setup strip surfaces b/h/L/cover/code, and the full tabbed form is kept behind an "Avancé" toggle — the
 real "work on the drawing, the form follows" pivot.** v1.0.1 + v1.0.3 were **pushed**; v1.0.2, v1.0.4, **all of
-v1.0.5 M1–M7 are on origin** (M7 = `d853188`), and **N1+N2 are on origin** (`ea68924`, verified this session by
-`git status` = up-to-date + a clean `npm run check`). **N3 sits in the working tree — NOT pushed** (handing back
-per policy; push on the owner's word). Detail per version is condensed in the §9 **Archive**; the load-bearing
-decisions are the §8 ledger.
+v1.0.5 M1–M7 are on origin** (M7 = `d853188`), **N1+N2 are on origin** (`ea68924`, re-validated this session), and
+**N3 is now on origin** (`5989f5f`, PUSHED this session on the owner's word — "Push for Amer to continue"). Detail
+per version is condensed in the §9 **Archive**; the load-bearing decisions are the §8 ledger.
 **New agent:** read `core_logic.md` + `architecture_breakdown.md`, then `current_state.md` §1/§7/§8/§9, then the
 active spec (`v1.0.6_spec.md` — v1.0.5 is code-complete M1–M7). **Next v1.0.6 work is Phase N4 (Track U1) — the
 workspace shell** (`v1.0.6_spec.md §7`, ordering N1→N2→N3→**N4**→N5→N6): a 3D-primary shell with **editable 2D
@@ -127,7 +126,7 @@ newest §9 entry** (advanced-form default ON vs drawing-first) — worth confirm
 people-gated items (engineer sign-offs, owner data, owner GPU visual passes) are unchanged — see the §1
 standing-open-items block below and the §9 flags.
 
-**Current green gate (v1.0.6 Phase N3, Hetzner dev box — Zayd, NOT pushed):** `npm run check` ✓ — **798 tests /
+**Current green gate (v1.0.6 Phase N3, Hetzner dev box — Zayd, PUSHED `5989f5f`):** `npm run check` ✓ — **798 tests /
 148 files** (+1 file = `inspector.spec.tsx`, +6 tests, over N2's 792/147); `npm run build:web` ✓. **No golden
 snapshot moved** — N3 is `apps/web` presentation-only (new `Inspector` + `ElementSetupStrip` components + store
 unified-selection/`advancedForm` state + Sidebar restructure; no core/exporter/manifest change), so purity +
@@ -406,7 +405,7 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 
 ## 9. Handoff log (newest first — APPEND your entry here before you stop)
 
-### 2026-07-10 — v1.0.6 **N1+N2 re-validated** + **Phase N3 (Track U3 — contextual inspector + unified selection)** — **CODE DONE, tested, green — NOT pushed** — by **Zayd** (Hetzner dev box)
+### 2026-07-10 — v1.0.6 **N1+N2 re-validated** + **Phase N3 (Track U3 — contextual inspector + unified selection)** — **CODE DONE, tested, green — PUSHED (`5989f5f`)** — by **Zayd** (Hetzner dev box)
 
 **Branch / sync.** On `1.0.5-&-up`. Read `cross_projects_policy.md` (devbox, one level up), `core_logic.md`, `architecture_breakdown.md`, `current_state.md §1/§7/§8/§9`, `v1.0.6_spec.md`. `git status` = **up-to-date with `origin/1.0.5-&-up` at `ea68924`**, working tree clean — so this session started *after* N1+N2 (owner note "continue implementing 1.0.6, not from scratch", `git pull` = already up to date). Took a turn opposite Amer.
 
@@ -426,7 +425,7 @@ None block P1 *coding*, but G-BAEL must be signed before P1 is *accepted*.
 3. **Scope deferred from N3 (per §7, flagged not skipped):** the inspector covers **bar / extra / cross-tie / alert** (what's selectable today); **row/bundle/layer inspection** waits for **N5** (the placement palette that first makes those creatable + selectable on the canvas). The panels *fully* dissolving into inspector-only modes is also part of the N4/N5 shell arc — for N3 they remain in the advanced form.
 4. **Minor regression, flagged:** the 3D bar click is now **single-select** (was a multi-toggle) to drive the one inspector; and `SupplementsPanel`'s broken-binding "rebind to the 2 selected bars" path (`selectedBars.slice(0,2)`) can no longer gather 2 bars via single-select — the **link-arm add flow (N2) supersedes it**. Neither is load-bearing; both are cheap to revisit if the owner wants multi-select back.
 5. **`v1.0.6_owner_tasks.md` still not created** — the per-phase GPU acceptance checklist the spec's companion note calls for. N2 deferred it to "N3/N4"; N3 didn't create it (kept scope tight). **Recommend creating it at N4** with the accumulated N1–N4 GPU checks (widgets feel, one-canvas select/link, inspector/strip, single-select 3D click, dock resize).
-6. **Not pushed** — handing back per policy (push on the owner's word only). N1+N2 are on origin (`ea68924`); N3 sits in the working tree (11 files: 3 new, 8 modified — all `apps/web` + this doc).
+6. **PUSHED** — the owner said "Push for Amer to continue," so N3 is committed + pushed to `origin/1.0.5-&-up` (`5989f5f`, 12 files: 3 new, 9 modified — all `apps/web` + this doc). N1+N2 already on origin (`ea68924`). Amer picks up from N4.
 
 ### 2026-07-10 — v1.0.6 **Phase N2 (Track U2 — one unified section canvas + tool routing)** — **CODE DONE, tested, green — PUSHED** — by **Zayd** (Hetzner dev box)
 
