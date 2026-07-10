@@ -14,11 +14,14 @@ import type { MaterialContext } from "../types/codepack";
 import { generateShape } from "../geometry/registry";
 import { slabProvidedPerMetre, slabEffectiveDepth, solveSlabBars, solveSlabDistributionBars, isDistributionLinear } from "../layout/slab";
 import { rollupStatus, type ExtendedCodePack } from "../validation/index";
+import { validatePlacedBarRules } from "../validation/placedBarRules";
 import {
   getValidationProfile,
   type SolvedSlabZone,
   type SlabContext,
 } from "../validation/profiles";
+import type { PlacedBarInput } from "../types/placed-bar";
+import { resolvePlacedBars } from "../section/resolvePlacedBars";
 import type { SolveResult, SolvedGroup } from "./element";
 
 export interface SlabZoneInput {
@@ -51,6 +54,12 @@ export interface SlabSolveInput {
   restrainedCorner?: boolean;
   /** two-way: provided corner-torsion steel (mm²); 0/absent → WARN when restrained. */
   cornerTorsionProvided?: number;
+  /**
+   * v1.0.5 M2 (P-B): freely placed bars — an extra band/bar at a level `(v)` over a span range (e.g.
+   * an extra top band around a support). Resolved by the shared pass + appended to `SolveResult.longBars`
+   * ALONGSIDE the per-metre mat (kept in `bars`). Absent → none (byte-identical).
+   */
+  placed?: PlacedBarInput[];
   code: ExtendedCodePack;
 }
 
@@ -127,6 +136,41 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     code,
   });
 
+  // v1.0.5 M2 (P-B): resolve any freely placed bars (an extra band) additively to the per-metre mat.
+  const longBars =
+    input.placed && input.placed.length > 0
+      ? resolvePlacedBars(input.placed, {
+          memberLength: geometry.Lx,
+          code,
+          material: input.material,
+          layoutBars: bars,
+          groups,
+          section: "SLAB",
+          sectionDims: { b: geometry.Ly, h: geometry.t }, // M3: a Layer band offsets from the slab face
+          startIndex: bars.length,
+        })
+      : undefined;
+
+  // v1.0.5 M4 (Track V): honest tiers for freely placed steel on this slab — bundle count/cover, layer
+  // spacing, curtailment anchorage + the element-agnostic geometry (axial-extent / section-bounds) the
+  // RECT pipeline runs inline. Only fires when the user placed bars (legacy slab byte-identical).
+  if (longBars && input.placed) {
+    validation.push(
+      ...validatePlacedBarRules(input.placed, longBars, {
+        section: "SLAB",
+        b: geometry.Ly,
+        h: geometry.t,
+        cover: input.cover,
+        memberLength: geometry.Lx,
+        dg,
+        codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+        material: input.material,
+        bands: { spacing: code.warnBands?.spacing ?? 0.05, anchorage: code.warnBands?.anchorage ?? 0.05 },
+        includeGeometry: true,
+      }, code),
+    );
+  }
+
   return {
     element: input.element,
     bars,
@@ -137,5 +181,6 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     provisional: (code as { _provisional?: boolean })._provisional === true,
     // slab-family → RECT envelope: width Ly × thickness t, bars run along the span Lx (§9.5).
     member: { envelope: "RECT", length: geometry.Lx, b: geometry.Ly, h: geometry.t, transverse: [] },
+    ...(longBars ? { longBars, hasUserAddressableContent: true } : {}),
   };
 }

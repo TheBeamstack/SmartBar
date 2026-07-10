@@ -22,6 +22,9 @@ import {
   type SlabContext,
   type StairContext,
 } from "../validation/profiles";
+import type { PlacedBarInput } from "../types/placed-bar";
+import { resolvePlacedBars } from "../section/resolvePlacedBars";
+import { validatePlacedBarRules } from "../validation/placedBarRules";
 import type { SolveResult, SolvedGroup } from "./element";
 
 export interface StairZoneInput {
@@ -57,6 +60,11 @@ export interface StairSolveInput {
   zones: StairZoneInput[];
   /** the main bottom bar is continuous AROUND the re-entrant corner (the unsafe wrap) vs split. */
   mainBarWrapsCorner?: boolean;
+  /**
+   * v1.0.5 M2 (P-B): freely placed bars riding the waist/landing frame (like the main bar) at a chosen
+   * `(u,v)`. Resolved by the shared pass + appended to `SolveResult.longBars`. Absent → none.
+   */
+  placed?: PlacedBarInput[];
   code: ExtendedCodePack;
 }
 
@@ -139,6 +147,41 @@ export function solveStair(input: StairSolveInput): SolveResult {
     code,
   });
 
+  // v1.0.5 M2 (P-B): resolve any freely placed waist/landing bars additively to the base steel.
+  const memberLength = geometry.n_steps * geometry.g;
+  const longBars =
+    input.placed && input.placed.length > 0
+      ? resolvePlacedBars(input.placed, {
+          memberLength,
+          code,
+          material: input.material,
+          layoutBars: bars,
+          groups,
+          section: "SLAB",
+          sectionDims: { b: geometry.flight_width, h: t }, // M3: a Layer offsets from the waist face
+          startIndex: bars.length,
+        })
+      : undefined;
+
+  // v1.0.5 M4 (Track V): honest tiers for freely placed steel on the stair waist (bundle/layer/curtailment
+  // + element-agnostic geometry). Only fires when the user placed bars (legacy stair byte-identical).
+  if (longBars && input.placed) {
+    validation.push(
+      ...validatePlacedBarRules(input.placed, longBars, {
+        section: "SLAB",
+        b: geometry.flight_width,
+        h: t,
+        cover: input.cover,
+        memberLength,
+        dg,
+        codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+        material: input.material,
+        bands: { spacing: code.warnBands?.spacing ?? 0.05, anchorage: code.warnBands?.anchorage ?? 0.05 },
+        includeGeometry: true,
+      }, code),
+    );
+  }
+
   return {
     element: input.element,
     bars,
@@ -150,10 +193,11 @@ export function solveStair(input: StairSolveInput): SolveResult {
     // stair waist → RECT envelope: flight width × waist t, bars run along the going (§9.5).
     member: {
       envelope: "RECT",
-      length: geometry.n_steps * geometry.g,
+      length: memberLength,
       b: geometry.flight_width,
       h: t,
       transverse: [],
     },
+    ...(longBars ? { longBars, hasUserAddressableContent: true } : {}),
   };
 }

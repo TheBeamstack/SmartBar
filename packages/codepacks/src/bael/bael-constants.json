@@ -87,5 +87,20 @@
     "secondaryMaxFactorOfH": 4,
     "secondaryCap_mm": 450,
     "distMinFractionOfMain": 0.2
+  },
+  "skin": {
+    "_note": "PROVISIONAL side-face (skin) steel (v1.0.5 M4 / V-C, G-BAEL): mandatory when section depth h > depthThreshold_mm; per-face min area = minAreaFractionOfSide·(b·h), spacing capped at maxSpacing_mm. BAEL analogue of EC2 §7.3.3 surface reinforcement / §9.2.4. Owner/engineer to ratify.",
+    "depthThreshold_mm": 1000,
+    "minAreaFractionOfSide": 0.001,
+    "maxSpacing_mm": 300
+  },
+  "bundle": {
+    "_note": "PROVISIONAL bundle limits (v1.0.5 M4 / V-B, G-BAEL): max bars per bundle (3 at a lap), and the equivalent-Ø cap that drives cover/spacing (EC2 §8.9). Owner/engineer to ratify.",
+    "maxBars": 4,
+    "maxBarsAtLap": 3
+  },
+  "curtailment": {
+    "_note": "PROVISIONAL curtailment/anchorage (v1.0.5 M4 / V-E, §7.7, G-BAEL): a curtailed bar's run must develop its end anchorage; a bare (none) interior cut cannot. hookedFactor reduces the required development past a hooked cut-off. Owner/engineer to ratify.",
+    "hookedFactor": 0.4
   }
 }

@@ -30,6 +30,9 @@ import {
   type JoistSolveInput,
   type LongBarOverride,
   type ExtraLongBar,
+  type PlacedBarInput,
+  type Splice,
+  type EndAnchorageChoice,
   generateBarShape,
   type ShapeArchetype,
 } from "@rebarconfig/core";
@@ -46,6 +49,10 @@ import {
   type BarFaconnage,
   type BarOverrideEdit,
   type AddressableBar,
+  type PlacedBarDoc,
+  type PlacedRowDoc,
+  type PlacedBundleDoc,
+  type PlacedLayerDoc,
   type CodePackId,
   isColumnDoc,
   isGenericDoc,
@@ -312,6 +319,108 @@ function buildExtraBars(bars: AddressableBar[] | undefined, memberLen: number, c
 }
 
 /**
+ * v1.0.5 M2 (P-B): the generic-element `placed` bars → canonical `SingleBar` inputs for the shared
+ * placement pass. Mirrors `buildExtraBars` (same façonnage/unique-length/curtailment conventions), but
+ * emits the M2 `PlacedBarInput` (`kind:"single"`) the generic pipelines accept. Column/beam free bars
+ * already ride the `extraBars` channel (RECT) — this widens the same capability to the other 6 elements.
+ */
+/**
+ * Map a doc placed-bar BODY (shape id + façonnage + unique length + curtailment + splices) → the core
+ * `PlacedBarBody` fields, shared by every kind (single / row / bundle / layer). Same conventions as
+ * `buildExtraBars` (H11 manifest-seeded params, H2 unique-length inversion, P2 curtailment, B1/H14 splice).
+ */
+function placedDocBody(
+  d: {
+    shapeId: string;
+    faconnage?: BarFaconnage;
+    diameter: number;
+    length?: number;
+    axialPos?: number;
+    startStation?: number;
+    endStation?: number;
+    anchorage?: EndAnchorageChoice;
+    autoSplice?: boolean;
+    splices?: Splice[];
+  },
+  memberLen: number,
+  code: BaelPack,
+) {
+  const shapeArch = loadShape(d.shapeId);
+  const hooks = faconnageHooks(d.faconnage);
+  const base = faconnageParams(d.faconnage, defaultParams(shapeArch, memberLen));
+  const params = d.length !== undefined ? applyUniqueLength(shapeArch, base, d.diameter, hooks, d.length, code) : base;
+  return {
+    shape: shapeArch,
+    params,
+    diameter: d.diameter,
+    ...(hooks ? { hooks } : {}),
+    ...(d.axialPos !== undefined ? { axisStart: d.axialPos } : {}),
+    ...(d.startStation !== undefined ? { startStation: d.startStation } : {}),
+    ...(d.endStation !== undefined ? { endStation: d.endStation } : {}),
+    ...(d.anchorage !== undefined ? { anchorage: { end: d.anchorage } } : {}),
+    ...(d.autoSplice ? { autoSplice: true } : {}),
+    ...(d.splices !== undefined ? { splices: d.splices } : {}),
+  };
+}
+
+/**
+ * v1.0.5 M2/M3 (P-B…P-F): the doc placed-bar union → canonical `PlacedBarInput`s for the shared pass. An
+ * `AddressableBar` (no `kind`) is a free `SingleBar`; a `kind`-tagged doc is a row / bundle / layer. Used
+ * by both the generic pipelines and (M3) the RECT column/beam channel.
+ */
+function buildPlacedBars(bars: PlacedBarDoc[] | undefined, memberLen: number, code: BaelPack): PlacedBarInput[] {
+  if (!bars || bars.length === 0) return [];
+  return bars.map((d): PlacedBarInput => {
+    const kind = "kind" in d ? d.kind : "single";
+    if (kind === "row") {
+      const r = d as PlacedRowDoc;
+      return {
+        kind: "row",
+        id: r.id,
+        anchor: r.anchor,
+        direction: r.direction,
+        extent: r.extent,
+        ...(r.count !== undefined ? { count: r.count } : {}),
+        ...(r.spacing !== undefined ? { spacing: r.spacing } : {}),
+        ...(r.skin ? { skin: true } : {}),
+        ...placedDocBody(r, memberLen, code),
+      };
+    }
+    if (kind === "bundle") {
+      const b = d as PlacedBundleDoc;
+      return { kind: "bundle", id: b.id, position: { u: b.u, v: b.v }, n: b.n, ...placedDocBody(b, memberLen, code) };
+    }
+    if (kind === "layer") {
+      const l = d as PlacedLayerDoc;
+      return {
+        kind: "layer",
+        id: l.id,
+        face: l.face,
+        layerIndex: l.layerIndex,
+        count: l.count,
+        inset: l.inset,
+        span: l.span,
+        ...(l.layerGap !== undefined ? { layerGap: l.layerGap } : {}),
+        ...placedDocBody(l, memberLen, code),
+      };
+    }
+    const pb = d as AddressableBar;
+    return { kind: "single", id: pb.id, position: { u: pb.u, v: pb.v }, ...placedDocBody(pb, memberLen, code) };
+  });
+}
+
+/** Spread-helper: `{ placed }` when a doc has freely placed bars, else `{}` (byte-identical). */
+function placedFor(placed: PlacedBarDoc[] | undefined, memberLen: number, code: BaelPack): { placed?: PlacedBarInput[] } {
+  const out = buildPlacedBars(placed, memberLen, code);
+  return out.length > 0 ? { placed: out } : {};
+}
+
+/** Spread-helper for a generic doc (uses its member length). */
+function placedInput(doc: GenericDoc, code: BaelPack): { placed?: PlacedBarInput[] } {
+  return placedFor(doc.placed, memberLength(doc), code);
+}
+
+/**
  * v1.0.3 G3 ([REF-SYS-260], spec §3.2): a beam relevé — a bent-up (`RELEVE`) bottom bar near a
  * support — expanded into G2 addressable bars (one per `count`). It rides the `extraBars` channel so
  * it renders its true bent shape (G1) and is scheduled (its own RELEVE cutLength), without entering
@@ -417,6 +526,7 @@ function columnInput(
     ],
     ...(longOverrides.length > 0 ? { longOverrides } : {}),
     ...(extraBars.length > 0 ? { extraBars } : {}),
+    ...placedFor(doc.placed, doc.geometry.H, code), // M3: rows / bundles / layers on the column
     ...seismicBlock(
       doc.seismic,
       { kind: "COLUMN", length: doc.geometry.H, bMin: Math.min(doc.geometry.b, doc.geometry.h), hSectionMax: Math.max(doc.geometry.b, doc.geometry.h) },
@@ -553,6 +663,7 @@ function beamInput(
     ],
     ...(longOverrides.length > 0 ? { longOverrides } : {}),
     ...(extraBars.length > 0 ? { extraBars } : {}),
+    ...placedFor(doc.placed, doc.geometry.L, code), // M3: rows / bundles / layers / skin on the beam
     // B2 ([REF-SYS-260]): the two supports feed the per-support §7.7 anchorage check (each its own l_bd).
     supports: [
       { id: "left", anchorage: supL.anchorage, width: supL.width },
@@ -684,6 +795,7 @@ function circularInput(doc: GenericDoc, code: BaelPack): CircularSolveInput {
         aswReqPerM: z.asReqPerM ?? 0,
         ...(z.regions !== undefined ? { regions: z.regions } : {}),
       })),
+    ...placedInput(doc, code),
     code,
   };
 }
@@ -719,6 +831,7 @@ function slabInput(doc: GenericDoc, code: BaelPack): SlabSolveInput {
     })),
     ...(doc.restrainedCorner !== undefined ? { restrainedCorner: doc.restrainedCorner } : {}),
     ...(doc.cornerTorsionProvided !== undefined ? { cornerTorsionProvided: doc.cornerTorsionProvided } : {}),
+    ...placedInput(doc, code),
     code,
   };
 }
@@ -754,6 +867,7 @@ function joistInput(doc: GenericDoc, code: BaelPack): JoistSolveInput {
       asReqPerM: z.asReqPerM ?? 0,
       v: slabZoneV(doc, z),
     })),
+    ...placedInput(doc, code),
     code,
   };
 }
@@ -789,6 +903,7 @@ function stairInput(doc: GenericDoc, code: BaelPack): StairSolveInput {
       asReqPerM: z.asReqPerM ?? 0,
       v: slabZoneV(doc, z),
     })),
+    ...placedInput(doc, code),
     code,
   };
 }

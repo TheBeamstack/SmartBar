@@ -150,10 +150,19 @@ export function computeBBS(result: SolveResult, opts: BbsOptions = {}): BarBendi
   // emits an explicit `longBars[]`; schedule the longitudinal steel from it (one line per DISTINCT
   // bar — uniques split out, identical bars merge) instead of the grouped count. Absent → grouped.
   const longBars = result.longBars;
+  // v1.0.5 M2 (P-B): a longitudinal GROUP is scheduled per-bar from `longBars` only when its bars are
+  // actually represented there (a non-standalone longBar carrying its groupId). A **RECT** element
+  // replaces every longitudinal group (each has non-standalone twins) → skip them all, schedule from
+  // `longBars` → byte-identical. A **generic** pipeline keeps its base mat as groups and appends only
+  // FREE (standalone) bars, so its base longitudinal groups are NOT covered → still scheduled here, with
+  // the free bars added below. Absent `longBars` → the pure grouped path (unchanged).
+  const coveredGroups = longBars
+    ? new Set(longBars.filter((lb) => !lb.standalone).map((lb) => lb.groupId))
+    : undefined;
   const raws: Raw[] = [];
   let couplerCount = 0; // v1.0.3 G4: mechanical couplers tallied across the spliced groups
   for (const g of result.groups) {
-    if (longBars && LONG_ROLES.has(g.role)) continue; // longitudinal handled per-bar below
+    if (longBars && LONG_ROLES.has(g.role) && coveredGroups!.has(g.groupId)) continue; // per-bar below
     const count = groupCount(g, transverseSets, result.member.length);
     if (count <= 0) continue;
     const legSig = g.shape.fiche.legs.map((l) => q(l.length)).join(",");

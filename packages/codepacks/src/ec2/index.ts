@@ -40,9 +40,28 @@ export interface PackExtras {
   slabSpacingMax(h: number, secondary: boolean): number;
   /** EC2 §9.3.1.1(2) distribution-steel minimum fraction of main steel. */
   distMinFraction: number;
+  /** v1.0.5 M3 (P-E): equivalent Ø of an `n`-bar bundle = `φ·√n ≤ 55 mm` (EC2 §8.9; ⚠ PROVISIONAL, G-EC2). */
+  bundleEquivDiameter(phi: number, n: number): number;
+  /** v1.0.5 M4 (V-B): max bars per bundle (EC2 §8.9; ⚠ PROVISIONAL, G-EC2). */
+  bundleMax: number;
+  /** v1.0.5 M4 (V-B): max bars per bundle at a lap (EC2 §8.9; ⚠ PROVISIONAL, G-EC2). */
+  bundleMaxAtLap: number;
+  /** v1.0.5 M4 (V-C): depth-triggered skin-steel requirement (EC2 §7.3.3/§9.2.4; ⚠ PROVISIONAL, G-EC2). */
+  skinReinforcement(args: { b: number; h: number }): {
+    required: boolean;
+    minAreaPerFaceMm2: number;
+    maxSpacingMm: number;
+  };
+  /** v1.0.5 M4 (V-E): development-length reduction past a hooked curtailment cut-off (EC2 §9.2.1.3; ⚠ PROVISIONAL, G-EC2). */
+  curtailmentHookedFactor: number;
 }
 
 export type Ec2Pack = CodePack & PackExtras;
+
+/** Equivalent diameter of an `n`-bar bundle: `φₙ = φ·√n`, capped at 55 mm (EC2 §8.9). */
+function bundleEquivDiameter(phi: number, n: number): number {
+  return Math.min(55, phi * Math.sqrt(Math.max(1, n)));
+}
 
 function fck(material: MaterialContext): number {
   return material.f_ck ?? material.f_c28 ?? 25;
@@ -167,6 +186,19 @@ export function makeEc2Pack(): Ec2Pack {
       : Math.min(s.principalMaxFactorOfH * h, s.principalCap_mm);
   };
 
+  const skinReinforcement = (args: { b: number; h: number }): {
+    required: boolean;
+    minAreaPerFaceMm2: number;
+    maxSpacingMm: number;
+  } => {
+    const s = constants.skin;
+    return {
+      required: args.h > s.depthThreshold_mm,
+      minAreaPerFaceMm2: s.minAreaFractionOfSide * args.b * args.h,
+      maxSpacingMm: s.maxSpacing_mm,
+    };
+  };
+
   /** ρ_w,min = 0.08·√f_ck / f_yk — surfaced as a MPa-equivalent floor for the §7.5 check. */
   const minShearStress = (material: MaterialContext): number =>
     constants.tieSpacing.shearRatioFactor * Math.sqrt(fck(material)) * 1; // ×f_yk handled in profile
@@ -195,5 +227,10 @@ export function makeEc2Pack(): Ec2Pack {
     lsStraight,
     slabSpacingMax,
     distMinFraction: constants.slab.distMinFractionOfMain,
+    bundleEquivDiameter,
+    bundleMax: constants.bundle.maxBars,
+    bundleMaxAtLap: constants.bundle.maxBarsAtLap,
+    skinReinforcement,
+    curtailmentHookedFactor: constants.curtailment.hookedFactor,
   };
 }

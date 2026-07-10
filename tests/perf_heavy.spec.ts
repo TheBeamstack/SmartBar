@@ -10,7 +10,7 @@
  * pin a number. The web `perf_budget.spec` already guards the typical-element 16 ms target.
  */
 import { describe, it, expect } from "vitest";
-import { solveColumn, solveCircular, solveJoist, placeBars } from "@rebarconfig/core";
+import { solveColumn, solveCircular, solveJoist, solveSlab, placeBars, type SingleBar } from "@rebarconfig/core";
 import { makeBaelPack } from "@rebarconfig/codepacks";
 import { loadShape } from "./p1-helpers";
 
@@ -126,5 +126,81 @@ describe("G1 placement performance (§2.2)", () => {
     expect(placeBars(result).length).toBeGreaterThan(100);
     const ms = bestOf(15, () => placeBars(result));
     expect(ms).toBeLessThan(BUDGET_MS);
+  });
+});
+
+/**
+ * v1.0.5 M2 (P-B): the shared placed-bar pass must not add pathological cost — a dense set of freely
+ * placed bars on a slab still solves (resolve + validate) AND places within the interactive budget.
+ */
+describe("M2 placed-bar performance (§2.2)", () => {
+  const placed: SingleBar[] = Array.from({ length: 60 }, (_, i) => ({
+    kind: "single",
+    id: `F${i}`,
+    position: { u: -2000 + i * 60, v: -70 },
+    shape: droite,
+    params: { L: 5000 },
+    diameter: 12,
+  }));
+
+  it("a slab with 60 freely placed bars solves within budget", () => {
+    const solve = () =>
+      solveSlab({
+        element: "E-SLB-01", profile: "SLAB_ONEWAY", geometry: { Lx: 5000, Ly: 4000, t: 200 },
+        material: { f_c28: 25, f_e: 500 }, cover: 25, exposure: "INTERIOR",
+        zones: [{ zone: "As_main", groupId: "M", slabRole: "MAIN", shape: droite, params: { L: 5000 }, diameter: 12, spacing: 150, asReqPerM: 700, v: -75 }],
+        placed,
+        code,
+      });
+    const r = solve();
+    expect(r.longBars).toHaveLength(60);
+    expect(bestOf(15, solve)).toBeLessThan(BUDGET_MS);
+  });
+
+  it("placing that slab (base mat + 60 free bars) stays within budget", () => {
+    const result = solveSlab({
+      element: "E-SLB-01", profile: "SLAB_ONEWAY", geometry: { Lx: 5000, Ly: 4000, t: 200 },
+      material: { f_c28: 25, f_e: 500 }, cover: 25, exposure: "INTERIOR",
+      zones: [{ zone: "As_main", groupId: "M", slabRole: "MAIN", shape: droite, params: { L: 5000 }, diameter: 12, spacing: 150, asReqPerM: 700, v: -75 }],
+      placed,
+      code,
+    });
+    expect(bestOf(15, () => placeBars(result))).toBeLessThan(BUDGET_MS);
+  });
+});
+
+/**
+ * v1.0.5 M3 (P-C/P-E): rows + bundles expand to N single bars in the shared pass — 20 rows of 4 + 20
+ * triple bundles = 140 resolved bars must still solve + place within the interactive budget.
+ */
+describe("M3 row/bundle expansion performance (§2.2)", () => {
+  const placed = [
+    ...Array.from({ length: 20 }, (_, i) => ({
+      kind: "row" as const, id: `R${i}`, anchor: { u: -1900 + i * 60, v: -70 }, direction: "u" as const, extent: 300, count: 4,
+      shape: droite, params: { L: 5000 }, diameter: 12,
+    })),
+    ...Array.from({ length: 20 }, (_, i) => ({
+      kind: "bundle" as const, id: `B${i}`, position: { u: -1900 + i * 60, v: -50 }, n: 3,
+      shape: droite, params: { L: 5000 }, diameter: 16,
+    })),
+  ];
+  const solve = () =>
+    solveSlab({
+      element: "E-SLB-01", profile: "SLAB_ONEWAY", geometry: { Lx: 5000, Ly: 4000, t: 200 },
+      material: { f_c28: 25, f_e: 500 }, cover: 25, exposure: "INTERIOR",
+      zones: [{ zone: "As_main", groupId: "M", slabRole: "MAIN", shape: droite, params: { L: 5000 }, diameter: 12, spacing: 150, asReqPerM: 700, v: -75 }],
+      placed,
+      code,
+    });
+
+  it("20 rows-of-4 + 20 triple bundles (140 bars) solve within budget", () => {
+    const r = solve();
+    expect(r.longBars).toHaveLength(20 * 4 + 20 * 3);
+    expect(bestOf(15, solve)).toBeLessThan(BUDGET_MS);
+  });
+
+  it("placing that dense expanded set stays within budget", () => {
+    const result = solve();
+    expect(bestOf(15, () => placeBars(result))).toBeLessThan(BUDGET_MS);
   });
 });

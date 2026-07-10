@@ -30,6 +30,31 @@ export interface CodePackExtras {
   slabSpacingMax?(h: number, secondary: boolean): number;
   /** min distribution/secondary steel as a fraction of main steel, §7.4 (default 0.20). P4a. */
   distMinFraction?: number;
+  /**
+   * v1.0.5 M3 (P-E): equivalent diameter of a bundle of `n` bars of Ø `phi` — `φₙ = φ·√n ≤ 55 mm`
+   * (EC2 §8.9 / BAEL). Drives cover / clear-spacing-to-neighbours / mandrel-lap for a bundle (checked in
+   * Track V/M4). ⚠ PROVISIONAL (G-BAEL/EC2). Absent → the engine falls back to the bare Ø.
+   */
+  bundleEquivDiameter?(phi: number, n: number): number;
+  /** v1.0.5 M4 (V-B): max bars per bundle (default 4). ⚠ PROVISIONAL (G-BAEL/EC2, §8.9). */
+  bundleMax?: number;
+  /** v1.0.5 M4 (V-B): max bars per bundle at a lap (default 3). ⚠ PROVISIONAL (G-BAEL/EC2, §8.9). */
+  bundleMaxAtLap?: number;
+  /**
+   * v1.0.5 M4 (V-C): depth-triggered side-face (skin) steel requirement (EC2 §7.3.3 / §9.2.4, BAEL
+   * analogue). Returns whether skin steel is mandatory at this depth and the per-face minimum area +
+   * max spacing. ⚠ PROVISIONAL (G-BAEL/EC2). Absent → the engine treats skin as never mandatory.
+   */
+  skinReinforcement?(args: { b: number; h: number }): {
+    required: boolean;
+    minAreaPerFaceMm2: number;
+    maxSpacingMm: number;
+  };
+  /**
+   * v1.0.5 M4 (V-E): reduction factor on the required development length past a **hooked** curtailment
+   * cut-off (BAEL ≈ 0.4·l_s / EC2 α₁ ≈ 0.7·l_b,rqd). ⚠ PROVISIONAL (G-BAEL/EC2, §7.7). Default 1 (straight).
+   */
+  curtailmentHookedFactor?: number;
 }
 export type ExtendedCodePack = CodePack & CodePackExtras;
 

@@ -13,6 +13,8 @@ export * from "./distribution";
 export * from "./placement";
 export * from "./reinforcing-element";
 export * from "./layout";
+// M2 P-A — the canonical placed-bar input family (SingleBar; rows/bundles/layers in M3)
+export * from "./placed-bar";
 export * from "./codepack";
 export * from "./rcfg";
 // P4b — seismic overlay contract (RPS 2000/2011, §7.10)

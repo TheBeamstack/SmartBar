@@ -19,6 +19,9 @@ import {
   type SolvedLongZone,
   type SolvedTransZone,
 } from "../validation/profiles";
+import type { PlacedBarInput } from "../types/placed-bar";
+import { resolvePlacedBars } from "../section/resolvePlacedBars";
+import { validatePlacedBarRules } from "../validation/placedBarRules";
 import type { SolveResult, SolvedGroup } from "./element";
 
 export interface CircularLongInput {
@@ -59,6 +62,12 @@ export interface CircularSolveInput {
   dg?: number;
   longitudinal: CircularLongInput[];
   transverse?: CircularTransInput[];
+  /**
+   * v1.0.5 M2 (P-B): freely placed bars — an extra pitch-circle bar or a free interior `(u,v)` bar
+   * (e.g. a bundle at the centre of a large pile). Resolved by the shared placement pass + appended to
+   * `SolveResult.longBars` (rendered + scheduled + shown in the coupe). Absent → none (byte-identical).
+   */
+  placed?: PlacedBarInput[];
   code: ExtendedCodePack;
 }
 
@@ -155,6 +164,43 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
     code,
   });
 
+  // v1.0.5 M2 (P-B): resolve any freely placed bars through the shared pass, APPENDED to the base
+  // pitch-circle mat (kept in `bars`). placeBars/computeBBS/sectionAt read `longBars` additively.
+  const memberLength = geometry.H ?? geometry.L ?? geometry.D;
+  const longBars =
+    input.placed && input.placed.length > 0
+      ? resolvePlacedBars(input.placed, {
+          memberLength,
+          code,
+          material: input.material,
+          layoutBars: circular.bars,
+          groups,
+          section: "CIRCULAR",
+          startIndex: circular.bars.length,
+        })
+      : undefined;
+
+  // v1.0.5 M4 (Track V): honest tiers for freely placed steel in this round section — bundle count/cover
+  // (φₙ radial cover), curtailment anchorage + the element-agnostic geometry (axial-extent / radial
+  // section-bounds). A face `Layer`/`skin` row is not a round-section concept (skipped upstream).
+  if (longBars && input.placed) {
+    validation.push(
+      ...validatePlacedBarRules(input.placed, longBars, {
+        section: "CIRCULAR",
+        b: geometry.D,
+        h: geometry.D,
+        circularD: geometry.D,
+        cover: input.cover,
+        memberLength,
+        dg: input.dg ?? 20,
+        codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+        material: input.material,
+        bands: { spacing: code.warnBands?.spacing ?? 0.05, anchorage: code.warnBands?.anchorage ?? 0.05 },
+        includeGeometry: true,
+      }, code),
+    );
+  }
+
   return {
     element: input.element,
     bars: circular.bars,
@@ -165,9 +211,10 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
     provisional: (code as { _provisional?: boolean })._provisional === true,
     member: {
       envelope: "CIRCULAR",
-      length: geometry.H ?? geometry.L ?? geometry.D,
+      length: memberLength,
       D: geometry.D,
       transverse: (input.transverse ?? []).map((tz) => ({ groupId: tz.groupId, spacing: tz.spacing })),
     },
+    ...(longBars ? { longBars, hasUserAddressableContent: true } : {}),
   };
 }

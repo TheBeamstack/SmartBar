@@ -122,6 +122,64 @@ export interface AddressableBar {
 }
 
 /**
+ * v1.0.5 M3 — the steel a doc-level row/bundle/layer carries (mirrors `AddressableBar`'s bar body). The
+ * adapter (`buildPlacedBars`) maps it onto the core `PlacedBarBody`, so a row/bundle/layer schedules +
+ * curtails + splices like any single bar. `axialPos` is the along-member start station.
+ */
+export interface PlacedDocBody {
+  shapeId: string;
+  faconnage?: BarFaconnage;
+  diameter: number;
+  length?: number;
+  axialPos?: number;
+  startStation?: number;
+  endStation?: number;
+  anchorage?: EndAnchorageChoice;
+  autoSplice?: boolean;
+  splices?: Splice[];
+}
+
+/** v1.0.5 M3 (P-C/P-F) — a doc-level counted/spaced row (or a side-face skin row when `skin`). */
+export interface PlacedRowDoc extends PlacedDocBody {
+  kind: "row";
+  id: string;
+  anchor: { u: number; v: number };
+  direction: "u" | "v";
+  extent: number;
+  count?: number;
+  spacing?: number;
+  skin?: boolean;
+}
+
+/** v1.0.5 M3 (P-E) — a doc-level bundle of `n` bars in contact at `(u,v)`. */
+export interface PlacedBundleDoc extends PlacedDocBody {
+  kind: "bundle";
+  id: string;
+  u: number;
+  v: number;
+  n: number;
+}
+
+/** v1.0.5 M3 (P-D) — a doc-level extra flexural layer attaching to a face. */
+export interface PlacedLayerDoc extends PlacedDocBody {
+  kind: "layer";
+  id: string;
+  face: "TOP" | "BOTTOM" | "LEFT" | "RIGHT";
+  layerIndex: number;
+  count: number;
+  inset: number;
+  span: number;
+  layerGap?: number;
+}
+
+/**
+ * v1.0.5 M3 — the doc-level placed-bar union. An `AddressableBar` (no `kind`) is a free single bar; the
+ * `kind`-tagged members are rows / bundles / layers. Rides `meta.app_document` in the `.rcfg` → additive,
+ * lossless round-trip (D-P0-2), and every prior file (singles only) still loads.
+ */
+export type PlacedBarDoc = AddressableBar | PlacedRowDoc | PlacedBundleDoc | PlacedLayerDoc;
+
+/**
  * v1.0.3 G3 ([REF-DATA-260]) — one beam support (V1 left / V2 right) with its OWN steel: an
  * over-support `chapeau` (top bars, with a support-zone `length` feeding the §7.7 curtailment), the
  * bottom-bar `anchorage` length into the support, and the support `width` (bearing). The two supports
@@ -201,6 +259,8 @@ export interface ColumnDoc {
   };
   /** G2 independent addressable bars / extra section levels on this column (absent → none). */
   extraBars?: AddressableBar[];
+  /** v1.0.5 M3 (P-C/P-D/P-E) — freely placed rows / bundles / layers on this column (absent → none). */
+  placed?: PlacedBarDoc[];
   tie: {
     groupId: string;
     shapeId: string;
@@ -256,6 +316,8 @@ export interface BeamDoc {
   };
   /** G2 independent addressable bars / extra section levels on this beam (absent → none). */
   extraBars?: AddressableBar[];
+  /** v1.0.5 M3 (P-C/P-D/P-E/P-F) — freely placed rows / bundles / layers / skin on this beam (absent → none). */
+  placed?: PlacedBarDoc[];
   /**
    * v1.0.3 G3 ([REF-DATA-260]) — the two beam supports (V1 left / V2 right), each with its own
    * chapeau + anchorage + width. Replaces the v1.0.2 single collapsed `chapeau`; a legacy doc migrates
@@ -330,6 +392,12 @@ export interface GenericDoc {
   cornerTorsionProvided?: number;
   /** stair: main bottom bar continuous AROUND the re-entrant corner (the unsafe wrap). */
   mainBarWrapsCorner?: boolean;
+  /**
+   * v1.0.5 M2/M3 (P-B…P-F, [REF-DATA-530]) — freely placed bars on this generic element: a free single
+   * bar at `(u,v)`, or a `kind`-tagged row / bundle / layer (M3). Rendered + scheduled + shown in the
+   * coupe via the shared placement pass. Additive/optional → every prior `.rcfg`/doc loads unchanged.
+   */
+  placed?: PlacedBarDoc[];
   supplements: SupplementEdit[];
 }
 

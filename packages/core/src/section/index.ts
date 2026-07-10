@@ -6,3 +6,5 @@ export * from "./types";
 export * from "./convention";
 export * from "./place";
 export * from "./sectionAt";
+// M2 P-B — the shared placed-bar resolution pass (free placement on all 8 elements)
+export * from "./resolvePlacedBars";

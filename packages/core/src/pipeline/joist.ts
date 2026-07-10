@@ -16,6 +16,9 @@ import { generateShape } from "../geometry/registry";
 import { slabProvidedPerMetre, slabEffectiveDepth, solveSlabBars } from "../layout/slab";
 import { rollupStatus, type ExtendedCodePack } from "../validation/index";
 import { getValidationProfile, type SolvedSlabZone, type SlabContext } from "../validation/profiles";
+import type { PlacedBarInput } from "../types/placed-bar";
+import { resolvePlacedBars } from "../section/resolvePlacedBars";
+import { validatePlacedBarRules } from "../validation/placedBarRules";
 import type { SolveResult, SolvedGroup } from "./element";
 
 export interface JoistZoneInput {
@@ -51,6 +54,11 @@ export interface JoistSolveInput {
   fire?: string;
   dg?: number;
   zones: JoistZoneInput[];
+  /**
+   * v1.0.5 M2 (P-B): freely placed bars in a rib (e.g. an extra bottom bar). Resolved by the shared
+   * pass + appended to `SolveResult.longBars` alongside the per-metre rib steel. Absent → none.
+   */
+  placed?: PlacedBarInput[];
   code: ExtendedCodePack;
 }
 
@@ -112,6 +120,40 @@ export function solveJoist(input: JoistSolveInput): SolveResult {
     code,
   });
 
+  // v1.0.5 M2 (P-B): resolve any freely placed rib bars additively to the per-metre steel.
+  const longBars =
+    input.placed && input.placed.length > 0
+      ? resolvePlacedBars(input.placed, {
+          memberLength: geometry.L,
+          code,
+          material: input.material,
+          layoutBars: bars,
+          groups,
+          section: "SLAB",
+          sectionDims: { b: width, h: t }, // M3: a Layer offsets from the rib face
+          startIndex: bars.length,
+        })
+      : undefined;
+
+  // v1.0.5 M4 (Track V): honest tiers for freely placed rib steel (bundle/layer/curtailment + geometry).
+  // Only fires when the user placed bars (legacy joist byte-identical).
+  if (longBars && input.placed) {
+    validation.push(
+      ...validatePlacedBarRules(input.placed, longBars, {
+        section: "SLAB",
+        b: width,
+        h: t,
+        cover: input.cover,
+        memberLength: geometry.L,
+        dg,
+        codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+        material: input.material,
+        bands: { spacing: code.warnBands?.spacing ?? 0.05, anchorage: code.warnBands?.anchorage ?? 0.05 },
+        includeGeometry: true,
+      }, code),
+    );
+  }
+
   return {
     element: input.element,
     bars,
@@ -122,5 +164,6 @@ export function solveJoist(input: JoistSolveInput): SolveResult {
     provisional: (code as { _provisional?: boolean })._provisional === true,
     // joist rib → RECT envelope: tributary width × total depth, bars run along the span L (§9.5).
     member: { envelope: "RECT", length: geometry.L, b: width, h: t, transverse: [] },
+    ...(longBars ? { longBars, hasUserAddressableContent: true } : {}),
   };
 }

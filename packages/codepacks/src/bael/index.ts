@@ -39,9 +39,28 @@ export interface PackExtras {
   slabSpacingMax(h: number, secondary: boolean): number;
   /** min distribution/secondary steel as a fraction of main steel (§7.4, default 0.20). */
   distMinFraction: number;
+  /** v1.0.5 M3 (P-E): equivalent Ø of an `n`-bar bundle = `φ·√n ≤ 55 mm` (⚠ PROVISIONAL, G-BAEL). */
+  bundleEquivDiameter(phi: number, n: number): number;
+  /** v1.0.5 M4 (V-B): max bars per bundle (⚠ PROVISIONAL, G-BAEL §8.9). */
+  bundleMax: number;
+  /** v1.0.5 M4 (V-B): max bars per bundle at a lap (⚠ PROVISIONAL, G-BAEL §8.9). */
+  bundleMaxAtLap: number;
+  /** v1.0.5 M4 (V-C): depth-triggered skin-steel requirement (⚠ PROVISIONAL, G-BAEL §7.3.3 analogue). */
+  skinReinforcement(args: { b: number; h: number }): {
+    required: boolean;
+    minAreaPerFaceMm2: number;
+    maxSpacingMm: number;
+  };
+  /** v1.0.5 M4 (V-E): development-length reduction past a hooked curtailment cut-off (⚠ PROVISIONAL, G-BAEL §7.7). */
+  curtailmentHookedFactor: number;
 }
 
 export type BaelPack = CodePack & PackExtras;
+
+/** Equivalent diameter of an `n`-bar bundle: `φₙ = φ·√n`, capped at 55 mm (EC2 §8.9 / BAEL). */
+function bundleEquivDiameter(phi: number, n: number): number {
+  return Math.min(55, phi * Math.sqrt(Math.max(1, n)));
+}
 
 function ft28(material: MaterialContext): number {
   const fc28 = material.f_c28 ?? 25;
@@ -156,6 +175,19 @@ export function makeBaelPack(): BaelPack {
       : Math.min(s.principalMaxFactorOfH * h, s.principalCap_mm);
   };
 
+  const skinReinforcement = (args: { b: number; h: number }): {
+    required: boolean;
+    minAreaPerFaceMm2: number;
+    maxSpacingMm: number;
+  } => {
+    const s = constants.skin;
+    return {
+      required: args.h > s.depthThreshold_mm,
+      minAreaPerFaceMm2: s.minAreaFractionOfSide * args.b * args.h,
+      maxSpacingMm: s.maxSpacing_mm,
+    };
+  };
+
   return {
     id: constants.id,
     allowedDiameters: constants.allowedDiameters,
@@ -180,5 +212,10 @@ export function makeBaelPack(): BaelPack {
     lsStraight,
     slabSpacingMax,
     distMinFraction: constants.slab.distMinFractionOfMain,
+    bundleEquivDiameter,
+    bundleMax: constants.bundle.maxBars,
+    bundleMaxAtLap: constants.bundle.maxBarsAtLap,
+    skinReinforcement,
+    curtailmentHookedFactor: constants.curtailment.hookedFactor,
   };
 }

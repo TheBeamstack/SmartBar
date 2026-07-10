@@ -50,6 +50,13 @@ export interface AddressableBarView {
    * the grouped `clear_spacing`, so a legacy grid is never re-reported here.
    */
   focus: boolean;
+  /**
+   * v1.0.5 M4 (V-B): the id of the bundle this bar belongs to, when it is a member of a `Bundle` (bars
+   * deliberately in contact, centre-to-centre = Ø). Two bars sharing a `bundleId` are exempt from the
+   * clear-spacing check between *each other* (they are supposed to touch); the bundle's own cover/count
+   * limits are judged by the bundle rules (`placedBarRules.ts`). Absent for a non-bundle bar.
+   */
+  bundleId?: string;
 }
 
 export interface AddressableSectionCtx {
@@ -184,6 +191,8 @@ function finishSpacing(
   for (const e of focus) {
     for (const o of live) {
       if (o === e || !axialOverlap(e, o)) continue;
+      // V-B: two bars of the SAME bundle are meant to touch — never judge their mutual clear spacing.
+      if (e.bundleId !== undefined && e.bundleId === o.bundleId) continue;
       const du = e.position.u - o.position.u;
       const dv = e.position.v - o.position.v;
       const clear = Math.hypot(du, dv) - (e.diameter + o.diameter) / 2;

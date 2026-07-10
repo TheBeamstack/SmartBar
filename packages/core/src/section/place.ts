@@ -163,17 +163,58 @@ function placeCoil(centerline3D: number[]): number[] {
   return out;
 }
 
+/**
+ * Render ONE grouped base layout bar (the byte-identical pre-longBars path): map its group's bent
+ * centreline (G1) onto the member frame at `(u, v)`, honouring a slab `across` distribution bar (C1).
+ * Factored out (v1.0.5 M2) so it serves BOTH the pure grouped path AND the additive path where a
+ * generic pipeline keeps its base mat in `bars[]` and appends free placed bars to `longBars`.
+ */
+function placeGroupedLongBar(
+  bp: SolveResult["bars"][number],
+  bi: number,
+  longGroups: SolvedGroup[],
+  byZone: Map<string, SolvedGroup>,
+  member: SolveResult["member"],
+  length: number,
+): PlacedBar | undefined {
+  const mainLong = longGroups[0];
+  const topLong = longGroups[1] ?? longGroups[0];
+  // slab-family bars carry the zone in faceTag → exact group match; else the rect convention
+  // (a TOP-face bar belongs to the second long group, e.g. a beam's chapeaux).
+  const g = byZone.get(bp.faceTag) ?? (bp.faceTag === "TOP" ? topLong : mainLong) ?? mainLong;
+  if (!g) return undefined;
+  const cl = g.shape.centerline3D;
+  // v1.0.4 C1 ([REF-SYS-810]): a DISTRIBUTION bar flagged `across` runs the full section width
+  // (world-X) at its span station `axial` and depth `v` — perpendicular to the main steel, so the
+  // transverse coupe shows it as a true line across the width. Otherwise honour the group's bent
+  // shape; fall back to a straight full-length run if it has no polyline.
+  const points = bp.across
+    ? [-(member.b ?? 0) / 2, bp.axial ?? 0, bp.position.v, (member.b ?? 0) / 2, bp.axial ?? 0, bp.position.v]
+    : cl.length >= 6
+    ? placeLongitudinal(cl, bp.position.u, bp.position.v, 0)
+    : [bp.position.u, 0, bp.position.v, bp.position.u, length, bp.position.v];
+  return { groupId: g.groupId, diameter: g.diameter, role: g.role, points, closed: false, barIndex: bi };
+}
+
 /** Place every bar of a solved element into world space (pure, deterministic). */
 export function placeBars(result: SolveResult): PlacedBar[] {
   const { member, bars, groups } = result;
   const length = member.length;
   const out: PlacedBar[] = [];
+  const longGroups = groups.filter((g) => LONG_ROLES.has(g.role));
+  const byZone = new Map<string, SolvedGroup>();
+  for (const g of groups) if (g.zone) byZone.set(g.zone, g);
 
-  // v1.0.3 G2 ([REF-SYS-530]): when the element has per-bar overrides / extra bars the pipeline emits
-  // an explicit `longBars[]` (each bar's own shape/Ø/axial start); render from it so a façonné /
-  // unique-length / independent bar appears here (and, via the shared placement, in the coupe + PDF +
-  // DXF). Absent → the grouped fast path below (byte-identical — every existing golden held).
+  // v1.0.3 G2 ([REF-SYS-530]) / v1.0.5 M2 (P-B): when the element carries a per-bar `longBars[]` the
+  // pipeline emits each bar's own shape/Ø/axial start — render from it so a façonné / unique-length /
+  // free bar appears here (and, via the shared placement, in the coupe + PDF + DXF). A **RECT** element
+  // fully replaces its base steel: every `bars[]` entry has a non-standalone `longBars` twin, so the
+  // additive loop below renders nothing → byte-identical. A **generic** pipeline (slab/circular/…) keeps
+  // its base mat in `bars[]` and appends only FREE (standalone) placed bars, so the additive loop renders
+  // the base bars NOT already represented in `longBars`. Absent → the pure grouped path (byte-identical).
   if (result.longBars) {
+    const covered = new Set<number>();
+    for (const lb of result.longBars) if (!lb.standalone) covered.add(lb.barIndex);
     for (const lb of result.longBars) {
       if (lb.removed) continue;
       const cl = lb.shape.centerline3D;
@@ -182,38 +223,17 @@ export function placeBars(result: SolveResult): PlacedBar[] {
         : [lb.position.u, lb.axisStart, lb.position.v, lb.position.u, lb.axisStart + length, lb.position.v];
       out.push({ groupId: lb.groupId, diameter: lb.diameter, role: lb.role, points, closed: false, barIndex: lb.barIndex });
     }
+    // additive: grouped base bars not represented in longBars (generic pipelines' base mat).
+    for (let bi = 0; bi < bars.length; bi++) {
+      if (covered.has(bi)) continue;
+      const pb = placeGroupedLongBar(bars[bi]!, bi, longGroups, byZone, member, length);
+      if (pb) out.push(pb);
+    }
   } else {
-    const longGroups = groups.filter((g) => LONG_ROLES.has(g.role));
-    const byZone = new Map<string, SolvedGroup>();
-    for (const g of groups) if (g.zone) byZone.set(g.zone, g);
-    const mainLong = longGroups[0];
-    const topLong = longGroups[1] ?? longGroups[0];
-
     // longitudinal bars render their real bent centreline (G1), oriented at (u, v) on the member axis
     for (let bi = 0; bi < bars.length; bi++) {
-      const bp = bars[bi]!;
-      // slab-family bars carry the zone in faceTag → exact group match; else the rect convention
-      // (a TOP-face bar belongs to the second long group, e.g. a beam's chapeaux).
-      const g = byZone.get(bp.faceTag) ?? (bp.faceTag === "TOP" ? topLong : mainLong) ?? mainLong;
-      if (!g) continue;
-      const cl = g.shape.centerline3D;
-      // v1.0.4 C1 ([REF-SYS-810]): a DISTRIBUTION bar flagged `across` runs the full section width
-      // (world-X) at its span station `axial` and depth `v` — perpendicular to the main steel, so the
-      // transverse coupe shows it as a true line across the width. Otherwise honour the group's bent
-      // shape; fall back to a straight full-length run if it has no polyline.
-      const points = bp.across
-        ? [-(member.b ?? 0) / 2, bp.axial ?? 0, bp.position.v, (member.b ?? 0) / 2, bp.axial ?? 0, bp.position.v]
-        : cl.length >= 6
-        ? placeLongitudinal(cl, bp.position.u, bp.position.v, 0)
-        : [bp.position.u, 0, bp.position.v, bp.position.u, length, bp.position.v];
-      out.push({
-        groupId: g.groupId,
-        diameter: g.diameter,
-        role: g.role,
-        points,
-        closed: false,
-        barIndex: bi,
-      });
+      const pb = placeGroupedLongBar(bars[bi]!, bi, longGroups, byZone, member, length);
+      if (pb) out.push(pb);
     }
   }
 

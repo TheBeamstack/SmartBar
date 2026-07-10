@@ -19,8 +19,10 @@ import type { RectLayout } from "../types/placement";
 import type { MaterialContext, ValidationStatus } from "../types/codepack";
 import type { SeismicOverlay, CritZoneSegment, LapExtent } from "../types/seismic";
 import type { BarShapeResult, UserHook } from "../geometry/segment-grammar";
+import type { BarEndAnchorage, SingleBar, PlacedBarInput } from "../types/placed-bar";
 import { generateShape } from "../geometry/registry";
 import { spliceBar, autoSplices, evaluateLapStagger, type Splice, type SpliceResult } from "../geometry/splice";
+import { clipToStations, barSplice, resolvePlacedBars } from "../section/resolvePlacedBars";
 import {
   solveRectLayout,
   computeZoneGeometry,
@@ -38,6 +40,7 @@ import {
   validateAddressableBars,
   type AddressableBarView,
 } from "../validation/predicates";
+import { validatePlacedBarRules } from "../validation/placedBarRules";
 import {
   getValidationProfile,
   governingAswSpacing,
@@ -163,17 +166,10 @@ export interface LongBarOverride {
   removed?: boolean;
 }
 
-/**
- * v1.0.5 P2 ([REF-SYS-260], D3): a longitudinal bar's per-end treatment where it stops (a curtailment
- * cut-off or a support). `none` = a bare cut; `straight` = a straight development length; `hook` = a
- * standard bend/hook. Phase 1 carries the choice through the model; the anchorage-length validity
- * check is Track V (M4). `{ start, end }` are the two member-axis ends of the bar.
- */
-export type EndAnchorageChoice = "none" | "straight" | "hook";
-export interface BarEndAnchorage {
-  start?: EndAnchorageChoice;
-  end?: EndAnchorageChoice;
-}
+// v1.0.5 P2 anchorage types (`EndAnchorageChoice`, `BarEndAnchorage`) moved to `types/placed-bar.ts`
+// in M2 (the canonical data contract now lives in the types layer). They still reach the
+// `@rebarconfig/core` surface via the types barrel — `BarEndAnchorage` is imported above for the
+// override/extra-bar fields below; no re-export here (that would double-export through two barrels).
 
 /**
  * v1.0.3 G2 ([REF-SYS-530]) — an independent addressable bar, not part of any count-group: its own
@@ -231,6 +227,14 @@ export interface PlacedLongBar {
   anchorage?: BarEndAnchorage;
   /** v1.0.4 H14/B1: this bar's per-bar splice (explicit or auto at stock length). Absent → unspliced. */
   splice?: SpliceResult;
+  /**
+   * v1.0.5 M4 (Track V): the parent placed-input id + kind this bar was expanded from (a `BarRow`/
+   * `Bundle`/`Layer` fans out to N bars sharing one parent). Lets the validation layer (a) exempt
+   * intra-bundle touching pairs from the clear-spacing check and (b) group bundle/layer members for the
+   * bundle / multi-layer rules. Absent for a plain single/base bar (`placedKind` then "single").
+   */
+  placedParentId?: string;
+  placedKind?: "single" | "row" | "bundle" | "layer";
 }
 
 export interface ElementTransInput {
@@ -321,6 +325,13 @@ export interface ElementSolveInput {
   longOverrides?: LongBarOverride[];
   /** v1.0.3 G2: independent addressable bars / extra section levels (absent → none). */
   extraBars?: ExtraLongBar[];
+  /**
+   * v1.0.5 M3 (P-C/P-D/P-E): freely placed rows / bundles / layers (and free single bars) on this RECT
+   * element, resolved through the shared pass alongside `extraBars`. Each expands to real per-bar
+   * geometry (3D/coupe/BBS) and feeds As,prov + area-weighted `d` (the A2 reconciliation). Absent →
+   * none (byte-identical). Rows/bundles are section-agnostic; a `Layer` uses the section dims (b×h).
+   */
+  placed?: PlacedBarInput[];
   supplements?: ElementSupplementInput[];
   /**
    * v1.0.4 H14: commercial stock bar length (mm) for per-bar auto-splitting on the addressable
@@ -351,7 +362,11 @@ const LONG_ROLES = new Set<BarRole>(["PRIMARY_LONGITUDINAL", "DISTRIBUTION"]);
  * and that beam must keep its validation list + default coupe byte-identical. Pure.
  */
 export function hasUserAddressableContent(input: ElementSolveInput): boolean {
-  return (input.longOverrides?.length ?? 0) > 0 || (input.extraBars?.length ?? 0) > 0;
+  return (
+    (input.longOverrides?.length ?? 0) > 0 ||
+    (input.extraBars?.length ?? 0) > 0 ||
+    (input.placed?.length ?? 0) > 0
+  );
 }
 
 /**
@@ -465,36 +480,12 @@ function buildLongBars(
   // v1.0.4 B2: per-zone axial start (a beam's right-support chapeau over its support = `L − extension`).
   const zoneAxisStart = new Map<string, number>();
   for (const lz of input.longitudinal) if (lz.axisStart !== undefined) zoneAxisStart.set(lz.groupId, lz.axisStart);
-  // v1.0.4 H14/B1: per-bar splice — explicit stations + optional auto-split at the stock length. The
-  // segments feed the schedule (BBS) + the stagger/seismic checks; unspliced bars → undefined (no-op).
-  const stock = input.stockLength ?? 12000;
-  const barSplice = (shape: BarShapeResult, dia: number, splices?: Splice[], autoSplice?: boolean): SpliceResult | undefined => {
-    const pts: Splice[] = [...(splices ?? []), ...(autoSplice ? autoSplices(shape.cutLength, stock) : [])];
-    if (pts.length === 0) return undefined;
-    return spliceBar(shape.cutLength, pts, code, { diameter: dia, material: input.material, fractionLapped: 1 });
-  };
-  // v1.0.5 P2 ([REF-SYS-260], D3): CURTAILMENT — re-generate a bar clipped to `[start, end]` (its cut
-  // length follows the shorter run) and return its new `axisStart = start`. The principal length param
-  // (`totalLengthParam`, else the DROITE `L` slot) carries the clipped run; hooks/Ø are preserved. The
-  // linear inversion mirrors the adapter's H2 `applyUniqueLength` (a leg's contribution is unit, the
-  // hook/bend allowances depend only on Ø+angle) so `cutLength == run + fixed part`. Pure.
-  const clipToStations = (
-    arch: ShapeArchetype,
-    params: Record<string, number>,
-    dia: number,
-    hooks: { start?: UserHook; end?: UserHook } | undefined,
-    start: number,
-    end: number,
-  ): { shape: BarShapeResult; axisStart: number } => {
-    const run = Math.max(1, end - start);
-    const opts = hooks ? { hooks } : undefined;
-    const tlp = arch.totalLengthParam;
-    const p =
-      tlp && params[tlp] !== undefined
-        ? { ...params, [tlp]: params[tlp] + (run - generateShape(arch, params, dia, code, opts).cutLength) }
-        : { ...params, L: run };
-    return { shape: generateShape(arch, p, dia, code, opts), axisStart: start };
-  };
+  // v1.0.5 M2: per-bar splice + curtailment (`barSplice`, `clipToStations`) now live in the shared
+  // `section/resolvePlacedBars.ts` so the RECT base-bar path here and the free-bar / generic-pipeline
+  // path use the SAME primitives (the single long-steel truth). Thin local alias keeps the base-bar
+  // call sites unchanged.
+  const splice_ = (shape: BarShapeResult, dia: number, splices?: Splice[], autoSplice?: boolean): SpliceResult | undefined =>
+    barSplice(shape, dia, splices, autoSplice, code, input.material, input.stockLength);
 
   const out: PlacedLongBar[] = [];
   for (let i = 0; i < layoutBars.length; i++) {
@@ -520,7 +511,7 @@ function buildLongBars(
         endStation = ov.endStation ?? memberLen;
         const src = ov.shape ? { arch: ov.shape, params: ov.params ?? {} } : archByGroup.get(g.groupId);
         if (src) {
-          const clipped = clipToStations(src.arch, src.params, diameter, ov.hooks, startStation, endStation);
+          const clipped = clipToStations(src.arch, src.params, diameter, ov.hooks, startStation, endStation, code);
           shape = clipped.shape;
           axisStart = clipped.axisStart;
         }
@@ -533,7 +524,7 @@ function buildLongBars(
     const splice = removed
       ? undefined
       : ov && (ov.splices || ov.autoSplice)
-      ? barSplice(shape, diameter, ov.splices, ov.autoSplice)
+      ? splice_(shape, diameter, ov.splices, ov.autoSplice)
       : !hasUser
       ? g.splice
       : undefined;
@@ -569,36 +560,41 @@ function buildLongBars(
       out.push({ barIndex: nextIndex++, groupId: g.groupId, role: g.role, position: pos, shape: g.shape, diameter: g.diameter, axisStart: zAxis, removed: false, standalone: false });
     }
   }
-  extra.forEach((eb) => {
-    let shape = generateShape(eb.shape, eb.params, eb.diameter, code, eb.hooks ? { hooks: eb.hooks } : undefined);
-    let axisStart = eb.axisStart ?? 0;
-    let startStation: number | undefined;
-    let endStation: number | undefined;
-    // P2 curtailment on an independent extra bar (same clip as a base bar).
-    if (eb.startStation !== undefined || eb.endStation !== undefined) {
-      startStation = eb.startStation ?? axisStart;
-      endStation = eb.endStation ?? memberLen;
-      const clipped = clipToStations(eb.shape, eb.params, eb.diameter, eb.hooks, startStation, endStation);
-      shape = clipped.shape;
-      axisStart = clipped.axisStart;
-    }
-    const splice = barSplice(shape, eb.diameter, eb.splices, eb.autoSplice);
-    out.push({
-      barIndex: nextIndex++,
-      groupId: eb.id,
-      role: eb.role ?? "PRIMARY_LONGITUDINAL",
-      position: eb.position,
-      shape,
-      diameter: eb.diameter,
-      axisStart,
-      removed: false,
-      standalone: true,
-      ...(startStation !== undefined ? { startStation } : {}),
-      ...(endStation !== undefined ? { endStation } : {}),
-      ...(eb.anchorage ? { anchorage: eb.anchorage } : {}),
-      ...(splice ? { splice } : {}),
-    });
-  });
+  // v1.0.5 M2 (P-A/P-B): independent extra bars resolve through the SHARED placed-bar pass — the same
+  // `resolvePlacedBars` the four generic pipelines call — so a free bar behaves identically everywhere
+  // (the single long-steel truth). An `ExtraLongBar` is a `SingleBar` in all but name; the conversion
+  // is byte-preserving (same shape gen + curtailment clip + splice → identical `PlacedLongBar`).
+  const freeBars: SingleBar[] = extra.map((eb) => ({
+    kind: "single",
+    id: eb.id,
+    position: eb.position,
+    shape: eb.shape,
+    params: eb.params,
+    diameter: eb.diameter,
+    ...(eb.hooks ? { hooks: eb.hooks } : {}),
+    ...(eb.role ? { role: eb.role } : {}),
+    ...(eb.axisStart !== undefined ? { axisStart: eb.axisStart } : {}),
+    ...(eb.startStation !== undefined ? { startStation: eb.startStation } : {}),
+    ...(eb.endStation !== undefined ? { endStation: eb.endStation } : {}),
+    ...(eb.anchorage ? { anchorage: eb.anchorage } : {}),
+    ...(eb.splices ? { splices: eb.splices } : {}),
+    ...(eb.autoSplice ? { autoSplice: eb.autoSplice } : {}),
+  }));
+  // v1.0.5 M3 (P-C/P-D/P-E): free single bars (from `extraBars`) + rows / bundles / layers (from
+  // `input.placed`) all resolve through the ONE shared pass. `sectionDims` lets a `Layer` place its bars
+  // inboard of a face; rows/bundles are section-agnostic. Each expanded bar is standalone → the A2
+  // reconciliation credits it to the nearest zone (As,prov + weighted `d`).
+  const placedInputs: PlacedBarInput[] = [...freeBars, ...(input.placed ?? [])];
+  out.push(
+    ...resolvePlacedBars(placedInputs, {
+      memberLength: memberLen,
+      code,
+      material: input.material,
+      ...(input.stockLength !== undefined ? { stockLength: input.stockLength } : {}),
+      sectionDims: { b: input.geometry.b, h: input.geometry.h },
+      startIndex: nextIndex,
+    }),
+  );
   return out;
 }
 
@@ -1018,6 +1014,9 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       removed: b.removed,
       standalone: b.standalone,
       focus: b.standalone || ovDiameter.has(b.barIndex),
+      ...(b.placedKind === "bundle" && b.placedParentId !== undefined
+        ? { bundleId: b.placedParentId }
+        : {}),
     }));
     validation.push(
       ...validateAddressableBars(views, {
@@ -1029,6 +1028,26 @@ export function solveElement(input: ElementSolveInput): SolveResult {
         codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
         spacingBand: (code.warnBands?.spacing) ?? 0.05,
       }),
+    );
+    // v1.0.5 M4 (Track V): honest tiers for the NEW placed steel — bundle count/cover, multi-layer
+    // spacing, depth-triggered skin, per-bar curtailment anchorage. RECT already runs the geometry
+    // (axial-extent / section-bounds) via validateAddressableBars → includeGeometry:false here.
+    validation.push(
+      ...validatePlacedBarRules(input.placed, longBars, {
+        section: "RECT",
+        b: geometry.b,
+        h: geometry.h,
+        cover: input.cover,
+        memberLength: geometry.H ?? geometry.L ?? geometry.h,
+        dg,
+        codeRef: (code as { codeRef?: string }).codeRef ?? code.id,
+        material: input.material,
+        bands: {
+          spacing: code.warnBands?.spacing ?? 0.05,
+          anchorage: code.warnBands?.anchorage ?? 0.05,
+        },
+        includeGeometry: false,
+      }, code),
     );
   }
 

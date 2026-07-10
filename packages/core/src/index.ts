@@ -15,6 +15,8 @@ export * from "./validation/index";
 export * from "./validation/profiles";
 // P4a — topological / detailing-logic predicates (§7.13)
 export * from "./validation/predicates";
+// v1.0.5 M4 — Track V validation of the freely-placed steel (bundle/skin/layer/curtailment)
+export * from "./validation/placedBarRules";
 // P4b — seismic overlay validation (RPS composes on either pack, §7.10)
 export * from "./validation/seismic";
 export * from "./scheme/index";
