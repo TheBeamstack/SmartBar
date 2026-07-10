@@ -46,8 +46,13 @@ export interface SolvedLongZone {
   geometry: ZoneGeometry;
   tensionFace: TensionFace;
   faces: TensionFace[];
-  /** fraction of this zone's bars carried past the support (§7.7 end-support anchorage). */
-  continuedToSupport?: number;
+  /**
+   * v1.0.5 P2 ([REF-SYS-260], D3): As,prov (mm²) of the bars in this zone that actually RUN THROUGH to
+   * both member ends (real curtailment geometry) — feeds the §7.7 end-support anchorage. Replaces the
+   * inert `continuedToSupport` fraction. Absent → the check falls back to the full As,prov (all bars
+   * assumed continuous — the grouped / no-per-bar-list case, byte-identical to the pre-v1.0.5 default).
+   */
+  runsThroughAsProv?: number;
   /** circular sections: the pitch-circle zone gets the min-bars/ratio/arc-spacing checks. */
   primary?: boolean;
 }
@@ -389,8 +394,11 @@ export function validateBeamProfile(ctx: ProfileContext): ValidationItem[] {
   }
 
   // --- end-support bottom-bar anchorage: ≥ 0.25·As,span past the support (§7.7) ---
+  // v1.0.5 P2 (D3): "carried past the support" is now the As of the bars that REALLY run through to the
+  // supports (from the per-bar curtailment geometry), not the inert `continuedToSupport` fraction. No
+  // per-bar list (grouped span) → fall back to the full As,prov (all bars continuous — byte-identical).
   if (flexZone) {
-    const continued = (flexZone.continuedToSupport ?? 1) * flexZone.asProv;
+    const continued = flexZone.runsThroughAsProv ?? flexZone.asProv;
     const need = END_SUPPORT_FRACTION * flexZone.asProv;
     const ok = continued >= need;
     out.push(

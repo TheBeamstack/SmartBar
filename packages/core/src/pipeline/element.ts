@@ -80,10 +80,20 @@ export interface SolveResult {
   member: MemberPlacement;
   /**
    * v1.0.3 G2 ([REF-SYS-530]): explicit per-bar longitudinal placements (shape/Ø/axial start/removed)
-   * + appended extra bars. Present ONLY when the element has overrides/extra bars; `placeBars` + the
-   * BBS read it instead of the grouped path. Absent → grouped (every existing golden byte-identical).
+   * + appended extra bars. **v1.0.5 P1:** also present for any element whose faces carry >1
+   * longitudinal zone (a two-chapeau beam), so the single placement path draws BOTH supports (D1/D2).
+   * `placeBars` + the BBS read it instead of the grouped path. Absent → grouped fast path (a plain
+   * column / single-zone-per-face element — every existing golden byte-identical).
    */
   longBars?: PlacedLongBar[];
+  /**
+   * v1.0.5 P1b (audit A2): true ONLY when the user placed real addressable content (per-bar overrides
+   * / extra bars). It is decoupled from `longBars` presence — a default two-chapeau beam now emits
+   * `longBars` for *placement* but has NO user content, so its As/`d` reconciliation, addressable
+   * validity + default coupe station stay gated on THIS flag (not on `longBars`), keeping the
+   * validation list + default coupe byte-identical. Absent/false → no user addressable content.
+   */
+  hasUserAddressableContent?: boolean;
 }
 
 /** One longitudinal group as fed to the generic pipeline (shape + section binding). */
@@ -99,8 +109,6 @@ export interface ElementLongInput {
   asReq: number;
   /** tension face for the computed effective depth `d` ([REF-SYS-611]). */
   tensionFace: TensionFace;
-  /** fraction of this zone's bars carried past the support (§7.7 end-support anchorage). */
-  continuedToSupport?: number;
   /**
    * Explicit provided bar count for this zone, overriding the layout-face count. Lets two zones
    * share a face without double-counting — e.g. a beam's full-length montage top bars vs the
@@ -137,12 +145,34 @@ export interface LongBarOverride {
   diameter?: number;
   /** axial start station along the member (mm) — feeds the G1 `axisStart` (unique-position bars). */
   axisStart?: number;
+  /**
+   * v1.0.5 P2 ([REF-SYS-260], D3): per-bar CURTAILMENT — the bar's run is clipped to
+   * `[startStation, endStation]` (mm along the member axis), shortening the rendered/scheduled bar
+   * (cut length follows). Absent → the bar runs its full length (`axisStart`..end). These are a small
+   * generalisation of `axisStart`; the full `PlacedBar` model (M2) widens them to every bar family.
+   */
+  startStation?: number;
+  endStation?: number;
+  /** v1.0.5 P2: per-end anchorage choice at a curtailed/support end (§7.7; validated in M4/Track V). */
+  anchorage?: BarEndAnchorage;
   /** v1.0.4 B1: explicit per-bar lap/coupler stations (staggered by the caller). */
   splices?: Splice[];
   /** v1.0.4 H14: auto-split this bar at the stock length (`ElementSolveInput.stockLength`). */
   autoSplice?: boolean;
   /** drop this bar from the render + schedule (kept in the validation count — see note above). */
   removed?: boolean;
+}
+
+/**
+ * v1.0.5 P2 ([REF-SYS-260], D3): a longitudinal bar's per-end treatment where it stops (a curtailment
+ * cut-off or a support). `none` = a bare cut; `straight` = a straight development length; `hook` = a
+ * standard bend/hook. Phase 1 carries the choice through the model; the anchorage-length validity
+ * check is Track V (M4). `{ start, end }` are the two member-axis ends of the bar.
+ */
+export type EndAnchorageChoice = "none" | "straight" | "hook";
+export interface BarEndAnchorage {
+  start?: EndAnchorageChoice;
+  end?: EndAnchorageChoice;
 }
 
 /**
@@ -161,6 +191,11 @@ export interface ExtraLongBar {
   diameter: number;
   axisStart?: number;
   role?: BarRole;
+  /** v1.0.5 P2 ([REF-SYS-260], D3): per-bar curtailment stations (see `LongBarOverride`). */
+  startStation?: number;
+  endStation?: number;
+  /** v1.0.5 P2: per-end anchorage choice. */
+  anchorage?: BarEndAnchorage;
   /** v1.0.4 B1: explicit per-bar lap/coupler stations. */
   splices?: Splice[];
   /** v1.0.4 H14: auto-split at the stock length. */
@@ -185,6 +220,15 @@ export interface PlacedLongBar {
   removed: boolean;
   /** true for an independent extra bar (not a member of a count-group). */
   standalone: boolean;
+  /**
+   * v1.0.5 P2 ([REF-SYS-260], D3): the bar's curtailment stations (mm), when it stops short of the
+   * full member run. Absent → the bar runs its full geometric extent (`axisStart`..axisStart+run). The
+   * §7.7 "runs-through-to-support" accounting prefers these when present (else falls back to geometry).
+   */
+  startStation?: number;
+  endStation?: number;
+  /** v1.0.5 P2: per-end anchorage choice at each stop. */
+  anchorage?: BarEndAnchorage;
   /** v1.0.4 H14/B1: this bar's per-bar splice (explicit or auto at stock length). Absent → unspliced. */
   splice?: SpliceResult;
 }
@@ -300,6 +344,35 @@ const FACES: TensionFace[] = ["TOP", "BOTTOM", "LEFT", "RIGHT"];
 const LONG_ROLES = new Set<BarRole>(["PRIMARY_LONGITUDINAL", "DISTRIBUTION"]);
 
 /**
+ * v1.0.5 P1b (audit A2): TRUE only when the user placed real addressable content — per-bar overrides
+ * or independent extra bars. This is the gate for the As/`d` reconciliation, the addressable-bar
+ * validity checks and the station-aware default coupe. It is DELIBERATELY decoupled from `longBars`
+ * presence: P1 forces `longBars` for a default multi-zone beam (for placement) with NO user content,
+ * and that beam must keep its validation list + default coupe byte-identical. Pure.
+ */
+export function hasUserAddressableContent(input: ElementSolveInput): boolean {
+  return (input.longOverrides?.length ?? 0) > 0 || (input.extraBars?.length ?? 0) > 0;
+}
+
+/**
+ * v1.0.5 P1a ([REF-SYS-950], D1/D2): TRUE when any face carries more than one longitudinal zone — a
+ * beam whose TOP face holds the montage bars PLUS the two per-support chapeaux, or relevés + chapeau.
+ * For such elements the grouped placement fast-path collapses every top-face bar onto ONE group
+ * (drawing only the left chapeau); we force the explicit `longBars[]` path so BOTH supports draw at
+ * their true stations. A single-zone-per-face element (a plain column, a slab main mat) is FALSE →
+ * it keeps the grouped fast path → byte-identical. Pure.
+ */
+export function facesCarryMultipleZones(input: ElementSolveInput): boolean {
+  const perFace = new Map<TensionFace, number>();
+  for (const lz of input.longitudinal) {
+    if (lz.role !== undefined && !LONG_ROLES.has(lz.role)) continue;
+    for (const f of lz.faces) perFace.set(f, (perFace.get(f) ?? 0) + 1);
+  }
+  for (const n of perFace.values()) if (n > 1) return true;
+  return false;
+}
+
+/**
  * H8 helper: the developed extent of a shape's centreline along its run axis (local-frame u = index
  * 0 of the flat `[x,y,z,…]` centreline). This is the along-member footprint the axial-extent validity
  * predicate measures against the member length. Pure.
@@ -330,11 +403,14 @@ function faceMembership(bp: BarPosition): TensionFace[] {
 }
 
 /**
- * v1.0.3 G2 ([REF-SYS-530]): build the explicit per-bar longitudinal list when the element has
- * overrides or extra bars (else `undefined` → the grouped fast path, byte-identical). Each base bar
- * inherits its group's shape unless an override replaces it; extra bars are appended with their own
- * geometry. The bar→group mapping mirrors `placeBars` (zone match, else the rect TOP/main convention)
- * so the rendered bar and its schedule line agree. Pure; no element branching.
+ * v1.0.3 G2 ([REF-SYS-530]): build the explicit per-bar longitudinal list. Emitted when the element
+ * has user overrides / extra bars **OR** (v1.0.5 P1a, D1/D2) when a face carries more than one
+ * longitudinal zone (a two-chapeau beam) — the grouped fast path collapses such a face onto one group
+ * and draws only the left chapeau, so the single per-bar path draws BOTH supports at their stations.
+ * A single-zone-per-face element (a plain column, a slab main mat) returns `undefined` → grouped fast
+ * path, byte-identical. Each base bar inherits its group's shape unless an override replaces it (or
+ * curtails it, P2); extra bars are appended with their own geometry. The bar→group mapping mirrors
+ * `placeBars` so the rendered bar and its schedule line agree. Pure; no element branching.
  */
 function buildLongBars(
   input: ElementSolveInput,
@@ -344,9 +420,15 @@ function buildLongBars(
 ): PlacedLongBar[] | undefined {
   const overrides = input.longOverrides ?? [];
   const extra = input.extraBars ?? [];
-  if (overrides.length === 0 && extra.length === 0) return undefined;
+  // v1.0.5 P1a: user content OR a multi-zone-per-face element triggers the explicit per-bar path.
+  const hasUser = hasUserAddressableContent(input);
+  if (!hasUser && !facesCarryMultipleZones(input)) return undefined;
   const longGroups = groups.filter((g) => LONG_ROLES.has(g.role));
   if (longGroups.length === 0) return undefined;
+  const memberLen = input.geometry.H ?? input.geometry.L ?? input.geometry.h;
+  // archetype + params per longitudinal zone (for the P2 curtailment re-generation of a base bar).
+  const archByGroup = new Map<string, { arch: ShapeArchetype; params: Record<string, number> }>();
+  for (const lz of input.longitudinal) archByGroup.set(lz.groupId, { arch: lz.shape, params: lz.params });
 
   const byZone = new Map<string, SolvedGroup>();
   for (const g of groups) if (g.zone) byZone.set(g.zone, g);
@@ -391,6 +473,28 @@ function buildLongBars(
     if (pts.length === 0) return undefined;
     return spliceBar(shape.cutLength, pts, code, { diameter: dia, material: input.material, fractionLapped: 1 });
   };
+  // v1.0.5 P2 ([REF-SYS-260], D3): CURTAILMENT — re-generate a bar clipped to `[start, end]` (its cut
+  // length follows the shorter run) and return its new `axisStart = start`. The principal length param
+  // (`totalLengthParam`, else the DROITE `L` slot) carries the clipped run; hooks/Ø are preserved. The
+  // linear inversion mirrors the adapter's H2 `applyUniqueLength` (a leg's contribution is unit, the
+  // hook/bend allowances depend only on Ø+angle) so `cutLength == run + fixed part`. Pure.
+  const clipToStations = (
+    arch: ShapeArchetype,
+    params: Record<string, number>,
+    dia: number,
+    hooks: { start?: UserHook; end?: UserHook } | undefined,
+    start: number,
+    end: number,
+  ): { shape: BarShapeResult; axisStart: number } => {
+    const run = Math.max(1, end - start);
+    const opts = hooks ? { hooks } : undefined;
+    const tlp = arch.totalLengthParam;
+    const p =
+      tlp && params[tlp] !== undefined
+        ? { ...params, [tlp]: params[tlp] + (run - generateShape(arch, params, dia, code, opts).cutLength) }
+        : { ...params, L: run };
+    return { shape: generateShape(arch, p, dia, code, opts), axisStart: start };
+  };
 
   const out: PlacedLongBar[] = [];
   for (let i = 0; i < layoutBars.length; i++) {
@@ -401,6 +505,8 @@ function buildLongBars(
     let diameter = g.diameter;
     let axisStart = zoneAxisStart.get(g.groupId) ?? 0;
     let removed = false;
+    let startStation: number | undefined;
+    let endStation: number | undefined;
     if (ov) {
       removed = ov.removed === true;
       diameter = ov.diameter ?? g.diameter;
@@ -408,9 +514,44 @@ function buildLongBars(
       if (ov.shape) {
         shape = generateShape(ov.shape, ov.params ?? {}, diameter, code, ov.hooks ? { hooks: ov.hooks } : undefined);
       }
+      // P2 curtailment: clip the bar's run to [startStation, endStation] (cut length follows).
+      if (ov.startStation !== undefined || ov.endStation !== undefined) {
+        startStation = ov.startStation ?? axisStart;
+        endStation = ov.endStation ?? memberLen;
+        const src = ov.shape ? { arch: ov.shape, params: ov.params ?? {} } : archByGroup.get(g.groupId);
+        if (src) {
+          const clipped = clipToStations(src.arch, src.params, diameter, ov.hooks, startStation, endStation);
+          shape = clipped.shape;
+          axisStart = clipped.axisStart;
+        }
+      }
     }
-    const splice = removed ? undefined : barSplice(shape, diameter, ov?.splices, ov?.autoSplice);
-    out.push({ barIndex: i, groupId: g.groupId, role: g.role, position: bp.position, shape, diameter, axisStart, removed, standalone: false, ...(splice ? { splice } : {}) });
+    // v1.0.5 P1a: a base bar with NO user override inherits its zone's group-level splice, so the
+    // BBS still schedules the splice segments on the forced multi-zone path (byte-identical to the
+    // grouped path). When the user has real addressable content, keep the legacy per-bar-only splice
+    // behaviour (the group splice rides the `longBars` per-bar block below).
+    const splice = removed
+      ? undefined
+      : ov && (ov.splices || ov.autoSplice)
+      ? barSplice(shape, diameter, ov.splices, ov.autoSplice)
+      : !hasUser
+      ? g.splice
+      : undefined;
+    out.push({
+      barIndex: i,
+      groupId: g.groupId,
+      role: g.role,
+      position: bp.position,
+      shape,
+      diameter,
+      axisStart,
+      removed,
+      standalone: false,
+      ...(startStation !== undefined ? { startStation } : {}),
+      ...(endStation !== undefined ? { endStation } : {}),
+      ...(ov?.anchorage ? { anchorage: ov.anchorage } : {}),
+      ...(splice ? { splice } : {}),
+    });
   }
   // Any longitudinal zone the representative section couldn't seat (e.g. the second beam support's
   // chapeau — both supports never share a cross-section, G3) is emitted as addressable bars so it
@@ -429,7 +570,18 @@ function buildLongBars(
     }
   }
   extra.forEach((eb) => {
-    const shape = generateShape(eb.shape, eb.params, eb.diameter, code, eb.hooks ? { hooks: eb.hooks } : undefined);
+    let shape = generateShape(eb.shape, eb.params, eb.diameter, code, eb.hooks ? { hooks: eb.hooks } : undefined);
+    let axisStart = eb.axisStart ?? 0;
+    let startStation: number | undefined;
+    let endStation: number | undefined;
+    // P2 curtailment on an independent extra bar (same clip as a base bar).
+    if (eb.startStation !== undefined || eb.endStation !== undefined) {
+      startStation = eb.startStation ?? axisStart;
+      endStation = eb.endStation ?? memberLen;
+      const clipped = clipToStations(eb.shape, eb.params, eb.diameter, eb.hooks, startStation, endStation);
+      shape = clipped.shape;
+      axisStart = clipped.axisStart;
+    }
     const splice = barSplice(shape, eb.diameter, eb.splices, eb.autoSplice);
     out.push({
       barIndex: nextIndex++,
@@ -438,9 +590,12 @@ function buildLongBars(
       position: eb.position,
       shape,
       diameter: eb.diameter,
-      axisStart: eb.axisStart ?? 0,
+      axisStart,
       removed: false,
       standalone: true,
+      ...(startStation !== undefined ? { startStation } : {}),
+      ...(endStation !== undefined ? { endStation } : {}),
+      ...(eb.anchorage ? { anchorage: eb.anchorage } : {}),
       ...(splice ? { splice } : {}),
     });
   });
@@ -525,7 +680,6 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       geometry: zoneGeom,
       tensionFace: lz.tensionFace,
       faces: lz.faces,
-      ...(lz.continuedToSupport !== undefined ? { continuedToSupport: lz.continuedToSupport } : {}),
     });
   }
 
@@ -593,7 +747,12 @@ export function solveElement(input: ElementSolveInput): SolveResult {
   };
 
   const longBars = buildLongBars(input, groups, layout.bars, code);
-  if (longBars !== undefined && solvedLong.length > 0) {
+  // v1.0.5 P1b (audit A2): the As/`d` reconciliation is gated on REAL user addressable content, NOT on
+  // the bare presence of `longBars` — a default two-chapeau beam now emits `longBars` for placement
+  // (D1/D2) but has no user content, so it keeps its byte-identical count-based As/`d` (the profile
+  // still reads the count-derived `solvedLong`). Only genuine overrides / extras reconcile the steel.
+  const hasUser = hasUserAddressableContent(input);
+  if (hasUser && longBars !== undefined && solvedLong.length > 0) {
     const faceTagOf = (pb: PlacedLongBar): FaceTag =>
       pb.standalone ? nearestFace(pb.position) : layout.bars[pb.barIndex]?.faceTag ?? nearestFace(pb.position);
 
@@ -613,6 +772,28 @@ export function solveElement(input: ElementSolveInput): SolveResult {
         sl.tensionFace,
       );
       zones[i] = sl.geometry; // keep SolveResult.zones in sync with the reconciled geometry
+    }
+  }
+
+  // --- v1.0.5 P2 ([REF-SYS-260], D3): "runs-through-to-support" from REAL geometry (replaces the inert
+  // `continuedToSupport` fraction). For each longitudinal zone with a per-bar list, count the As of the
+  // bars whose axial extent reaches BOTH member ends (station 0 and length, within an anchorage
+  // tolerance) — a curtailed bar that stops short does NOT count. The beam profile's §7.7
+  // `end_support_anchorage` reads this. When every bar spans the full member (the default beam) the sum
+  // equals As,prov → byte-identical PASS; when no `longBars` exist the profile falls back to As,prov. ---
+  if (longBars !== undefined) {
+    const memberLen = geometry.H ?? geometry.L ?? geometry.h;
+    const tol = Math.max(50, memberLen * 0.02);
+    for (const sl of solvedLong) {
+      let through = 0;
+      for (const pb of longBars) {
+        if (pb.removed || pb.standalone || pb.groupId !== sl.groupId) continue;
+        const run = runExtent(pb.shape.centerline3D);
+        const lo = pb.startStation ?? pb.axisStart;
+        const hi = pb.endStation ?? pb.axisStart + run;
+        if (lo <= tol && hi >= memberLen - tol) through += barArea(pb.diameter);
+      }
+      sl.runsThroughAsProv = through;
     }
   }
 
@@ -658,9 +839,11 @@ export function solveElement(input: ElementSolveInput): SolveResult {
   // caught — was: the nominal `layout.count`, which let a below-minimum column export green. Only
   // computed when the addressable channel is active (`longBars`); grouped docs pass `undefined` →
   // the validator falls back to the layout counts → byte-identical. ---
+  // v1.0.5 P1b (audit A2): gated on real user content — the default multi-zone beam's `longBars` must
+  // NOT switch `min_bars`/`face_min_bars` onto the placed-count path (its layout counts are correct).
   let placedCount: number | undefined;
   let placedUnderfilledFaces: TensionFace[] | undefined;
-  if (longBars !== undefined) {
+  if (hasUser && longBars !== undefined) {
     placedCount = longBars.filter((pb) => !pb.removed).length;
     if (layout.faceCounts) {
       const real: Record<string, number> = { ...layout.faceCounts };
@@ -717,8 +900,11 @@ export function solveElement(input: ElementSolveInput): SolveResult {
   // laps feed the seismic lap_in_critical_zone (exact per bar) + a per-zone STAGGER check against the
   // sourced rule (EC2 §8.7.2: ≤ ½ of a zone's bars lapped within one 0.3·l0 section → PASS, else WARN
   // — the group-level blanket WARN above never fires for these, since the per-bar splice lives on the
-  // longBar, not the representative group). Grouped-only docs have no addressable splices → inert. ---
-  if (longBars !== undefined) {
+  // longBar, not the representative group). Grouped-only docs have no addressable splices → inert.
+  // v1.0.5 P1b: gated on real user content — on the forced multi-zone path a base bar INHERITS its
+  // zone's group splice (so the BBS still schedules it) and the group-level WARN above already covers
+  // it; running the per-bar block too would double-count the stagger. ---
+  if (hasUser && longBars !== undefined) {
     const lapStationsOf = (sp: SpliceResult, axisStart: number): number[] => {
       const out: number[] = [];
       let acc = 0;
@@ -813,9 +999,10 @@ export function solveElement(input: ElementSolveInput): SolveResult {
   };
 
   // --- H8 ([v1.0.4], owner A-5): geometric validity of the ADDRESSABLE channel (overrides + extra
-  // bars). Only runs when `longBars` exists (else the grouped fast path — no addressable content),
-  // and the predicate self-gates to real addressable bars, so a legacy doc is byte-identical. ---
-  if (longBars !== undefined) {
+  // bars). v1.0.5 P1b (audit A2): gated on REAL user content — a default multi-zone beam emits
+  // `longBars` for placement only and must gain NO addressable validity item (its layout is code-seeded
+  // and already validated by the profile). A legacy / grouped doc is byte-identical. ---
+  if (hasUser && longBars !== undefined) {
     // A2 clear-spacing fold: a bar is a spacing FOCUS if it is a standalone extra or a per-bar Ø
     // override (its real Ø crowds the grid the face-based check never re-measures).
     const ovDiameter = new Set(
@@ -856,6 +1043,7 @@ export function solveElement(input: ElementSolveInput): SolveResult {
     ...(seismic !== undefined ? { seismic } : {}),
     member,
     ...(longBars !== undefined ? { longBars } : {}),
+    ...(hasUser ? { hasUserAddressableContent: true } : {}),
   };
 }
 

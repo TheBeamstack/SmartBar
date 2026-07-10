@@ -255,7 +255,6 @@ function BeamSchemeControls() {
       <DiameterSelect value={span.diameter} onChange={(v) => setSpan({ diameter: v })} />
       <NumberField label={s.beam.bottomBars} value={span.nBottom} min={2} max={8} onChange={(v) => setSpan({ nBottom: v })} />
       <NumberField label={s.asRequired + " (mm²)"} value={span.asReq} min={0} max={20000} step={50} onChange={(v) => setSpan({ asReq: v })} />
-      <NumberField label={s.beam.continued} value={span.continuedToSupport} min={0} max={1} step={0.05} onChange={(v) => setSpan({ continuedToSupport: v })} />
       <FaconnageEditor
         key={`${doc.element}-${span.groupId}`}
         shapeId={span.shapeId}

@@ -49,8 +49,15 @@ describe("B2 — per-support axial placement (addressable channel)", () => {
     expect(Math.min(...leftY)).toBeLessThan(200); // left starts at the left support
   });
 
-  it("a plain beam (no relevés/overrides) stays on the grouped fast path — placement unchanged", () => {
-    expect(solveDoc(defaultBeamDoc()).longBars).toBeUndefined();
+  it("a plain default beam now emits longBars for the two-support placement (v1.0.5 P1, D1/D2 fixed)", () => {
+    const r = solveDoc(defaultBeamDoc());
+    // multi-zone-per-face (montage + both chapeaux on TOP) forces the single per-bar placement path…
+    expect(r.longBars).toBeDefined();
+    // …but it is placement only — no USER addressable content (validation/coupe stay decoupled, A2).
+    expect(r.hasUserAddressableContent).toBeFalsy();
+    // both chapeaux are drawn, each over its own support (was: only the left chapeau, D1/D2).
+    expect(axisOf(r.longBars!, "C_left")).toEqual([0, 0]);
+    expect(axisOf(r.longBars!, "C_right").every((a) => a > L / 2 && a < L)).toBe(true);
   });
 });
 

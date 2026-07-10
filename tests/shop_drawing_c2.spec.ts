@@ -36,7 +36,6 @@ function splicedBeam(): SolveResult {
         faces: ["BOTTOM"],
         asReq: 900,
         tensionFace: "BOTTOM",
-        continuedToSupport: 1,
         splices: [{ at: 3000, kind: "lap" }],
       },
       {

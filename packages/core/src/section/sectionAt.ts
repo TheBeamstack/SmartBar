@@ -442,8 +442,10 @@ export function defaultCoupeFor(
   const length = result.member.length;
   const spacing = result.member.transverse[0]?.spacing;
   const tag = conv.tagFor(0);
-  // Station-aware only when the addressable channel is active; grouped docs keep mid-length exactly.
-  const station = result.longBars && result.longBars.length > 0 ? richestStation(result, length) : length / 2;
+  // v1.0.5 P1b (audit A2): station-aware ONLY when the user placed real addressable content — NOT on
+  // the bare presence of `longBars` (a default two-chapeau beam now emits `longBars` for placement but
+  // must keep its mid-length default coupe byte-identical). Grouped / default docs keep mid-length.
+  const station = result.hasUserAddressableContent ? richestStation(result, length) : length / 2;
   return {
     id: tag,
     label_fr: conv.labelFor(tag),

@@ -38,7 +38,7 @@ function beamWithEndExtra(): SolveResult {
     phiT,
     phiLInset: 20,
     longitudinal: [
-      { zone: "As_span_bottom", groupId: "B1", shape: droite, params: { L }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM", continuedToSupport: 1 },
+      { zone: "As_span_bottom", groupId: "B1", shape: droite, params: { L }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM" },
       { zone: "As_top_support", groupId: "C1", shape: loadShape("chapeau"), params: { L: 1500 }, diameter: 16, faces: ["TOP"], asReq: 380, tensionFace: "TOP" },
     ],
     transverse: [

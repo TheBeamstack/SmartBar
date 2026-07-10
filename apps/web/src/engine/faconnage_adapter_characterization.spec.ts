@@ -19,9 +19,13 @@ describe("adapter characterization — grouped fast path (legacy)", () => {
     expect(r.status).toBeDefined();
   });
 
-  it("[MUST-HOLD] a legacy beam emits NO longBars[]", () => {
+  it("[v1.0.5 P1 CHANGE] a default beam now emits longBars[] for the two-support placement (was: none)", () => {
+    // Pre-v1.0.5 the two-chapeau beam stayed on the grouped fast path and drew only the LEFT chapeau
+    // (D1/D2). v1.0.5 P1a forces the single per-bar placement path for a multi-zone-per-face element —
+    // but it is placement only, so `hasUserAddressableContent` stays falsy (validation decoupled, A2).
     const r = solveDoc(defaultBeamDoc());
-    expect(long(r)).toBeUndefined();
+    expect(long(r)).toBeDefined();
+    expect(r.hasUserAddressableContent).toBeFalsy();
   });
 });
 

@@ -48,9 +48,13 @@ describe("G3 — beam two supports (V1/V2)", () => {
     expect(chapeauBars.filter((b) => b.groupId === "C_right").length).toBe(2);
   });
 
-  it("a default beam (no relevés / overrides) stays on the grouped fast path (byte-identical)", () => {
+  it("a default beam emits longBars for the two-support placement but NO user content (v1.0.5 P1)", () => {
     const r = solveDoc(defaultBeamDoc());
-    expect(r.longBars).toBeUndefined();
+    // v1.0.5 P1a: multi-zone-per-face (two chapeaux on TOP) → single per-bar placement path (D1/D2)…
+    expect(r.longBars).toBeDefined();
+    // …decoupled from validation (A2): no real user addressable content, so the validation list +
+    // default coupe stay byte-identical (`hasUserAddressableContent` is the gate, not `longBars`).
+    expect(r.hasUserAddressableContent).toBeFalsy();
   });
 });
 

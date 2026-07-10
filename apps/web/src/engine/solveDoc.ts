@@ -234,12 +234,21 @@ function buildLongOverrides(
     // `shape`/`params` so the pipeline reuses the group's already-generated shape (byte-identical,
     // no regen). A change to shape/façonnage/Ø/length DOES affect the geometry (Ø & length feed the
     // cutLength invariant, D-P1-1) → regenerate.
+    // v1.0.5 P2 ([REF-SYS-260], D3): per-bar curtailment stations + per-end anchorage pass straight to
+    // the engine (which clips the run + shortens the cut length). They do NOT force a shape regen — the
+    // engine re-generates from the zone archetype when clipping a base bar.
+    const curtail = {
+      ...(e.startStation !== undefined ? { startStation: e.startStation } : {}),
+      ...(e.endStation !== undefined ? { endStation: e.endStation } : {}),
+      ...(e.anchorage !== undefined ? { anchorage: { end: e.anchorage } } : {}),
+    };
     const regen = e.shapeId !== undefined || e.faconnage !== undefined
       || e.length !== undefined || e.diameter !== undefined;
     if (!regen) {
       return {
         barIndex: e.index,
         ...(e.axialPos !== undefined ? { axisStart: e.axialPos } : {}),
+        ...curtail,
         ...(e.autoSplice ? { autoSplice: true } : {}), // H14
         ...(e.splices !== undefined ? { splices: e.splices } : {}), // B1
         ...(e.removed ? { removed: true } : {}),
@@ -266,6 +275,7 @@ function buildLongOverrides(
       diameter,
       ...(hooks ? { hooks } : {}),
       ...(e.axialPos !== undefined ? { axisStart: e.axialPos } : {}),
+      ...curtail,
       ...(e.autoSplice ? { autoSplice: true } : {}), // H14
       ...(e.splices !== undefined ? { splices: e.splices } : {}), // B1
       ...(e.removed ? { removed: true } : {}),
@@ -292,6 +302,9 @@ function buildExtraBars(bars: AddressableBar[] | undefined, memberLen: number, c
       diameter: eb.diameter,
       ...(hooks ? { hooks } : {}),
       ...(eb.axialPos !== undefined ? { axisStart: eb.axialPos } : {}),
+      ...(eb.startStation !== undefined ? { startStation: eb.startStation } : {}), // P2 curtailment
+      ...(eb.endStation !== undefined ? { endStation: eb.endStation } : {}),
+      ...(eb.anchorage !== undefined ? { anchorage: { end: eb.anchorage } } : {}),
       ...(eb.autoSplice ? { autoSplice: true } : {}), // H14
       ...(eb.splices !== undefined ? { splices: eb.splices } : {}), // B1
     };
@@ -448,7 +461,6 @@ function beamInput(
       faces: ["BOTTOM"],
       asReq: doc.span.asReq,
       tensionFace: "BOTTOM",
-      continuedToSupport: doc.span.continuedToSupport,
       ...(faconnageHooks(doc.span.faconnage) ? { hooks: faconnageHooks(doc.span.faconnage) } : {}),
       ...(doc.span.splices !== undefined ? { splices: doc.span.splices } : {}),
       ...(doc.span.autoSplice ? { autoSplice: true } : {}),

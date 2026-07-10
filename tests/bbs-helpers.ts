@@ -36,7 +36,6 @@ export function referenceBeam(): SolveResult {
         faces: ["BOTTOM"],
         asReq: 900,
         tensionFace: "BOTTOM",
-        continuedToSupport: 1,
       },
       {
         zone: "As_top_support",

@@ -78,7 +78,7 @@ function beamCoverStatus(cover: number): string {
     phiT,
     phiLInset: 20,
     longitudinal: [
-      { zone: "As_span_bottom", groupId: "B1", shape: droite, params: { L }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM", continuedToSupport: 1 },
+      { zone: "As_span_bottom", groupId: "B1", shape: droite, params: { L }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM" },
     ],
     transverse: [
       { zone: "Asw_shear", groupId: "S1", shape: loadShape("etrier"), params: { w: b - 2 * cover - phiT, h: h - 2 * cover - phiT }, diameter: phiT, spacing: 200, nLegs: 2, aswReqPerM: 300 },

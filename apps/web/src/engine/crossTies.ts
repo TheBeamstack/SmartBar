@@ -16,6 +16,7 @@ import {
   type SupplementEdit,
   type SupportZone,
   type ReleveZone,
+  type BarOverrideEdit,
   isColumnDoc,
   isBeamDoc,
 } from "./document";
@@ -204,13 +205,84 @@ function migrateBeamSupports(doc: BeamDoc): BeamDoc {
 }
 
 /**
+ * v1.0.5 P2 ([REF-SYS-260], D3): PROVISIONAL curtailment inset (G-BAEL). A migrated curtailed bottom
+ * bar stops this fraction of the span short of each support — a geometric default standing in for the
+ * true moment-curtailment point (no analysis input here). ⚠ owner/engineer ratification item.
+ */
+const CURTAIL_INSET_FRACTION = 0.1;
+
+/**
+ * The beam cross-section layout **exactly as `beamInput` (solveDoc) builds it** — a representative TOP
+ * face of `montage + max(chapeauL, chapeauR)` bars (the two supports never share a section), NOT the
+ * SUM `beamLayoutBars` uses for cross-tie binding. The bar INDICES depend on this count (bars are
+ * ordered TOP-then-BOTTOM), so per-bar edits keyed by index (curtailment migration) must use this
+ * layout to hit the real span bars.
+ */
+export function engineBeamLayoutBars(doc: BeamDoc): BarPosition[] {
+  const supL = doc.supports.left, supR = doc.supports.right;
+  const nMontage = doc.topBars.enabled ? doc.topBars.nTop : 0;
+  const nChapeauL = supL.chapeau.enabled ? supL.chapeau.nTop : 0;
+  const nChapeauR = supR.chapeau.enabled ? supR.chapeau.nTop : 0;
+  const nTop = Math.max(2, nMontage + Math.max(nChapeauL, nChapeauR));
+  const phiSpan = doc.span.diameter;
+  const phiTop = supL.chapeau.enabled ? supL.chapeau.diameter : supR.chapeau.enabled ? supR.chapeau.diameter : phiSpan;
+  const phiL = Math.max(phiSpan, phiTop, doc.topBars.enabled ? doc.topBars.diameter : 0);
+  return solveRectLayout({
+    section: "RECT",
+    geometry: { b: doc.geometry.b, h: doc.geometry.h },
+    cover: doc.cover,
+    phiT: doc.stirrup.diameter,
+    phiL,
+    rect: { principle: "FREE", nTop, nBottom: doc.span.nBottom, nLeft: 2, nRight: 2 },
+  }).bars;
+}
+
+/**
+ * v1.0.5 P2 ([REF-SYS-260], D3): migrate a legacy `span.continuedToSupport = f` (the removed inert
+ * fraction) to the equivalent per-bar curtailment — the `round(f · nBottom)` INNERMOST bottom bars run
+ * through to both supports (no override), the rest are curtailed to a central `[inset, L − inset]` run
+ * (shorter in the drawing + BBS; they no longer count toward the §7.7 end-support anchorage). Keyed by
+ * the stable layout bar index so it binds like every other per-bar edit (D-P3-4). Idempotent — a doc
+ * with no `continuedToSupport` passes through untouched.
+ */
+function migrateBeamContinuation(doc: BeamDoc): BeamDoc {
+  const f = (doc.span as unknown as { continuedToSupport?: number }).continuedToSupport;
+  if (f === undefined) return doc; // already current (no fraction) — no-op
+  const { continuedToSupport: _drop, ...spanRest } = doc.span as BeamDoc["span"] & { continuedToSupport?: number };
+  const span: BeamDoc["span"] = { ...spanRest };
+  const nBottom = doc.span.nBottom;
+  const nThrough = Math.max(0, Math.min(nBottom, Math.round(f * nBottom)));
+  const nCurtail = nBottom - nThrough;
+  if (nCurtail <= 0) return { ...doc, span }; // f ≈ 1 → all bars run through, just drop the fraction
+  const L = doc.geometry.L;
+  const inset = Math.round(L * CURTAIL_INSET_FRACTION);
+  // curtail the OUTERMOST bottom bars (largest |u|); the innermost `nThrough` stay full-length. Use the
+  // ENGINE layout (montage + max chapeau) so the indices match the solved span bars, not beamLayoutBars.
+  const curtailIndices = engineBeamLayoutBars(doc)
+    .map((b, i) => ({ b, i }))
+    .filter((x) => x.b.faceTag === "BOTTOM")
+    .sort((a, b) => Math.abs(b.b.position.u) - Math.abs(a.b.position.u))
+    .slice(0, nCurtail)
+    .map((x) => x.i);
+  const byIndex = new Map<number, BarOverrideEdit>((span.barOverrides ?? []).map((o) => [o.index, { ...o }]));
+  for (const idx of curtailIndices) {
+    const o = byIndex.get(idx) ?? { index: idx };
+    byIndex.set(idx, { ...o, startStation: inset, endStation: L - inset });
+  }
+  span.barOverrides = [...byIndex.values()];
+  return { ...doc, span };
+}
+
+/**
  * Normalise a loaded ElementDoc to the current model. Three legacy migrations, all idempotent and
  * lossless (forward-compat, §0 invariant 3):
  *  - **v1.0.1 `nLegs`** (tie/stirrup with `nLegs`, no `crossTies`) → an equivalent cross-tie list +
  *    a default hook angle; the obsolete `nLegs` is dropped.
  *  - **v1.0.3 G5 supplement-épingles** (a `SUPP_EPINGLE_CROSSTIE` in `supplements`) → folded into
  *    the tie/stirrup `crossTies` (one cross-tie model), dropped from `supplements`.
- * A current doc (already `crossTies`, no épingle supplement) passes through untouched.
+ *  - **v1.0.5 P2 `continuedToSupport`** (a legacy beam `span` fraction) → per-bar curtailment overrides
+ *    (`migrateBeamContinuation`), the fraction dropped.
+ * A current doc (already `crossTies`, no épingle supplement, no fraction) passes through untouched.
  */
 export function migrateDoc(doc: ElementDoc): ElementDoc {
   if (isColumnDoc(doc)) {
@@ -225,7 +297,9 @@ export function migrateDoc(doc: ElementDoc): ElementDoc {
     };
   }
   if (isBeamDoc(doc)) {
-    const beam = migrateBeamSupports(doc); // G3: legacy chapeau → two supports (before beamLayoutBars)
+    const beam = migrateBeamContinuation( // v1.0.5 P2: legacy continuedToSupport → per-bar curtailment
+      migrateBeamSupports(doc), // G3: legacy chapeau → two supports (before beamLayoutBars)
+    );
     const legacy = beam.stirrup as LegacyTie;
     const baseTies = legacy.crossTies ?? legacyNLegsToCrossTies(legacy.nLegs ?? 2, beamLayoutBars(beam));
     const folded = foldEpingleSupplements(beam.supplements, baseTies);

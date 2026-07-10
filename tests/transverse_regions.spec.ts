@@ -38,7 +38,7 @@ function beam(regions?: TransverseRegion[]): SolveResult {
     phiT,
     phiLInset: 20,
     longitudinal: [
-      { zone: "As_span_bottom", groupId: "B1", shape: loadShape("droite"), params: { L }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM", continuedToSupport: 1 },
+      { zone: "As_span_bottom", groupId: "B1", shape: loadShape("droite"), params: { L }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM" },
     ],
     transverse: [
       {

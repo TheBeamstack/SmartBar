@@ -35,7 +35,7 @@ function twoSupportBeam(): SolveResult {
     phiT,
     phiLInset: 20,
     longitudinal: [
-      { zone: "As_span_bottom", groupId: "B1", shape: loadShape("droite"), params: { L: 6000 }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM", continuedToSupport: 1 },
+      { zone: "As_span_bottom", groupId: "B1", shape: loadShape("droite"), params: { L: 6000 }, diameter: 20, faces: ["BOTTOM"], asReq: 900, tensionFace: "BOTTOM" },
       { zone: "As_top_support_left", groupId: "C_left", shape: loadShape("chapeau"), params: { L: 1500 }, diameter: 16, faces: ["TOP"], asReq: 380, tensionFace: "TOP", providedCount: 2 },
       { zone: "As_top_support_right", groupId: "C_right", shape: loadShape("chapeau"), params: { L: 1550 }, diameter: 16, faces: ["TOP"], asReq: 380, tensionFace: "TOP", providedCount: 2 },
     ],

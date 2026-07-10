@@ -6,7 +6,7 @@
  * **supplements** (§5.5). It stays pure data (no engine objects), so it round-trips to `.rcfg`
  * later (P5). Units are SI internally (mm, mm², mm²/m); the UI converts at the edge.
  */
-import type { LayoutPrinciple, BarRole, TransverseRegion, Splice } from "@rebarconfig/core";
+import type { LayoutPrinciple, BarRole, TransverseRegion, Splice, EndAnchorageChoice } from "@rebarconfig/core";
 import {
   GENERIC_SPECS,
   isGenericElement,
@@ -78,6 +78,15 @@ export interface BarOverrideEdit {
   length?: number;
   /** axial start station (mm) along the member. */
   axialPos?: number;
+  /**
+   * v1.0.5 P2 ([REF-DATA-260], D3) — per-bar CURTAILMENT: clip this bar's run to `[startStation,
+   * endStation]` (mm along the member). Shorter in the drawing + the BBS cut length. Absent → the bar
+   * runs its full length. Replaces the removed span-level `continuedToSupport` fraction.
+   */
+  startStation?: number;
+  endStation?: number;
+  /** v1.0.5 P2 — per-end anchorage choice where the bar stops (`none | straight | hook`). */
+  anchorage?: EndAnchorageChoice;
   /** v1.0.4 H14: auto-split this bar at the stock length (segments in the BBS + stagger check). */
   autoSplice?: boolean;
   /** v1.0.4 B1: explicit per-bar lap/coupler stations (staggered). */
@@ -101,6 +110,11 @@ export interface AddressableBar {
   diameter: number;
   length?: number;
   axialPos?: number;
+  /** v1.0.5 P2 ([REF-DATA-260], D3) — per-bar curtailment stations (see `BarOverrideEdit`). */
+  startStation?: number;
+  endStation?: number;
+  /** v1.0.5 P2 — per-end anchorage choice. */
+  anchorage?: EndAnchorageChoice;
   /** v1.0.4 H14: auto-split at the stock length. */
   autoSplice?: boolean;
   /** v1.0.4 B1: explicit per-bar lap/coupler stations. */
@@ -231,8 +245,6 @@ export interface BeamDoc {
     diameter: number;
     nBottom: number;
     asReq: number;
-    /** fraction of bottom bars carried past the support (§7.7). */
-    continuedToSupport: number;
     /** F6 façonnage: user shape params + end hooks (absent → DROITE/computed default). */
     faconnage?: BarFaconnage;
     /** G2 per-bar overrides on individual span bars (absent → N identical bars). */
@@ -401,7 +413,7 @@ export function defaultBeamDoc(scheme = "BEAM_SPAN_CHAPEAUX_RELEVES"): BeamDoc {
     exposure: "EXTERIOR",
     dg: 20,
     topBars: { enabled: false, groupId: "M1", diameter: 12, nTop: 2 },
-    span: { groupId: "B1", shapeId: "DROITE", diameter: 20, nBottom: 3, asReq: 900, continuedToSupport: 1 },
+    span: { groupId: "B1", shapeId: "DROITE", diameter: 20, nBottom: 3, asReq: 900 },
     supports: {
       left: { chapeau: { enabled: withChapeau, diameter: 16, nTop: 2, asReq: 380, length: 1000 }, anchorage: 400, width: 300 },
       right: { chapeau: { enabled: withChapeau, diameter: 16, nTop: 2, asReq: 380, length: 1000 }, anchorage: 400, width: 300 },

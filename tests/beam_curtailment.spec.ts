@@ -20,7 +20,7 @@ const h = 600;
 const cover = 30;
 const phiT = 8;
 
-function beamSolve(opts: { continued?: number; chapeauL?: number } = {}) {
+function beamSolve(opts: { chapeauL?: number } = {}) {
   const wStir = b - 2 * cover - phiT;
   const hStir = h - 2 * cover - phiT;
   const input: ElementSolveInput = {
@@ -44,7 +44,6 @@ function beamSolve(opts: { continued?: number; chapeauL?: number } = {}) {
         faces: ["BOTTOM"],
         asReq: 900,
         tensionFace: "BOTTOM",
-        continuedToSupport: opts.continued ?? 1,
       },
       {
         zone: "As_top_support",
@@ -96,18 +95,14 @@ describe("beam curtailment & shift (§7.7)", () => {
     expect(span.d).not.toBeCloseTo(0.9 * h, 0);
   });
 
-  it("end-support anchorage PASSES when bottom bars are fully continued", () => {
-    const res = beamSolve({ continued: 1 });
+  it("end-support anchorage PASSES when bottom bars run full length to the supports", () => {
+    // v1.0.5 P2 (D3): a grouped span (no per-bar curtailment) → all bars run through → PASS.
+    const res = beamSolve();
     const es = res.validation.find((v) => v.rule === "end_support_anchorage")!;
     expect(es.status).toBe("PASS");
   });
-
-  it("end-support anchorage WARNs when too little steel is carried past the support", () => {
-    const res = beamSolve({ continued: 0.1 });
-    const es = res.validation.find((v) => v.rule === "end_support_anchorage")!;
-    expect(es.status).toBe("WARN");
-    expect(es.message_en).toMatch(/carry bars past support|<\s*0\.25/i);
-  });
+  // The WARN case (bars curtailed short of the support) is now driven by REAL per-bar curtailment
+  // geometry — see tests/curtailment.spec.ts (the inert `continuedToSupport` fraction was removed).
 
   it("emits beam stirrup spacing s ≤ 0.75·d and per-zone provided-area rules", () => {
     const res = beamSolve();
