@@ -552,3 +552,35 @@ html, body, #root {
 .addressable-extra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; padding: 4px 0; }
 /* H7: the extra selected on the section picker gets a highlighted editor. */
 .addressable-extra-selected { outline: 1px solid #22d3ee; outline-offset: 2px; border-radius: 4px; }
+
+/* v1.0.6 N3 (U3) — compact element-setup strip + contextual inspector + advanced-form toggle */
+.setup-strip {
+  margin: 6px 0 8px; padding: 6px 8px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.setup-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.setup-element { font-family: ui-monospace, monospace; font-weight: 600; color: var(--accent); }
+.setup-code select { font-size: 12px; }
+.setup-dims { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+
+.inspector {
+  margin: 6px 0 8px; padding: 8px;
+  border: 1px solid var(--accent); border-radius: 8px; background: var(--panel);
+}
+.inspector-title { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.inspector-empty { font-size: 13px; }
+.inspector-extra-pos, .addressable-extra-pos { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.advanced-toggle {
+  width: 100%; text-align: left; font-size: 12px; padding: 5px 8px; margin: 4px 0 6px;
+  background: var(--panel-2); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+}
+.advanced-toggle[aria-expanded="true"] { color: var(--text); }
+
+/* N3: the cross-tie name is now a selectable button (opens the inspector). */
+.crosstie-name {
+  font-family: ui-monospace, monospace; background: none; border: none; color: inherit;
+  cursor: pointer; padding: 0; text-align: left;
+}
+.crosstie-row-sel { outline: 1px solid var(--accent); outline-offset: 2px; border-radius: 4px; }

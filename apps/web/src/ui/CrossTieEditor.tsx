@@ -20,6 +20,8 @@ export function CrossTieEditor() {
   const result = useStore((s) => s.result);
   const setCrossTies = useStore((s) => s.setCrossTies);
   const setCrossTieHookAngle = useStore((s) => s.setCrossTieHookAngle);
+  const select = useStore((s) => s.select);
+  const selection = useStore((s) => s.selection);
   const sectionLink = useStore((s) => s.sectionLink);
   const beginLink = useStore((s) => s.beginLink);
   const cancelLink = useStore((s) => s.cancelLink);
@@ -90,14 +92,25 @@ export function CrossTieEditor() {
         {crossTies.length === 0 ? (
           <li className="muted">{s.none}</li>
         ) : (
-          crossTies.map((ct, i) => (
-            <li key={`${ct.barA}-${ct.barB}-${i}`} className="crosstie-row">
-              <span className="crosstie-name">{tieName(ct)}</span>
-              <button type="button" className="crosstie-remove" onClick={() => setCrossTies(crossTies.filter((_, k) => k !== i))}>
-                {t(lang).supplements.remove}
-              </button>
-            </li>
-          ))
+          crossTies.map((ct, i) => {
+            const active = selection?.kind === "crosstie" && selection.index === i;
+            return (
+              <li key={`${ct.barA}-${ct.barB}-${i}`} className={`crosstie-row ${active ? "crosstie-row-sel" : ""}`}>
+                {/* N3 (U3): selecting a tie opens it in the contextual inspector (+ highlights its pair). */}
+                <button
+                  type="button"
+                  className="crosstie-name"
+                  aria-pressed={active}
+                  onClick={() => select({ kind: "crosstie", index: i, barA: ct.barA, barB: ct.barB })}
+                >
+                  {tieName(ct)}
+                </button>
+                <button type="button" className="crosstie-remove" onClick={() => setCrossTies(crossTies.filter((_, k) => k !== i))}>
+                  {t(lang).supplements.remove}
+                </button>
+              </li>
+            );
+          })
         )}
       </ul>
     </div>

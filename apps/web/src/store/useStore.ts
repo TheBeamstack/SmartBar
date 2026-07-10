@@ -51,6 +51,20 @@ export type SectionLink =
   | { kind: "crosstie" }
   | { kind: "supplement"; supplementId: string; diameter: number };
 
+/**
+ * v1.0.6 N3 (U3, §0.3.4) — the ONE unified selection. Before N3 there were two disjoint channels:
+ * `selectedBars` (bars, from the section picker / 3D) and `selectedGroupIds` (alert rows). N3 folds
+ * them into one addressable `Selection` that drives the contextual inspector AND stays consistent with
+ * the 3D/2D highlight (the low-level `selectedBars`/`selectedGroupIds`/`selectedExtraId` channels are
+ * kept in sync by `select()` so the viewport is untouched). Session-only, NOT in `.rcfg`.
+ */
+export type Selection =
+  | { kind: "bar"; index: number }
+  | { kind: "extra"; id: string }
+  | { kind: "crosstie"; index: number; barA: number; barB: number }
+  | { kind: "alert"; groupIds: string[] }
+  | null;
+
 /** Module-scoped counter for supplement instance ids (stable within a session, like the old panel). */
 let suppInstanceCounter = 0;
 
@@ -184,6 +198,16 @@ export interface AppState {
   pickSectionBar: (index: number) => void;
   pickSectionExtra: (id: string) => void;
 
+  // v1.0.6 N3 (U3, §0.3.4) — the unified selection that drives the contextual inspector. `select`
+  // is the single entry point: it sets `selection` and keeps the legacy highlight channels
+  // (`selectedBars`/`selectedGroupIds`/`selectedExtraId`) mutually-exclusive + in sync.
+  selection: Selection;
+  select: (sel: Selection) => void;
+  // U3 — the tabbed parameter form is kept behind an "Avancé / Advanced" toggle (session-only, a
+  // layout pref like `rightPanels`; NOT reset on element `reset()`, NOT in `.rcfg`).
+  advancedForm: boolean;
+  setAdvancedForm: (on: boolean) => void;
+
   // supplements (§5.5)
   addSupplement: (edit: SupplementEdit) => void;
   removeSupplement: (instanceId: string) => void;
@@ -278,6 +302,8 @@ export const useStore = create<AppState>((set, get) => {
     sectionTool: "select",
     sectionLink: null,
     pendingLinkBar: null,
+    selection: null,
+    advancedForm: true,
     expert: false,
     lang: "fr",
     showSection: false,
@@ -425,18 +451,46 @@ export const useStore = create<AppState>((set, get) => {
     setSelectedBars: (indices) => set({ selectedBars: indices }),
     setSelectedExtraId: (id) => set({ selectedExtraId: id }),
 
+    // v1.0.6 N3 (U3, §0.3.4) — the unified selection entry point. Sets `selection` and keeps the
+    // legacy highlight channels mutually-exclusive so the inspector, the 3D and the 2D all agree.
+    select: (sel) => {
+      if (!sel) {
+        set({ selection: null, selectedBars: [], selectedExtraId: null, selectedGroupIds: [] });
+        return;
+      }
+      switch (sel.kind) {
+        case "bar":
+          set({ selection: sel, selectedBars: [sel.index], selectedExtraId: null, selectedGroupIds: [] });
+          break;
+        case "extra":
+          set({ selection: sel, selectedExtraId: sel.id, selectedBars: [], selectedGroupIds: [] });
+          break;
+        case "crosstie":
+          // highlight both engaged bars while the tie is the inspected object.
+          set({ selection: sel, selectedBars: [sel.barA, sel.barB], selectedExtraId: null, selectedGroupIds: [] });
+          break;
+        case "alert":
+          set({ selection: sel, selectedGroupIds: sel.groupIds, selectedBars: [], selectedExtraId: null });
+          break;
+      }
+    },
+    setAdvancedForm: (on) => set({ advancedForm: on }),
+
     // v1.0.6 N2 (U2) — the ONE section canvas tool router.
     setSectionTool: (tool) =>
       set(tool === "select" ? { sectionTool: "select", sectionLink: null, pendingLinkBar: null } : { sectionTool: tool }),
     beginLink: (link) =>
       set({ sectionTool: "link", sectionLink: link, pendingLinkBar: null, selectedBars: [], selectedExtraId: null }),
     cancelLink: () => set({ sectionTool: "select", sectionLink: null, pendingLinkBar: null, selectedBars: [] }),
-    pickSectionExtra: (id) => set({ selectedExtraId: id, selectedBars: [], pendingLinkBar: null }),
+    pickSectionExtra: (id) => {
+      set({ pendingLinkBar: null });
+      get().select({ kind: "extra", id }); // N3: an extra bar is a unified-selection object too.
+    },
     pickSectionBar: (index) => {
       const { sectionTool, sectionLink, pendingLinkBar } = get();
-      // SELECT: pick one bar (drives the addressable-bar override target + the 3D highlight).
+      // SELECT: pick one bar → the unified selection (drives the inspector + the 3D/2D highlight).
       if (sectionTool !== "link" || !sectionLink) {
-        set({ selectedBars: [index], selectedExtraId: null });
+        get().select({ kind: "bar", index });
         return;
       }
       // LINK: first click arms; re-clicking the pending bar de-selects; a second distinct bar completes.
@@ -598,7 +652,14 @@ export const useStore = create<AppState>((set, get) => {
     setNavMode: (mode) => set({ navMode: mode }),
 
     setDragMode: (on) => set({ dragMode: on }),
-    selectGroups: (ids) => set({ selectedGroupIds: ids }),
+    // N3 (U3): an alert row is a unified-selection object — clear the bar/extra channels so the
+    // inspector + highlight reflect exactly one selection. Empty ids → clear the selection.
+    selectGroups: (ids) =>
+      set(
+        ids.length === 0
+          ? { selectedGroupIds: [], selection: null }
+          : { selectedGroupIds: ids, selectedBars: [], selectedExtraId: null, selection: { kind: "alert", groupIds: ids } },
+      ),
     toggleExpert: () => set({ expert: !get().expert }),
     toggleLang: () => set({ lang: get().lang === "fr" ? "en" : "fr" }),
     toggleSection: () => set({ showSection: !get().showSection }),
@@ -617,6 +678,7 @@ export const useStore = create<AppState>((set, get) => {
         sectionTool: "select",
         sectionLink: null,
         pendingLinkBar: null,
+        selection: null,
         expert: false,
         projection: "perspective",
         viewRequest: null,

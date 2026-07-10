@@ -18,6 +18,8 @@ import { RegionEditor } from "./RegionEditor";
 import { FaconnageEditor } from "./FaconnageEditor";
 import { AddressableBars } from "./AddressableBars";
 import { SectionCanvas } from "./SectionCanvas";
+import { Inspector } from "./Inspector";
+import { ElementSetupStrip } from "./ElementSetupStrip";
 import { cm2, perZoneReadout } from "./derived";
 import { isColumnDoc, isGenericDoc, isBeamDoc, type Splice, type CodePackId } from "../engine/document";
 import { GENERIC_SPECS, type GenericElementId } from "../engine/elementSpecs";
@@ -144,9 +146,9 @@ function ColumnSchemeControls() {
 
   return (
     <>
-      {/* v1.0.6 N2 (U2): the ONE unified section canvas — its active tool decides what a bar click
-          means (select → addressable target; link → cross-tie / supplement). */}
-      <SectionCanvas />
+      {/* v1.0.6 N3 (U3): the ONE unified section canvas now lives in the always-visible sidebar region
+          (see `Sidebar`), not inside the scheme form — so it (and the inspector) stay reachable when
+          the advanced form is collapsed. */}
       <h3>{s.primaryBars}</h3>
       <DiameterSelect value={L.diameter} onChange={(v) => setLongitudinal({ diameter: v })} />
       {symmetric ? (
@@ -257,8 +259,7 @@ function BeamSchemeControls() {
 
   return (
     <>
-      {/* v1.0.6 N2 (U2): the ONE unified section canvas (shared by bar-by-bar / cross-tie / supplement). */}
-      <SectionCanvas />
+      {/* v1.0.6 N3 (U3): the ONE unified section canvas now lives in the always-visible sidebar region. */}
       <h3>{s.beam.spanSteel}</h3>
       <DiameterSelect value={span.diameter} onChange={(v) => setSpan({ diameter: v })} />
       <Stepper label={s.beam.bottomBars} value={span.nBottom} min={2} max={8} onChange={(v) => setSpan({ nBottom: v })} />
@@ -540,27 +541,57 @@ function ExpertGroups() {
 export function Sidebar() {
   const lang = useStore((s) => s.lang);
   const expert = useStore((s) => s.expert);
+  const doc = useStore((s) => s.doc);
+  const advancedForm = useStore((s) => s.advancedForm);
+  const setAdvancedForm = useStore((s) => s.setAdvancedForm);
   const [tab, setTab] = useState<Tab>("scheme");
   const s = t(lang);
+
+  // v1.0.6 N3 (U3): the drawing-first surface — the section canvas + the contextual inspector — is
+  // available for the column/beam addressable channel. The compact setup strip is always visible; the
+  // full tabbed form is kept behind the "Avancé" toggle (a complete fallback for bulk/power edits).
+  const drawingFirst = isColumnDoc(doc) || isBeamDoc(doc);
 
   return (
     <aside className="sidebar">
       <ZoneReadout />
-      <nav className="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === "scheme"} className={tab === "scheme" ? "active" : ""} onClick={() => setTab("scheme")}>
-          {s.tabScheme}
-        </button>
-        <button role="tab" aria-selected={tab === "geometry"} className={tab === "geometry" ? "active" : ""} onClick={() => setTab("geometry")}>
-          {s.tabGeometry}
-        </button>
-        <button role="tab" aria-selected={tab === "project"} className={tab === "project" ? "active" : ""} onClick={() => setTab("project")}>
-          {s.tabProject}
-        </button>
-      </nav>
-      {tab === "scheme" && <SchemeTab />}
-      {tab === "geometry" && <GeometryTab />}
-      {tab === "project" && <ProjectTab />}
-      {expert && <ExpertGroups />}
+      <ElementSetupStrip />
+      {drawingFirst && (
+        <>
+          {/* the ONE unified section canvas (N2) — the pick surface that drives the inspector */}
+          <SectionCanvas />
+          <Inspector />
+        </>
+      )}
+      <button
+        type="button"
+        className="advanced-toggle"
+        aria-expanded={advancedForm}
+        aria-pressed={advancedForm}
+        title={s.setup.advancedHint}
+        onClick={() => setAdvancedForm(!advancedForm)}
+      >
+        {advancedForm ? "▾" : "▸"} {s.setup.advanced}
+      </button>
+      {advancedForm && (
+        <>
+          <nav className="tabs" role="tablist">
+            <button role="tab" aria-selected={tab === "scheme"} className={tab === "scheme" ? "active" : ""} onClick={() => setTab("scheme")}>
+              {s.tabScheme}
+            </button>
+            <button role="tab" aria-selected={tab === "geometry"} className={tab === "geometry" ? "active" : ""} onClick={() => setTab("geometry")}>
+              {s.tabGeometry}
+            </button>
+            <button role="tab" aria-selected={tab === "project"} className={tab === "project" ? "active" : ""} onClick={() => setTab("project")}>
+              {s.tabProject}
+            </button>
+          </nav>
+          {tab === "scheme" && <SchemeTab />}
+          {tab === "geometry" && <GeometryTab />}
+          {tab === "project" && <ProjectTab />}
+          {expert && <ExpertGroups />}
+        </>
+      )}
     </aside>
   );
 }

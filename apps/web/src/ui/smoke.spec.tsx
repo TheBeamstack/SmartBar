@@ -34,8 +34,10 @@ describe("SPA panels smoke", () => {
     const readout = document.querySelector(".readout") as HTMLElement;
     expect(within(readout).getByText("18.85")).toBeInTheDocument();
 
-    // first combobox in the Schéma tab is the primary-bar diameter select
-    const primaryDiameter = screen.getAllByRole("combobox")[0]!;
+    // v1.0.6 N3: the element-setup strip adds a code-pack select above the tabs, so scope to the
+    // Schéma tab body — its first combobox is the primary-bar diameter select.
+    const schemeBody = document.querySelector(".tab-body") as HTMLElement;
+    const primaryDiameter = within(schemeBody).getAllByRole("combobox")[0]!;
     fireEvent.change(primaryDiameter, { target: { value: "25" } });
 
     // 6Ø25 ⇒ As,prov = 2945.24 mm² = 29.45 cm²

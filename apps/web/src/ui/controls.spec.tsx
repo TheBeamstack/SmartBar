@@ -8,7 +8,7 @@
  * All verified against the reference column (default doc) through the real store.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { Sidebar } from "./Sidebar";
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
@@ -56,9 +56,12 @@ describe("v1.0.6 U6 — control-type pass", () => {
   });
 
   it("dimension controls (b) KEEP the live-tune slider and its dragMode", () => {
-    render(<Sidebar />);
+    const { container } = render(<Sidebar />);
     fireEvent.click(screen.getByRole("tab", { name: /géom|geom/i }));
-    const b = screen.getByLabelText(s.section.b) as HTMLInputElement; // label binds to the first control = the range
+    // v1.0.6 N3: the setup strip also exposes `b` (as a plain number). Scope to the Géométrie tab body,
+    // where `b` is the live-tune NumberField (its label binds to the first control = the range).
+    const geomBody = container.querySelector(".tab-body") as HTMLElement;
+    const b = within(geomBody).getByLabelText(s.section.b) as HTMLInputElement;
     expect(b.type).toBe("range");
 
     expect(useStore.getState().dragMode).toBe(false);

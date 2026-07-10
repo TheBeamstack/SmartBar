@@ -53,6 +53,22 @@ export interface Strings {
     linkHint: string;
     cancel: string;
   };
+  // v1.0.6 N3 (U3): the contextual inspector (selection-driven) + the compact element-setup strip.
+  inspector: {
+    title: string;
+    empty: string;
+    bar: string;
+    extra: string;
+    crossTie: string;
+    alert: string;
+    highlighted: string;
+    remove: string;
+  };
+  setup: {
+    title: string;
+    advanced: string;
+    advancedHint: string;
+  };
   regions: {
     title: string;
     hint: string;
@@ -314,6 +330,21 @@ const FR: Strings = {
     linkHint: "Liaison — cliquez deux barres",
     cancel: "Annuler",
   },
+  inspector: {
+    title: "Inspecteur",
+    empty: "Sélectionnez une barre sur la coupe ou en 3D pour l'éditer ici.",
+    bar: "Barre",
+    extra: "Barre indépendante",
+    crossTie: "Épingle",
+    alert: "Vérification",
+    highlighted: "Barres concernées",
+    remove: "Supprimer",
+  },
+  setup: {
+    title: "Réglages de l'élément",
+    advanced: "Formulaire avancé",
+    advancedHint: "Contrôles complets (schéma, géométrie, projet) — repli complet.",
+  },
   regions: {
     title: "Espacement par zones",
     hint: "Définissez des zones le long de l'élément, chacune avec son espacement (ex. extrémités plus serrées).",
@@ -573,6 +604,21 @@ const EN: Strings = {
     selectHint: "Select — click a bar",
     linkHint: "Link — click two bars",
     cancel: "Cancel",
+  },
+  inspector: {
+    title: "Inspector",
+    empty: "Select a bar on the section or in 3D to edit it here.",
+    bar: "Bar",
+    extra: "Independent bar",
+    crossTie: "Cross-tie",
+    alert: "Check",
+    highlighted: "Affected bars",
+    remove: "Remove",
+  },
+  setup: {
+    title: "Element setup",
+    advanced: "Advanced form",
+    advancedHint: "Full controls (scheme, geometry, project) — complete fallback.",
   },
   regions: {
     title: "Spacing by region",

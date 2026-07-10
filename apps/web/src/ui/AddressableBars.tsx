@@ -163,7 +163,7 @@ export function AddressableBars() {
  * non-DROITE bar drives its length via the façonnage params, so it keeps the editable field. H19: the
  * custom length floors at 1 mm.
  */
-function CoupledLength({
+export function CoupledLength({
   s,
   shapeId,
   length,

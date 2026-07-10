@@ -151,7 +151,7 @@ function Scene() {
   const dragMode = useStore((s) => s.dragMode);
   const selectedGroupIds = useStore((s) => s.selectedGroupIds);
   const selectedBars = useStore((s) => s.selectedBars);
-  const setSelectedBars = useStore((s) => s.setSelectedBars);
+  const select = useStore((s) => s.select);
   const showSection = useStore((s) => s.showSection);
   const navMode = useStore((s) => s.navMode);
 
@@ -160,13 +160,10 @@ function Scene() {
     [result, doc, dragMode, selectedGroupIds, selectedBars],
   );
 
-  // F7: a 3D bar click toggles its selection (synced with the 2D section picker + highlight).
+  // F7 + v1.0.6 N3 (U3): a 3D bar click routes through the ONE unified selection (single-select), so
+  // the contextual inspector opens on the clicked bar and the 2D section highlight stays in sync.
   const onBarClick = (barIndex: number) =>
-    setSelectedBars(
-      selectedBars.includes(barIndex)
-        ? selectedBars.filter((x) => x !== barIndex)
-        : [...selectedBars, barIndex],
-    );
+    select(selectedBars.length === 1 && selectedBars[0] === barIndex ? null : { kind: "bar", index: barIndex });
 
   const length = scene.concrete.length;
   // element-aware attitude (column upright / beam horizontal / slab flat) — §1.4, shared with the fiche.
