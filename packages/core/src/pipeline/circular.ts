@@ -172,6 +172,46 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
     });
   }
 
+  // v1.0.5 M2 (P-B): resolve any freely placed bars through the shared pass, APPENDED to the base
+  // pitch-circle mat (kept in `bars`). placeBars/computeBBS/sectionAt read `longBars` additively.
+  // v1.0.6-fix R3 (F-B): resolved BEFORE the profile runs, so the placed steel can be CREDITED below —
+  // it used to resolve after `validate()`, which is why an extra cage bar never moved As,prov.
+  const memberLength = geometry.H ?? geometry.L ?? geometry.D;
+  const longBars =
+    input.placed && input.placed.length > 0
+      ? resolvePlacedBars(input.placed, {
+          memberLength,
+          code,
+          material: input.material,
+          layoutBars: circular.bars,
+          groups,
+          section: "CIRCULAR",
+          startIndex: circular.bars.length,
+          // R5 (O-3c): the round section's descriptor — a `Layer` here is an inner pitch circle. Without
+          // it a placed layer expanded to ZERO bars, silently (it was unreachable before R5's canvas).
+          sectionD: geometry.D,
+        })
+      : undefined;
+
+  // R3 (F-B): a freely placed cage bar IS steel — credit it to the zone it reinforces. A circular zone is
+  // COUNT-based (not per-metre), so the credit is direct: `As += Σ barArea(Ø)` over the placed bars, and
+  // the provided count rises with them. The zone is the cage's primary longitudinal one (a round section
+  // has a single longitudinal family — there is no face to disambiguate, unlike RECT).
+  if (longBars && longBars.length > 0 && solvedLong.length > 0) {
+    const target = solvedLong.find((z) => z.primary) ?? solvedLong[0]!;
+    let asAdd = 0;
+    let nAdd = 0;
+    for (const b of longBars) {
+      if (b.removed || !b.standalone) continue; // an override bar is already counted in its group
+      asAdd += barArea(b.diameter); // PHYSICAL Ø (φₙ is a rule diameter, never a steel quantity)
+      nAdd += 1;
+    }
+    if (asAdd > 0) {
+      target.asProv += asAdd;
+      target.providedCount += nAdd;
+    }
+  }
+
   const validate = getValidationProfile(input.profile);
   const validation = validate({
     element: input.element,
@@ -207,21 +247,7 @@ export function solveCircular(input: CircularSolveInput): SolveResult {
     });
   }
 
-  // v1.0.5 M2 (P-B): resolve any freely placed bars through the shared pass, APPENDED to the base
-  // pitch-circle mat (kept in `bars`). placeBars/computeBBS/sectionAt read `longBars` additively.
-  const memberLength = geometry.H ?? geometry.L ?? geometry.D;
-  const longBars =
-    input.placed && input.placed.length > 0
-      ? resolvePlacedBars(input.placed, {
-          memberLength,
-          code,
-          material: input.material,
-          layoutBars: circular.bars,
-          groups,
-          section: "CIRCULAR",
-          startIndex: circular.bars.length,
-        })
-      : undefined;
+  // (the placed bars were resolved + credited BEFORE `validate()` above — R3/F-B.)
 
   // v1.0.5 M4 (Track V): honest tiers for freely placed steel in this round section — bundle count/cover
   // (φₙ radial cover), curtailment anchorage + the element-agnostic geometry (axial-extent / radial

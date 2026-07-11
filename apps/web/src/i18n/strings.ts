@@ -51,6 +51,8 @@ export interface Strings {
     title: string;
     selectHint: string;
     linkHint: string;
+    /** R5: shown on the 6 elements whose native mat is per-metre (not individually addressable). */
+    placedOnlyHint: string;
     cancel: string;
   };
   // v1.0.6 N3 (U3): the contextual inspector (selection-driven) + the compact element-setup strip.
@@ -63,6 +65,24 @@ export interface Strings {
     alert: string;
     highlighted: string;
     remove: string;
+    /** v1.0.6-fix R2 (F-C) — the PLACED objects (N5's palette) the inspector can now edit. */
+    placedSingle: string;
+    placedRow: string;
+    placedBundle: string;
+    placedLayer: string;
+    count: string;
+    spacing: string;
+    extent: string;
+    direction: string;
+    dirU: string;
+    dirV: string;
+    skin: string;
+    bundleN: string;
+    face: string;
+    layerIndex: string;
+    inset: string;
+    span: string;
+    layerGap: string;
   };
   setup: {
     title: string;
@@ -369,6 +389,7 @@ const FR: Strings = {
     title: "Coupe",
     selectHint: "Sélection — cliquez une barre",
     linkHint: "Liaison — cliquez deux barres",
+    placedOnlyHint: "Nappe au mètre — choisissez un outil pour ajouter de l'acier, ou cliquez une barre ajoutée",
     cancel: "Annuler",
   },
   inspector: {
@@ -380,6 +401,23 @@ const FR: Strings = {
     alert: "Vérification",
     highlighted: "Barres concernées",
     remove: "Supprimer",
+    placedSingle: "Barre placée",
+    placedRow: "Nappe (lit de barres)",
+    placedBundle: "Paquet",
+    placedLayer: "Lit supplémentaire",
+    count: "Nombre",
+    spacing: "Espacement",
+    extent: "Étendue",
+    direction: "Direction",
+    dirU: "Horizontale (u)",
+    dirV: "Verticale (v)",
+    skin: "Acier de peau",
+    bundleN: "Barres du paquet (2–4)",
+    face: "Face",
+    layerIndex: "Rang du lit",
+    inset: "Retrait",
+    span: "Portée",
+    layerGap: "Jeu entre lits",
   },
   setup: {
     title: "Réglages de l'élément",
@@ -684,6 +722,7 @@ const EN: Strings = {
     title: "Section",
     selectHint: "Select — click a bar",
     linkHint: "Link — click two bars",
+    placedOnlyHint: "Per-metre mat — pick a tool to add steel, or click a bar you added",
     cancel: "Cancel",
   },
   inspector: {
@@ -695,6 +734,23 @@ const EN: Strings = {
     alert: "Check",
     highlighted: "Affected bars",
     remove: "Remove",
+    placedSingle: "Placed bar",
+    placedRow: "Row",
+    placedBundle: "Bundle",
+    placedLayer: "Extra layer",
+    count: "Count",
+    spacing: "Spacing",
+    extent: "Extent",
+    direction: "Direction",
+    dirU: "Horizontal (u)",
+    dirV: "Vertical (v)",
+    skin: "Skin steel",
+    bundleN: "Bars in bundle (2–4)",
+    face: "Face",
+    layerIndex: "Layer index",
+    inset: "Inset",
+    span: "Span",
+    layerGap: "Gap between layers",
   },
   setup: {
     title: "Element setup",

@@ -134,5 +134,16 @@ export function selectedBarStations(doc: ElementDoc, selection: ElevationSelecti
     const e = extras.find((x) => x.id === selection.id);
     return e ? read(e) : null;
   }
+  // v1.0.6-fix R2 (F-C): the PLACED channel — the v1.0.5 canonical model N5's palette writes to. Every
+  // member of the union (single / row / bundle / layer) carries the same station body, so ONE reader
+  // serves all four: curtailing a selected row reads (and writes) the row's stations, and its expanded
+  // bars all follow. Before R2 this branch did not exist → the elevation handles and the inspector's
+  // numeric twins had nothing to render for a placed bar, and every station edit silently no-op'd.
+  // Works on ALL 8 elements (`placed` lives on every doc type), not just column/beam.
+  if (selection.kind === "placed" && selection.id !== undefined) {
+    const placed = (doc as { placed?: { id: string }[] }).placed ?? [];
+    const p = placed.find((x) => x.id === selection.id);
+    return p ? read(p as Parameters<typeof read>[0]) : null;
+  }
   return null;
 }

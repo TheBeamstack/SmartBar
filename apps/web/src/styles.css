@@ -592,12 +592,19 @@ html, body, #root {
 .placed-list { margin-top: 4px; }
 .placed-list ul { list-style: none; margin: 4px 0 0; padding: 0; }
 .placed-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--border); }
-.placed-desc { flex: 1; font-size: 12px; }
+/* R2: the entry is a selector button (→ the inspector), not a label. Keep it visually a list row. */
+.placed-desc { flex: 1; font-size: 12px; text-align: left; background: none; border: 0; color: inherit; cursor: pointer; padding: 2px 4px; border-radius: 3px; }
+.placed-desc:hover { background: var(--panel-2, rgba(255,255,255,0.06)); }
+.placed-row-sel .placed-desc { background: rgba(34, 211, 238, 0.16); color: #22d3ee; }
 .placed-count { display: flex; align-items: center; gap: 4px; }
 .placed-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; }
 .sp-concrete { fill: rgba(200, 204, 210, 0.10); stroke: #3a434f; stroke-width: 2; }
 .sp-bar { cursor: pointer; outline: none; }
 .sp-bar:focus-visible circle { stroke: #22d3ee; }
+/* R5: on the six generic elements the native mat is a per-metre zone — not individually addressable — so it
+   renders as context you place ONTO. It must not look clickable, and it must let the placement click through
+   to the drop area behind it (a click on the mat should place a bar there, not be swallowed). */
+.sp-bar-inert { cursor: default; pointer-events: none; }
 /* H7: independent extra bars — square marker + focus ring on the rect. */
 .sp-extra:focus-visible rect { stroke: #22d3ee; }
 .sp-list-extra { border-style: dashed; }

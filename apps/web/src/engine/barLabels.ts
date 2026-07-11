@@ -17,6 +17,12 @@ export interface LabeledBar {
   u: number;
   v: number;
   faceTag: FaceTag;
+  /**
+   * v1.0.6-fix R5: a slab/stair DISTRIBUTION bar runs ACROSS the width (C1) — its `u` is unused and every
+   * one of them sits at `u = 0`. Carried through so the section canvas can draw it as the LINE it is,
+   * instead of stacking N coincident dots on the centreline.
+   */
+  across?: boolean;
 }
 
 /** Rank a bar within its own face: TOP/BOTTOM by ascending u; LEFT/RIGHT by ascending v; else by angle. */
@@ -47,5 +53,6 @@ export function labeledBars(bars: readonly BarPosition[]): LabeledBar[] {
     u: b.position.u,
     v: b.position.v,
     faceTag: b.faceTag,
+    ...(b.across ? { across: true } : {}),
   }));
 }

@@ -39,7 +39,9 @@ import {
 import { solveDoc, type SolveResult } from "../engine/solveDoc";
 import { supportSeededRegions, effectiveRegions, normalizeRegions, memberAxisLength } from "../engine/regions";
 import { selectedBarStations } from "../engine/elevation";
-import { snapSection, freshPlacedId, buildPlacedBar, type SectionGeom } from "../engine/placement";
+import { freshPlacedId, buildPlacedBar } from "../engine/placement";
+import { sectionFrame, snapToFrame } from "../engine/sectionFrame";
+import { GENERIC_SPECS, isGenericElement } from "../engine/elementSpecs";
 import {
   type ElementInstance,
   makeInstance,
@@ -70,6 +72,20 @@ export const PLACE_KIND_BY_TOOL: Partial<Record<SectionTool, "single" | "row" | 
 };
 
 /**
+ * v1.0.6-fix R5 — owner decision **O-3b** (2026-07-11): the tool an element **opens in**.
+ *
+ * The natural placed object on a slab or a joist is a **band** (a counted row across the width) — a
+ * detailer adding steel over a support adds a band, not a lone bar (spec P-B: "honour the element-
+ * appropriate semantics, don't flatten them"). So the slab family opens on `add-row`; every other section
+ * opens on `select`, unchanged. Keyed off the SECTION family, not the element id (invariant 3), and `Esc`
+ * always returns to `select`.
+ */
+export function defaultToolFor(doc: ElementDoc): SectionTool {
+  const section = isGenericElement(doc.element) ? GENERIC_SPECS[doc.element].section : "RECT";
+  return section === "SLAB" || section === "JOIST" ? "add-row" : "select";
+}
+
+/**
  * v1.0.6 N4 (U1, [REF-UI-830]) — the two editable 2D docks that flank the always-on 3D. `section`
  * (the coupe / pick canvas) sizes by WIDTH; `elevation` (the longitudinal view) sizes by HEIGHT. Each
  * is independently open/collapsed + resizable. Session-only layout, NOT in `.rcfg`, NOT reset on `reset()`.
@@ -95,9 +111,21 @@ export type SectionLink =
 export type Selection =
   | { kind: "bar"; index: number }
   | { kind: "extra"; id: string }
+  /**
+   * **v1.0.6-fix R2 (finding F-C)** — a bar in `doc.placed`: the v1.0.5 canonical placed model (single /
+   * row / bundle / layer) that N5's tool palette creates. It was MISSING from the selection union, so a
+   * click on a placed bar routed to `kind:"extra"`, the inspector looked it up in `doc.extraBars` (a
+   * different array), found nothing, and showed "nothing selected" — while every N6 station action
+   * (curtail / splice / anchorage) silently no-op'd on it. `id` is always the PARENT id: selecting any
+   * member of a row/bundle/layer (`p1#2`) selects the object the user created and edits (`p1`).
+   */
+  | { kind: "placed"; id: string }
   | { kind: "crosstie"; index: number; barA: number; barB: number }
   | { kind: "alert"; groupIds: string[] }
   | null;
+
+/** R2: a resolved placed bar's id is `p1` (a single) or `p1#2` (a row/bundle/layer member) → parent `p1`. */
+export const placedParentIdOf = (id: string): string => id.split("#")[0]!;
 
 /** Module-scoped counter for supplement instance ids (stable within a session, like the old panel). */
 let suppInstanceCounter = 0;
@@ -377,9 +405,39 @@ function patchSelectedBar(get: () => AppState, patch: Record<string, unknown>): 
   } else if (selection.kind === "extra") {
     if (!isColumnDoc(doc) && !isBeamDoc(doc)) return;
     const extras = doc.extraBars ?? [];
+    if (!extras.some((e) => e.id === selection.id)) return void noSilentInertEdit("extra", selection.id);
     const next = extras.map((e) => (e.id === selection.id ? (stripUndef({ ...e, ...patch }) as AddressableBar) : e));
     get().setExtraBars(next);
+  } else if (selection.kind === "placed") {
+    // R2 (F-C): the placed channel — the one N5 writes and N6 could not reach. Because EVERY member of
+    // the `PlacedBarDoc` union shares the same body (shape/Ø/curtailment/anchorage/splices), the SAME
+    // patch works on a single, a row, a bundle and a layer — so curtailing a row curtails all its bars.
+    const placed = (doc as { placed?: PlacedBarDoc[] }).placed ?? [];
+    if (!placed.some((p) => (p as { id: string }).id === selection.id)) {
+      return void noSilentInertEdit("placed", selection.id);
+    }
+    const next = placed.map((p) =>
+      (p as { id: string }).id === selection.id ? (stripUndef({ ...p, ...patch }) as PlacedBarDoc) : p,
+    );
+    get().setPlaced(next);
   }
+}
+
+/**
+ * **Invariant 8 (v1.0.6-fix, R2): no silent inert edit.** A store action whose selection matches nothing
+ * must SAY so — never `map` a list onto itself and commit an identical document, which is exactly how
+ * finding F-C hid: N6's curtail/splice/anchorage actions "succeeded" on an N5-placed bar and changed
+ * nothing, with no error anywhere. If this ever fires, a selection kind has been added without wiring its
+ * write path.
+ *
+ * It REPORTS rather than throws — an exception inside a store action fires on a real user gesture (a drag,
+ * a keystroke) and would take the app down for what is a wiring bug, not a data error. The console line is
+ * the developer-facing signal; the regression test asserts it.
+ */
+function noSilentInertEdit(kind: string, id: string): void {
+  console.error(
+    `[store] selection {kind:"${kind}", id:"${id}"} matched no target — edit dropped (invariant 8: no silent inert edit).`,
+  );
 }
 
 export const useStore = create<AppState>((set, get) => {
@@ -442,6 +500,7 @@ export const useStore = create<AppState>((set, get) => {
         ...slice,
         activeCutId: slice.cuts[0]!.id,
         selectedGroupIds: [],
+        sectionTool: defaultToolFor(slice.doc),
       });
     },
 
@@ -485,7 +544,14 @@ export const useStore = create<AppState>((set, get) => {
       const target = synced.find((i) => i.id === id);
       if (!target || id === get().activeInstanceId) return;
       const slice = checkout(target);
-      set({ instances: synced, activeInstanceId: id, ...slice, activeCutId: slice.cuts[0]!.id, selectedGroupIds: [] });
+      set({
+        instances: synced,
+        activeInstanceId: id,
+        ...slice,
+        activeCutId: slice.cuts[0]!.id,
+        selectedGroupIds: [],
+        sectionTool: defaultToolFor(slice.doc),
+      });
     },
 
     moveInstance: (id, dir) => {
@@ -500,7 +566,7 @@ export const useStore = create<AppState>((set, get) => {
 
     selectElement: (element) => {
       const s = withDoc(defaultDocFor(element));
-      set({ ...s, selectedGroupIds: [], activeCutId: s.cuts[0]!.id });
+      set({ ...s, selectedGroupIds: [], activeCutId: s.cuts[0]!.id, sectionTool: defaultToolFor(s.doc) });
     },
 
     selectScheme: (schemeId) => {
@@ -612,6 +678,12 @@ export const useStore = create<AppState>((set, get) => {
         case "extra":
           set({ selection: sel, selectedExtraId: sel.id, selectedBars: [], selectedGroupIds: [] });
           break;
+        case "placed":
+          // R2: reuse the `selectedExtraId` highlight channel — a placed bar resolves to a `standalone`
+          // longBar whose `groupId` IS its id, which is exactly what that channel already highlights.
+          // Holding the PARENT id here makes every member of a row/bundle/layer light up together.
+          set({ selection: sel, selectedExtraId: sel.id, selectedBars: [], selectedGroupIds: [] });
+          break;
         case "crosstie":
           // highlight both engaged bars while the tie is the inspected object.
           set({ selection: sel, selectedBars: [sel.barA, sel.barB], selectedExtraId: null, selectedGroupIds: [] });
@@ -632,7 +704,16 @@ export const useStore = create<AppState>((set, get) => {
     cancelLink: () => set({ sectionTool: "select", sectionLink: null, pendingLinkBar: null, selectedBars: [] }),
     pickSectionExtra: (id) => {
       set({ pendingLinkBar: null });
-      get().select({ kind: "extra", id }); // N3: an extra bar is a unified-selection object too.
+      // R2 (F-C): the canvas renders EVERY standalone resolved bar the same way, so it cannot tell a
+      // legacy `extraBars` bar from a v1.0.5 `placed` bar — but the doc can. Resolve the id here, once,
+      // and route to the right selection kind. Before R2 everything routed to `extra`, so an N5-placed
+      // bar was selectable but un-inspectable and un-editable (silently).
+      const doc = get().doc;
+      const parent = placedParentIdOf(id);
+      const isPlaced = ((doc as { placed?: PlacedBarDoc[] }).placed ?? []).some(
+        (p) => (p as { id: string }).id === parent,
+      );
+      get().select(isPlaced ? { kind: "placed", id: parent } : { kind: "extra", id });
     },
     pickSectionBar: (index) => {
       const { sectionTool, sectionLink, pendingLinkBar } = get();
@@ -689,12 +770,12 @@ export const useStore = create<AppState>((set, get) => {
       set(edit({ ...doc, placed } as ElementDoc));
     },
     placeInSection: (u, v) => {
-      const { doc, sectionTool, paletteShape, paletteDiameter } = get();
-      const geom: SectionGeom =
-        isColumnDoc(doc) || isBeamDoc(doc)
-          ? { b: doc.geometry.b, h: doc.geometry.h, cover: doc.cover, diameter: paletteDiameter }
-          : { cover: doc.cover, diameter: paletteDiameter };
-      const snapped = snapSection(u, v, geom);
+      const { doc, result, sectionTool, paletteShape, paletteDiameter } = get();
+      // R5 (F-D): the frame comes from the ENGINE's section descriptor (`result.member`), so every one of
+      // the 8 elements clamps — a slab against its `Ly×t` box, a pile/circular column RADIALLY. Before R5
+      // a non-column/beam doc was handed no `b`/`h` and the cover envelope was silently skipped entirely.
+      const frame = sectionFrame(result, doc.cover);
+      const snapped = snapToFrame(frame, u, v, paletteDiameter);
       set({ placeCoord: snapped }); // keep the typed-coordinate twin in sync with the snapped drop
       const kind = PLACE_KIND_BY_TOOL[sectionTool];
       if (!kind) return; // select / link / measure: no drop, just the readout
@@ -705,7 +786,7 @@ export const useStore = create<AppState>((set, get) => {
         v: snapped.v,
         shapeId: paletteShape,
         diameter: paletteDiameter,
-        geom,
+        frame,
       });
       get().setPlaced([...existing, bar]);
     },

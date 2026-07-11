@@ -11,12 +11,14 @@
  */
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
+import { isColumnDoc, isBeamDoc } from "../engine/document";
 import { SectionPicker } from "./SectionPicker";
 
 const ADD_TOOLS = new Set(["add-single", "add-row", "add-bundle", "add-layer"]);
 
 export function SectionCanvas() {
   const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
   const tool = useStore((s) => s.sectionTool);
   const pickSectionBar = useStore((s) => s.pickSectionBar);
   const pickSectionExtra = useStore((s) => s.pickSectionExtra);
@@ -24,10 +26,16 @@ export function SectionCanvas() {
   const cancelLink = useStore((s) => s.cancelLink);
   const s = t(lang).sectionCanvas;
   const tl = t(lang).tools;
-  const linking = tool === "link";
+
+  // R5: the canvas draws every section, but the NATIVE bars are only addressable where the channels that
+  // edit them exist — `barOverrides` + cross-ties are column/beam only (the same capability line R2 drew
+  // for the Inspector). Elsewhere the mat is inert context you place ON; placed steel stays fully
+  // selectable everywhere. Offering a click that could not commit anything is what invariant 8 forbids.
+  const nativeAddressable = isColumnDoc(doc) || isBeamDoc(doc);
+  const linking = tool === "link" && nativeAddressable;
   const placing = ADD_TOOLS.has(tool);
 
-  const hint = linking ? s.linkHint : placing ? tl.placeHint : s.selectHint;
+  const hint = linking ? s.linkHint : placing ? tl.placeHint : nativeAddressable ? s.selectHint : s.placedOnlyHint;
 
   return (
     <div
@@ -50,7 +58,7 @@ export function SectionCanvas() {
         )}
       </div>
       <SectionPicker
-        onPick={pickSectionBar}
+        onPick={nativeAddressable ? pickSectionBar : undefined}
         onPickExtra={pickSectionExtra}
         onPlace={placing ? placeInSection : undefined}
       />

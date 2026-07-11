@@ -235,6 +235,13 @@ export interface PlacedLongBar {
    */
   placedParentId?: string;
   placedKind?: "single" | "row" | "bundle" | "layer";
+  /**
+   * v1.0.6-fix R1 (F-A): the CODE diameter `φₙ` when this bar is a bundle member (φ·√n ≤ 55, from
+   * `code.bundleEquivDiameter`) — the diameter the lap, the mandrel and the clear-spacing MINIMUM are
+   * judged on (spec P-E, owner O-1). `diameter` above stays PHYSICAL (area/mass/BBS). Absent → the two
+   * are the same and everything is byte-identical to pre-R1.
+   */
+  equivDiameter?: number;
 }
 
 export interface ElementTransInput {
@@ -977,6 +984,9 @@ export function solveElement(input: ElementSolveInput): SolveResult {
       ...(b.placedKind === "bundle" && b.placedParentId !== undefined
         ? { bundleId: b.placedParentId }
         : {}),
+      // R1 (F-A): a bundled bar's spacing MINIMUM is set by φₙ, not by its bare Ø (the measured gap
+      // stays physical — only the limit rises). Absent → the limit uses the bare Ø, as before.
+      ...(b.equivDiameter !== undefined ? { codeDiameter: b.equivDiameter } : {}),
     }));
     validation.push(
       ...validateAddressableBars(views, {

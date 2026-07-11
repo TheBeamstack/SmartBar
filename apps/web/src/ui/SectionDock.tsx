@@ -10,7 +10,6 @@
  */
 import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
-import { isColumnDoc, isBeamDoc } from "../engine/document";
 import { SectionCanvas } from "./SectionCanvas";
 import { ToolPalette } from "./ToolPalette";
 import { CoupePanel } from "./CoupePanel";
@@ -20,9 +19,7 @@ export function SectionDock() {
   const dock = useStore((s) => s.docks.section);
   const toggleDock = useStore((s) => s.toggleDock);
   const resizeDock = useStore((s) => s.resizeDock);
-  const doc = useStore((s) => s.doc);
   const s = t(lang).workspace;
-  const drawingFirst = isColumnDoc(doc) || isBeamDoc(doc);
 
   if (!dock.open) {
     return (
@@ -76,7 +73,10 @@ export function SectionDock() {
         <div className="dock-body">
           {/* N5 (U4): the modal tool palette + placed-bar list — the drawing-first "add any bar" surface */}
           <ToolPalette />
-          {drawingFirst && <SectionCanvas />}
+          {/* R5 (F-D): the canvas is no longer gated on column/beam. It draws whatever section the ENGINE
+              reports (`result.member` → `sectionFrame`), so all 8 elements get a drawing-board — a slab is
+              a wide thin box with its mat as dots, a pile is a disc with its cage on the pitch circle. */}
+          <SectionCanvas />
           <CoupePanel />
         </div>
       </div>

@@ -18,6 +18,7 @@ import { rollupStatus, type ExtendedCodePack } from "../validation/index";
 import { getValidationProfile, type SolvedSlabZone, type SlabContext } from "../validation/profiles";
 import type { PlacedBarInput } from "../types/placed-bar";
 import { resolvePlacedBars, analyzePlacedBarLaps } from "../section/resolvePlacedBars";
+import { creditPlacedPerMetre } from "../section/creditPlacedBars";
 import { validatePlacedBarRules } from "../validation/placedBarRules";
 import type { SolveResult, SolvedGroup } from "./element";
 
@@ -73,6 +74,8 @@ export function solveJoist(input: JoistSolveInput): SolveResult {
   const zonesGeom: ZoneGeometry[] = [];
   const slabZones: SolvedSlabZone[] = [];
   const bars: BarPosition[] = [];
+  /** R3: each zone's RESOLVED level `v` — what a placed band is matched against. */
+  const zoneVs: number[] = [];
   let phiLMax = 0;
 
   for (const z of input.zones) {
@@ -98,7 +101,43 @@ export function solveJoist(input: JoistSolveInput): SolveResult {
       d,
       role: z.slabRole,
     });
-    bars.push(...solveSlabBars(width, z.spacing, z.v ?? t / 2 - input.cover, z.zone));
+    const zv = z.v ?? t / 2 - input.cover;
+    zoneVs.push(zv); // R3: the level this zone's steel actually sits at
+    bars.push(...solveSlabBars(width, z.spacing, zv, z.zone));
+  }
+
+  // v1.0.5 M2 (P-B): resolve any freely placed rib bars additively to the per-metre steel.
+  // v1.0.6-fix R3 (F-B): resolved BEFORE the profile runs — placed steel must exist by the time §7 judges.
+  const longBars =
+    input.placed && input.placed.length > 0
+      ? resolvePlacedBars(input.placed, {
+          memberLength: geometry.L,
+          code,
+          material: input.material,
+          layoutBars: bars,
+          groups,
+          section: "SLAB",
+          sectionDims: { b: width, h: t }, // M3: a Layer offsets from the rib face
+          startIndex: bars.length,
+        })
+      : undefined;
+
+  // R3 (F-B): credit the placed steel to the rib's per-metre zones (As,prov + area-weighted `d`).
+  if (longBars && input.placed) {
+    const credited = creditPlacedPerMetre(
+      input.placed,
+      longBars,
+      slabZones.map((z, i) => ({ zone: z.zone, v: zoneVs[i] ?? 0, asProvPerM: z.asProvPerM, d: z.d, spacing: z.spacing })),
+      { thickness: t },
+    );
+    for (const z of slabZones) {
+      const c = credited.get(z.zone);
+      if (!c) continue;
+      z.asProvPerM = c.asProvPerM;
+      z.d = c.d;
+      const zg = zonesGeom.find((g) => g.zone === z.zone);
+      if (zg) zg.d = c.d;
+    }
   }
 
   const slab: SlabContext = { thickness: t, zones: slabZones };
@@ -119,21 +158,6 @@ export function solveJoist(input: JoistSolveInput): SolveResult {
     phiLMax,
     code,
   });
-
-  // v1.0.5 M2 (P-B): resolve any freely placed rib bars additively to the per-metre steel.
-  const longBars =
-    input.placed && input.placed.length > 0
-      ? resolvePlacedBars(input.placed, {
-          memberLength: geometry.L,
-          code,
-          material: input.material,
-          layoutBars: bars,
-          groups,
-          section: "SLAB",
-          sectionDims: { b: width, h: t }, // M3: a Layer offsets from the rib face
-          startIndex: bars.length,
-        })
-      : undefined;
 
   // v1.0.5 M4 (Track V): honest tiers for freely placed rib steel (bundle/layer/curtailment + geometry).
   // Only fires when the user placed bars (legacy joist byte-identical).

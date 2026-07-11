@@ -22,6 +22,7 @@ import {
 } from "../validation/profiles";
 import type { PlacedBarInput } from "../types/placed-bar";
 import { resolvePlacedBars, analyzePlacedBarLaps } from "../section/resolvePlacedBars";
+import { creditPlacedPerMetre } from "../section/creditPlacedBars";
 import type { SolveResult, SolvedGroup } from "./element";
 
 export interface SlabZoneInput {
@@ -72,6 +73,9 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
   const zonesGeom: ZoneGeometry[] = [];
   const slabZones: SolvedSlabZone[] = [];
   const bars: BarPosition[] = [];
+  /** R3: each zone's RESOLVED section level (the `z.v ?? default` the loop actually used) — the level a
+   *  placed band is matched against. Kept alongside `slabZones` so the credit sees the same `v` the bars do. */
+  const zoneVs: number[] = [];
   let phiLMax = 0;
 
   for (const z of input.zones) {
@@ -81,6 +85,7 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     const role = z.role ?? (z.slabRole === "SECONDARY" ? "DISTRIBUTION" : "PRIMARY_LONGITUDINAL");
     const shape = generateShape(z.shape, z.params, z.diameter, code);
     const v = z.v ?? geometry.t / 2 - input.cover;
+    zoneVs.push(v); // R3: the level this zone's steel actually sits at
     // v1.0.4 C1: a DISTRIBUTION linear bar runs ACROSS the width at span stations (exact coupe); a
     // MAIN/TOP bar (or a mesh topping) keeps the along-span row (`across` never set → byte-identical).
     const linearDist = isDistributionLinear(role, shape);
@@ -112,6 +117,50 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     bars.push(...zoneBars);
   }
 
+  // v1.0.5 M2 (P-B): resolve any freely placed bars (an extra band) additively to the per-metre mat.
+  // v1.0.6-fix R3 (F-B): this MUST happen BEFORE the profile runs. It used to sit *after* the `validate()`
+  // call below — which is the mechanical reason a placed band could never reach §7: by the time the bars
+  // existed, the verdict had already been computed from the bare mat.
+  const longBars =
+    input.placed && input.placed.length > 0
+      ? resolvePlacedBars(input.placed, {
+          memberLength: geometry.Lx,
+          code,
+          material: input.material,
+          layoutBars: bars,
+          groups,
+          section: "SLAB",
+          sectionDims: { b: geometry.Ly, h: geometry.t }, // M3: a Layer band offsets from the slab face
+          startIndex: bars.length,
+        })
+      : undefined;
+
+  // R3 (F-B): credit the placed steel to the per-metre zones — As,prov rises and `d` is re-weighted, so
+  // a band the detailer added to fix an under-provision actually clears the red (owner O-2: credited over
+  // the band's own extent). No placed bars → empty map → every legacy slab byte-identical.
+  if (longBars && input.placed) {
+    const credited = creditPlacedPerMetre(
+      input.placed,
+      longBars,
+      slabZones.map((z, i) => ({
+        zone: z.zone,
+        v: zoneVs[i] ?? 0,
+        asProvPerM: z.asProvPerM,
+        d: z.d,
+        spacing: z.spacing,
+      })),
+      { thickness: geometry.t },
+    );
+    for (const z of slabZones) {
+      const c = credited.get(z.zone);
+      if (!c) continue;
+      z.asProvPerM = c.asProvPerM;
+      z.d = c.d;
+      const zg = zonesGeom.find((g) => g.zone === z.zone);
+      if (zg) zg.d = c.d; // keep the reported per-zone geometry in step with what was judged
+    }
+  }
+
   const slab: SlabContext = {
     thickness: geometry.t,
     zones: slabZones,
@@ -135,21 +184,6 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
     phiLMax,
     code,
   });
-
-  // v1.0.5 M2 (P-B): resolve any freely placed bars (an extra band) additively to the per-metre mat.
-  const longBars =
-    input.placed && input.placed.length > 0
-      ? resolvePlacedBars(input.placed, {
-          memberLength: geometry.Lx,
-          code,
-          material: input.material,
-          layoutBars: bars,
-          groups,
-          section: "SLAB",
-          sectionDims: { b: geometry.Ly, h: geometry.t }, // M3: a Layer band offsets from the slab face
-          startIndex: bars.length,
-        })
-      : undefined;
 
   // v1.0.5 M4 (Track V): honest tiers for freely placed steel on this slab — bundle count/cover, layer
   // spacing, curtailment anchorage + the element-agnostic geometry (axial-extent / section-bounds) the

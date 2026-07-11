@@ -82,6 +82,20 @@ export interface SingleBar extends PlacedBarBody {
    * `layoutBars`; the free-placement path needs no per-section logic.
    */
   overrideBarIndex?: number;
+  /**
+   * **v1.0.6-fix R1 (F-A) — the CODE diameter, when it differs from the physical one.** A bar expanded
+   * from a `Bundle` is physically Ø, but the code rules judge the bundle as one equivalent bar of
+   * `φₙ = code.bundleEquivDiameter(Ø, n) = φ·√n ≤ 55` (spec P-E; EC2 §8.9 / BAEL). The **lap length**,
+   * the **mandrel/bend radius** and the **clear-spacing to neighbours** must therefore be computed on
+   * `φₙ`, while **area, mass and the BBS Ø column stay on the physical Ø** (a bundle must not gain
+   * phantom steel). Set ONLY by `expandBundle`; absent on every other bar → the bare Ø is used and the
+   * resolved bar is byte-identical to pre-R1.
+   *
+   * *Why this field exists:* expanding a bundle into N independent bars destroys the fact that they act
+   * as one — this carries that fact to the rules that need it. Owner decision **O-1** (2026-07-11):
+   * φₙ drives lap + mandrel + spacing. ⚠ PROVISIONAL constants → G-BAEL/G-EC2.
+   */
+  equivDiameter?: number;
 }
 
 /**

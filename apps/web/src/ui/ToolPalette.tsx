@@ -141,18 +141,34 @@ export function ToolPalette() {
   );
 }
 
-/** The placed steel on the active doc (single/row/bundle/layer): a labelled list with count/n + remove. */
+/**
+ * The placed steel on the active doc (single/row/bundle/layer).
+ *
+ * **v1.0.6-fix R2:** this list is now a **selector**, not a second editor. Clicking an entry routes to the
+ * unified selection (`select({kind:"placed"})`) → the contextual **Inspector** owns editing (Ø, shape,
+ * position, count/n, curtailment, splices, anchorage), per spec U3 ("select an object → the inspector shows
+ * only that object's properties"). Before R2 this list was the ONLY way to touch placed steel and it could
+ * only step a count and delete — because the inspector could not see these bars at all.
+ *
+ * It is also the selection surface on the 6 non-RECT elements, where the section canvas does not exist yet
+ * (R5 fixes that). The count stepper stays as an inline convenience — it writes the same store.
+ */
 function PlacedList() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
   const setPlaced = useStore((s) => s.setPlaced);
+  const select = useStore((s) => s.select);
+  const selection = useStore((s) => s.selection);
   const s = t(lang).tools;
   const placed = ((doc as { placed?: PlacedBarDoc[] }).placed ?? []);
   if (placed.length === 0) return null;
 
   const patch = (id: string, p: Partial<PlacedBarDoc>) =>
     setPlaced(placed.map((x) => ((x as { id: string }).id === id ? ({ ...x, ...p } as PlacedBarDoc) : x)));
-  const remove = (id: string) => setPlaced(placed.filter((x) => (x as { id: string }).id !== id));
+  const remove = (id: string) => {
+    setPlaced(placed.filter((x) => (x as { id: string }).id !== id));
+    if (selection?.kind === "placed" && selection.id === id) select(null); // don't leave a dangling selection
+  };
 
   const kindLabel = (p: PlacedBarDoc): string => {
     const k = (p as { kind?: string }).kind;
@@ -182,11 +198,18 @@ function PlacedList() {
         {placed.map((p) => {
           const id = (p as { id: string }).id;
           const c = countOf(p);
+          const sel = selection?.kind === "placed" && selection.id === id;
           return (
-            <li key={id} className="placed-row">
-              <span className="placed-desc">
+            <li key={id} className={`placed-row ${sel ? "placed-row-sel" : ""}`}>
+              {/* R2: the entry is a BUTTON — clicking it selects the object into the inspector. */}
+              <button
+                type="button"
+                className="placed-desc"
+                aria-pressed={sel}
+                onClick={() => select({ kind: "placed", id })}
+              >
                 {kindLabel(p)} · {(p as { shapeId: string }).shapeId} Ø{(p as { diameter: number }).diameter}
-              </span>
+              </button>
               {c !== null && (
                 <span className="placed-count">
                   <button type="button" className="stepper-btn" aria-label={`${s.count} −`} onClick={() => setCount(p, c - 1)}>−</button>

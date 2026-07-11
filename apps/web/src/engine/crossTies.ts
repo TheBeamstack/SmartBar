@@ -89,22 +89,19 @@ export function columnLayoutBars(doc: ColumnDoc): BarPosition[] {
   }).bars;
 }
 
-/** Beam top face physically carries montage + chapeau bars (8b); a min of 2 keeps the cadre closed. */
-export function beamLayoutBars(doc: BeamDoc): BarPosition[] {
-  const nMontage = doc.topBars.enabled ? doc.topBars.nTop : 0;
-  const supL = doc.supports.left, supR = doc.supports.right;
-  const nChapeau = (supL.chapeau.enabled ? supL.chapeau.nTop : 0) + (supR.chapeau.enabled ? supR.chapeau.nTop : 0);
-  const nTop = Math.max(2, nMontage + nChapeau);
-  const phiL = Math.max(doc.span.diameter, supL.chapeau.enabled ? supL.chapeau.diameter : 0, supR.chapeau.enabled ? supR.chapeau.diameter : 0);
-  return solveRectLayout({
-    section: "RECT",
-    geometry: { b: doc.geometry.b, h: doc.geometry.h },
-    cover: doc.cover,
-    phiT: doc.stirrup.diameter,
-    phiL,
-    rect: { principle: "FREE", nTop, nBottom: doc.span.nBottom, nLeft: 2, nRight: 2 },
-  }).bars;
-}
+/*
+ * v1.0.6-fix R4 (finding F-E) — `beamLayoutBars` is GONE.
+ *
+ * It computed the beam's TOP face as `montage + chapeauLeft + chapeauRight` (the **SUM**), while the
+ * engine builds it as `montage + max(chapeauL, chapeauR)` (the **MAX** — the two supports never share a
+ * cross-section, D-V103-5). For the default beam that is **7 bars vs 5**. Cross-ties bind by STABLE BAR
+ * INDEX (D-P3-4), so the two layouts index different bars: the legacy `nLegs` migration converted ties
+ * against the 7-bar layout and handed those indices to a 5-bar engine layout — silently anchoring
+ * épingles onto the wrong bars, or off the end of the list, on file open.
+ *
+ * Two layout functions that disagree IS the bug, so the wrong one is deleted rather than left for the
+ * next caller to find. `engineBeamLayoutBars` (below) is now the single beam layout the adapter uses.
+ */
 
 /**
  * Migrate a legacy v1.0.1 `nLegs` count to an equivalent cross-tie set (no data loss). A legacy
@@ -114,7 +111,16 @@ export function beamLayoutBars(doc: BeamDoc): BarPosition[] {
 function legacyNLegsToCrossTies(nLegs: number, layoutBars: BarPosition[]): CrossTie[] {
   const wanted = Math.floor((nLegs - 2) / 2);
   if (wanted <= 0) return [];
-  return autoCrossTies(layoutBars).slice(0, wanted);
+  const ties = autoCrossTies(layoutBars).slice(0, wanted);
+  // R4 (F-E): never emit a tie that points outside the layout it was bound against. `autoCrossTies`
+  // derives its pairs FROM `layoutBars`, so this cannot fire today — it is the guard that makes the
+  // index contract explicit, so a future divergence drops the tie loudly instead of mis-anchoring it
+  // onto whatever bar happens to sit at that index (invariant 8: no silent wrong binding).
+  return ties.filter((t) => {
+    const ok = t.barA < layoutBars.length && t.barB < layoutBars.length;
+    if (!ok) console.error(`[migrate] legacy nLegs cross-tie (${t.barA},${t.barB}) is out of range for a ${layoutBars.length}-bar layout — dropped.`);
+    return ok;
+  });
 }
 
 interface LegacyTie {
@@ -166,7 +172,7 @@ interface LegacyChapeau {
  * v1.0.3 G3 ([REF-SYS-260], spec §3.3): migrate a legacy single-`chapeau` beam to the two-support
  * model — a symmetric `left = right` SupportZone built from the old chapeau, with default anchorage +
  * width and no relevé. Idempotent (a doc already carrying `supports` passes through). Must run BEFORE
- * any code that reads `doc.supports` (e.g. `beamLayoutBars`).
+ * any code that reads `doc.supports` (e.g. `engineBeamLayoutBars`).
  */
 function migrateBeamSupports(doc: BeamDoc): BeamDoc {
   const legacy = doc as unknown as {
@@ -212,11 +218,14 @@ function migrateBeamSupports(doc: BeamDoc): BeamDoc {
 const CURTAIL_INSET_FRACTION = 0.1;
 
 /**
- * The beam cross-section layout **exactly as `beamInput` (solveDoc) builds it** — a representative TOP
- * face of `montage + max(chapeauL, chapeauR)` bars (the two supports never share a section), NOT the
- * SUM `beamLayoutBars` uses for cross-tie binding. The bar INDICES depend on this count (bars are
- * ordered TOP-then-BOTTOM), so per-bar edits keyed by index (curtailment migration) must use this
- * layout to hit the real span bars.
+ * **The** beam cross-section layout — exactly as `beamInput` (solveDoc) builds it: a representative TOP
+ * face of `montage + max(chapeauL, chapeauR)` bars (the two supports never share a cross-section,
+ * D-V103-5). Bar INDICES depend on this count (bars are ordered TOP-then-BOTTOM), and every index-keyed
+ * binding — cross-ties (D-P3-4), per-bar overrides, the curtailment migration — must be derived from it
+ * so it hits the bars the solver actually placed.
+ *
+ * v1.0.6-fix R4 (F-E): this is now the ONLY beam layout. Its SUM-based twin (`beamLayoutBars`, which
+ * produced 7 bars where the engine produces 5) is deleted — see the note above `legacyNLegsToCrossTies`.
  */
 export function engineBeamLayoutBars(doc: BeamDoc): BarPosition[] {
   const supL = doc.supports.left, supR = doc.supports.right;
@@ -298,10 +307,13 @@ export function migrateDoc(doc: ElementDoc): ElementDoc {
   }
   if (isBeamDoc(doc)) {
     const beam = migrateBeamContinuation( // v1.0.5 P2: legacy continuedToSupport → per-bar curtailment
-      migrateBeamSupports(doc), // G3: legacy chapeau → two supports (before beamLayoutBars)
+      migrateBeamSupports(doc), // G3: legacy chapeau → two supports (must run before the layout is read)
     );
     const legacy = beam.stirrup as LegacyTie;
-    const baseTies = legacy.crossTies ?? legacyNLegsToCrossTies(legacy.nLegs ?? 2, beamLayoutBars(beam));
+    // R4 (F-E): bind off the ENGINE layout (montage + MAX chapeau), which is what the solver actually
+    // builds and therefore what the bar indices mean. This used to read `beamLayoutBars` (the SUM), so a
+    // legacy beam with nLegs > 2 got its épingles anchored to bars that do not exist in the solve.
+    const baseTies = legacy.crossTies ?? legacyNLegsToCrossTies(legacy.nLegs ?? 2, engineBeamLayoutBars(beam));
     const folded = foldEpingleSupplements(beam.supplements, baseTies);
     const { nLegs: _drop, ...rest } = legacy;
     return {

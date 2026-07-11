@@ -57,6 +57,13 @@ export interface AddressableBarView {
    * limits are judged by the bundle rules (`placedBarRules.ts`). Absent for a non-bundle bar.
    */
   bundleId?: string;
+  /**
+   * v1.0.6-fix R1 (F-A): the diameter the CODE rules judge this bar on, when it differs from the
+   * physical `diameter` — i.e. `φₙ = φ·√n` for a bundle member (spec P-E, owner O-1). The clear-spacing
+   * **minimum** is a function of Ø, so a bundle must be judged as one equivalent bar; the **measured**
+   * gap stays physical (edge-to-edge on the real bars). Absent → the physical Ø is the code Ø.
+   */
+  codeDiameter?: number;
 }
 
 export interface AddressableSectionCtx {
@@ -195,8 +202,11 @@ function finishSpacing(
       if (e.bundleId !== undefined && e.bundleId === o.bundleId) continue;
       const du = e.position.u - o.position.u;
       const dv = e.position.v - o.position.v;
+      // measured gap = PHYSICAL edge-to-edge (the real bars are what they are) …
       const clear = Math.hypot(du, dv) - (e.diameter + o.diameter) / 2;
-      const sMin = clearSpacingMin(Math.max(e.diameter, o.diameter), ctx.dg);
+      // … but the REQUIRED minimum is a function of the CODE diameter: a bundle is judged as one
+      // equivalent bar of φₙ (R1/F-A, spec P-E). Non-bundle bars: codeDiameter absent → bare Ø, as before.
+      const sMin = clearSpacingMin(Math.max(e.codeDiameter ?? e.diameter, o.codeDiameter ?? o.diameter), ctx.dg);
       // rank by how far below its own minimum the pair sits (worst margin wins)
       if (clear - sMin < worstClear - worstMin) {
         worstClear = clear;
