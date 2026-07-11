@@ -437,8 +437,12 @@ function releveExtraBars(doc: BeamDoc, phiT: number): ExtraLongBar[] {
   const innerHalfW = Math.max(0, doc.geometry.b / 2 - doc.cover - phiT - phiSpan / 2);
   const out: ExtraLongBar[] = [];
   for (const rz of releves) {
-    const bottom = L * 0.25, top = L * 0.15, incline = innerH, angle = 45;
-    const run = bottom + top + incline * Math.cos((angle * Math.PI) / 180);
+    // v1.0.6 N6: the bottom-leg length is the editable bend-up station (mm from the near support),
+    // clamped to keep the whole bent bar inside the span. Absent → the legacy 0.25·L default.
+    const top = L * 0.15, incline = innerH, angle = 45;
+    const upRun = top + incline * Math.cos((angle * Math.PI) / 180);
+    const bottom = Math.max(0, Math.min(rz.bendStation ?? L * 0.25, Math.max(0, L - upRun)));
+    const run = bottom + upRun;
     const axisStart = rz.support === "left" ? 0 : Math.max(0, L - run);
     const params = { bottom, incline, top, angle };
     const n = Math.max(1, rz.count);

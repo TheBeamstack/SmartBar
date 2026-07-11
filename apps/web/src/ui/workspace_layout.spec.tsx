@@ -1,12 +1,12 @@
 /**
  * F4 ([REF-UI-830]) — the workspace re-layout. The right column stacks Verification + Project + BBS
- * as collapsible, independently scrollable sections; an expand toggle widens it over the 3D; Coupes
- * stays in the bottom dock. RTL (no WebGL) over the real store.
+ * as collapsible, independently scrollable sections; an expand toggle widens it over the 3D. RTL (no
+ * WebGL) over the real store. v1.0.6 N4 (U1) subsumed the old Coupes bottom dock into the section
+ * dock — the coupe assertion moved to `workspace_shell.spec.tsx`.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { RightColumn } from "./RightColumn";
-import { BottomPanel } from "./BottomPanel";
 import { useStore } from "../store/useStore";
 
 describe("F4 right-column workspace layout", () => {
@@ -15,7 +15,6 @@ describe("F4 right-column workspace layout", () => {
     useStore.setState({
       rightPanels: { verification: true, project: false, bbs: false },
       expandPanels: false,
-      bottomPanel: null,
     });
   });
 
@@ -51,15 +50,5 @@ describe("F4 right-column workspace layout", () => {
     fireEvent.click(screen.getByRole("button", { name: /élargir|expand/i }));
     expect(useStore.getState().expandPanels).toBe(true);
     expect(container.querySelector(".right-column")).toHaveClass("expanded");
-  });
-
-  it("Coupes stays in the bottom dock (and only Coupes lives there)", () => {
-    const { container, rerender } = render(<BottomPanel />);
-    // nothing docked by default
-    expect(container.querySelector(".bottom-panel")).toBeNull();
-
-    act(() => useStore.setState({ bottomPanel: "coupes" }));
-    rerender(<BottomPanel />);
-    expect(container.querySelector(".bottom-panel")).toBeInTheDocument();
   });
 });

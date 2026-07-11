@@ -10,7 +10,7 @@
  * (§5.5, bound by stable bar indices — click OR keyboard), and an expert toggle (§5.6).
  */
 import { create } from "zustand";
-import { defaultCoupeFor, type SectionCut } from "@rebarconfig/core";
+import { defaultCoupeFor, type SectionCut, type EndAnchorageChoice } from "@rebarconfig/core";
 import { type RcfgProject } from "@rebarconfig/exporters";
 import type { Lang } from "../i18n/strings";
 import {
@@ -26,8 +26,10 @@ import {
   type CrossTie,
   type BarOverrideEdit,
   type AddressableBar,
+  type PlacedBarDoc,
   type SupportZone,
   type ReleveZone,
+  type Splice,
   defaultColumnDoc,
   defaultDocFor,
   isColumnDoc,
@@ -35,7 +37,9 @@ import {
   isGenericDoc,
 } from "../engine/document";
 import { solveDoc, type SolveResult } from "../engine/solveDoc";
-import { supportSeededRegions } from "../engine/regions";
+import { supportSeededRegions, effectiveRegions, normalizeRegions, memberAxisLength } from "../engine/regions";
+import { selectedBarStations } from "../engine/elevation";
+import { snapSection, freshPlacedId, buildPlacedBar, type SectionGeom } from "../engine/placement";
 import {
   type ElementInstance,
   makeInstance,
@@ -44,8 +48,38 @@ import {
 import { rcfgToInstances } from "../engine/projectRcfg";
 import { DEFAULT_VIEW_ID } from "../viewport/cameraState";
 
-/** v1.0.6 N2 (U2): the active section-canvas tool. Add-bar/row tools arrive in N5. */
-export type SectionTool = "select" | "link";
+/**
+ * v1.0.6 N2 (U2) + N5 (U4): the active section-canvas tool (a modal tool). `select`/`link` are N2;
+ * the `add-*` placement tools + `measure` are N5 (a click on the canvas — or the typed-coord twin —
+ * drops the palette shape as the matching `PlacedBar`). `Esc` returns to `select`.
+ */
+export type SectionTool =
+  | "select"
+  | "link"
+  | "add-single"
+  | "add-row"
+  | "add-bundle"
+  | "add-layer"
+  | "measure";
+/** N5: which of the `add-*` tools maps to which placement kind (else the tool isn't a placement tool). */
+export const PLACE_KIND_BY_TOOL: Partial<Record<SectionTool, "single" | "row" | "bundle" | "layer">> = {
+  "add-single": "single",
+  "add-row": "row",
+  "add-bundle": "bundle",
+  "add-layer": "layer",
+};
+
+/**
+ * v1.0.6 N4 (U1, [REF-UI-830]) — the two editable 2D docks that flank the always-on 3D. `section`
+ * (the coupe / pick canvas) sizes by WIDTH; `elevation` (the longitudinal view) sizes by HEIGHT. Each
+ * is independently open/collapsed + resizable. Session-only layout, NOT in `.rcfg`, NOT reset on `reset()`.
+ */
+export type DockKey = "section" | "elevation";
+export interface DockState {
+  open: boolean;
+  /** section dock = width (px); elevation dock = height (px). */
+  size: number;
+}
 /** What a completed two-bar link on the section canvas creates (set by the driving panel). */
 export type SectionLink =
   | { kind: "crosstie" }
@@ -89,8 +123,12 @@ export interface AppState {
   cuts: SectionCut[];
   /** the coupe currently shown in the manager preview + 3D cutting-line. */
   activeCutId: string;
-  /** the bottom dock (F4: Coupes only — it is spatially tied to the 3D), or none. */
-  bottomPanel: "coupes" | null;
+  /**
+   * v1.0.6 N4 (U1, [REF-UI-830]) — the editable 2D docks flanking the always-on 3D. `section` hosts
+   * the pick canvas + the coupe (it subsumes the old F4 Coupes bottom dock); `elevation` hosts the
+   * longitudinal view. Session-only, NOT in `.rcfg`, NOT reset on element `reset()` (a layout pref).
+   */
+  docks: Record<DockKey, DockState>;
   /** F4 right-column sections (Verification / Project / BBS), each independently open/collapsed. */
   rightPanels: { verification: boolean; project: boolean; bbs: boolean };
   /** F4: widen the right column leftward over the 3D for focused reading ([REF-UI-830]). */
@@ -177,6 +215,22 @@ export interface AppState {
   setBarOverrides: (overrides: BarOverrideEdit[]) => void;
   setExtraBars: (bars: AddressableBar[]) => void;
 
+  // v1.0.6 N6 (U5, [REF-UI-811]) — the editable elevation's station-model edits. Each is committed
+  // by BOTH the on-canvas drag (owner-GPU-verified) and its numeric twin in the inspector /
+  // RegionEditor (headless-tested, §0.3.3). They target the ONE unified `selection` (a longitudinal
+  // override or an independent extra); row/bundle/layer curtailment lands with the N5 selection (§7).
+  /** curtail the selected bar: set (or, with `undefined`, clear) its start/end curtailment station. */
+  curtailSelectedBar: (end: "start" | "end", station: number | undefined) => void;
+  /** per-end anchorage where the selected bar stops (runs-through handle at a support). */
+  setSelectedBarAnchorage: (choice: EndAnchorageChoice | undefined) => void;
+  /** drop a lap/coupler on the selected bar at a station (deduped); remove one by station. */
+  addSelectedBarSplice: (at: number, kind: Splice["kind"]) => void;
+  removeSelectedBarSplice: (at: number) => void;
+  /** grab a relevé's bend-up point → set its bend station (beam only). */
+  setReleveBend: (id: string, station: number) => void;
+  /** drag a stirrup/tie zone boundary → move region `index`'s upper edge (normalized, == the table). */
+  moveStirrupRegionBoundary: (index: number, station: number) => void;
+
   // 2D section picker (F7): selected longitudinal bar indices (into result.bars), synced to 3D
   selectedBars: number[];
   setSelectedBars: (indices: number[]) => void;
@@ -198,6 +252,20 @@ export interface AppState {
   pickSectionBar: (index: number) => void;
   pickSectionExtra: (id: string) => void;
 
+  // v1.0.6 N5 (U4, [REF-UI-560]) — the placement palette. The active `add-*` tool + the palette
+  // shape/Ø decide what a canvas click (or the typed-coordinate twin + Place) drops; `placeCoord` is
+  // the live snapped section coordinate (the a11y/precision typable twin). All session-only, NOT in `.rcfg`.
+  paletteShape: string;
+  paletteDiameter: number;
+  placeCoord: { u: number; v: number };
+  setPaletteShape: (shapeId: string) => void;
+  setPaletteDiameter: (d: number) => void;
+  setPlaceCoord: (c: { u: number; v: number }) => void;
+  /** the canonical placed steel on the active doc (single / row / bundle / layer). */
+  setPlaced: (placed: PlacedBarDoc[]) => void;
+  /** drop the palette shape as the matching `PlacedBar` at (snapped) (u,v); no-op if not an add-tool. */
+  placeInSection: (u: number, v: number) => void;
+
   // v1.0.6 N3 (U3, §0.3.4) — the unified selection that drives the contextual inspector. `select`
   // is the single entry point: it sets `selection` and keeps the legacy highlight channels
   // (`selectedBars`/`selectedGroupIds`/`selectedExtraId`) mutually-exclusive + in sync.
@@ -218,7 +286,9 @@ export interface AppState {
   removeCut: (id: string) => void;
   updateCut: (id: string, patch: Partial<SectionCut>) => void;
   selectCut: (id: string) => void;
-  setBottomPanel: (panel: "coupes" | null) => void;
+  /** N4 (U1): open/collapse a dock; resize it (width for section, height for elevation). */
+  toggleDock: (key: DockKey) => void;
+  resizeDock: (key: DockKey, size: number) => void;
   toggleRightPanel: (key: "verification" | "project" | "bbs") => void;
   toggleExpandPanels: () => void;
 
@@ -279,6 +349,39 @@ const asBeam = (doc: ElementDoc, fn: (d: BeamDoc) => BeamDoc): ElementDoc =>
 const asGeneric = (doc: ElementDoc, fn: (d: GenericDoc) => GenericDoc): ElementDoc =>
   isGenericDoc(doc) ? fn(doc) : doc;
 
+/** Drop keys whose value is `undefined` so clearing a station/anchorage removes the field entirely
+ *  (keeping an otherwise-untouched bar byte-identical to legacy — N6). */
+function stripUndef<T extends object>(o: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
+  return out as T;
+}
+
+/**
+ * v1.0.6 N6 — patch the currently selected bar's station model (curtailment / anchorage / splices),
+ * routing a group override (by stable index) or an independent extra (by id) through the same setters
+ * the inspector uses, then re-solving. `undefined`-valued patch keys are stripped (clears the field).
+ */
+function patchSelectedBar(get: () => AppState, patch: Record<string, unknown>): void {
+  const { selection, doc } = get();
+  if (!selection) return;
+  if (selection.kind === "bar") {
+    const group = isColumnDoc(doc) ? doc.longitudinal : isBeamDoc(doc) ? doc.span : null;
+    if (!group) return;
+    const overrides = group.barOverrides ?? [];
+    const idx = selection.index;
+    const next = overrides.some((o) => o.index === idx)
+      ? overrides.map((o) => (o.index === idx ? (stripUndef({ ...o, ...patch }) as BarOverrideEdit) : o))
+      : [...overrides, stripUndef({ index: idx, ...patch }) as BarOverrideEdit];
+    get().setBarOverrides(next);
+  } else if (selection.kind === "extra") {
+    if (!isColumnDoc(doc) && !isBeamDoc(doc)) return;
+    const extras = doc.extraBars ?? [];
+    const next = extras.map((e) => (e.id === selection.id ? (stripUndef({ ...e, ...patch }) as AddressableBar) : e));
+    get().setExtraBars(next);
+  }
+}
+
 export const useStore = create<AppState>((set, get) => {
   const initial = withDoc(defaultColumnDoc());
   const firstInstance = makeInstance(initial.doc, initial.cuts, "P1");
@@ -302,13 +405,16 @@ export const useStore = create<AppState>((set, get) => {
     sectionTool: "select",
     sectionLink: null,
     pendingLinkBar: null,
+    paletteShape: "DROITE",
+    paletteDiameter: 12,
+    placeCoord: { u: 0, v: 0 },
     selection: null,
     advancedForm: true,
     expert: false,
     lang: "fr",
     showSection: false,
     debugPerf: false,
-    bottomPanel: null,
+    docks: { section: { open: true, size: 300 }, elevation: { open: true, size: 200 } },
     rightPanels: { verification: true, project: false, bbs: false },
     expandPanels: false,
     projection: "perspective",
@@ -451,6 +557,47 @@ export const useStore = create<AppState>((set, get) => {
     setSelectedBars: (indices) => set({ selectedBars: indices }),
     setSelectedExtraId: (id) => set({ selectedExtraId: id }),
 
+    // --- v1.0.6 N6 (U5) — station-model edits on the currently selected bar ---------------------
+    // One private router patches the selected bar (a group override by index, or an extra by id) and
+    // re-solves through the same setters the inspector uses; undefined-valued keys are stripped so a
+    // cleared curtailment leaves no field behind. Used by curtail / anchorage / splice below.
+    curtailSelectedBar: (end, station) => {
+      const field = end === "start" ? "startStation" : "endStation";
+      patchSelectedBar(get, { [field]: station });
+    },
+    setSelectedBarAnchorage: (choice) => patchSelectedBar(get, { anchorage: choice }),
+    addSelectedBarSplice: (at, kind) => {
+      const cur = selectedBarStations(get().doc, get().selection);
+      if (!cur) return;
+      const next: Splice[] = [...cur.splices.filter((sp) => sp.at !== at), { at, kind }].sort((a, b) => a.at - b.at);
+      patchSelectedBar(get, { splices: next });
+    },
+    removeSelectedBarSplice: (at) => {
+      const cur = selectedBarStations(get().doc, get().selection);
+      if (!cur) return;
+      const next = cur.splices.filter((sp) => sp.at !== at);
+      // empty list → clear the field (undefined) so an otherwise-untouched bar stays legacy-identical.
+      patchSelectedBar(get, { splices: next.length ? next : undefined });
+    },
+    setReleveBend: (id, station) => {
+      const doc = get().doc;
+      if (!isBeamDoc(doc)) return;
+      const releves = (doc.releves ?? []).map((r) => (r.id === id ? { ...r, bendStation: Math.max(0, Math.round(station)) } : r));
+      get().setReleves(releves);
+    },
+    moveStirrupRegionBoundary: (index, station) => {
+      const doc = get().doc;
+      if (!isColumnDoc(doc) && !isBeamDoc(doc)) return;
+      const tset = isColumnDoc(doc) ? doc.tie : doc.stirrup;
+      const length = memberAxisLength(doc);
+      const rows = effectiveRegions(tset.regions, length, tset.spacing).map((r) => ({ ...r }));
+      if (index < 0 || index >= rows.length) return;
+      rows[index]!.to = station;
+      const next = normalizeRegions(rows, length, tset.spacing);
+      if (isColumnDoc(doc)) get().setTie({ regions: next });
+      else get().setStirrup({ regions: next });
+    },
+
     // v1.0.6 N3 (U3, §0.3.4) — the unified selection entry point. Sets `selection` and keeps the
     // legacy highlight channels mutually-exclusive so the inspector, the 3D and the 2D all agree.
     select: (sel) => {
@@ -476,9 +623,10 @@ export const useStore = create<AppState>((set, get) => {
     },
     setAdvancedForm: (on) => set({ advancedForm: on }),
 
-    // v1.0.6 N2 (U2) — the ONE section canvas tool router.
+    // v1.0.6 N2 (U2) + N5 (U4) — the ONE section canvas tool router. Switching to any tool that is not
+    // `link` clears the armed link state (so arming, then picking an add-tool, doesn't leave it dangling).
     setSectionTool: (tool) =>
-      set(tool === "select" ? { sectionTool: "select", sectionLink: null, pendingLinkBar: null } : { sectionTool: tool }),
+      set(tool === "link" ? { sectionTool: "link" } : { sectionTool: tool, sectionLink: null, pendingLinkBar: null }),
     beginLink: (link) =>
       set({ sectionTool: "link", sectionLink: link, pendingLinkBar: null, selectedBars: [], selectedExtraId: null }),
     cancelLink: () => set({ sectionTool: "select", sectionLink: null, pendingLinkBar: null, selectedBars: [] }),
@@ -530,6 +678,36 @@ export const useStore = create<AppState>((set, get) => {
       }
       // stay armed for more links; just clear the pending pick
       set({ pendingLinkBar: null, selectedBars: [] });
+    },
+
+    // v1.0.6 N5 (U4) — the placement palette.
+    setPaletteShape: (shapeId) => set({ paletteShape: shapeId }),
+    setPaletteDiameter: (d) => set({ paletteDiameter: d }),
+    setPlaceCoord: (c) => set({ placeCoord: c }),
+    setPlaced: (placed) => {
+      const doc = get().doc;
+      set(edit({ ...doc, placed } as ElementDoc));
+    },
+    placeInSection: (u, v) => {
+      const { doc, sectionTool, paletteShape, paletteDiameter } = get();
+      const geom: SectionGeom =
+        isColumnDoc(doc) || isBeamDoc(doc)
+          ? { b: doc.geometry.b, h: doc.geometry.h, cover: doc.cover, diameter: paletteDiameter }
+          : { cover: doc.cover, diameter: paletteDiameter };
+      const snapped = snapSection(u, v, geom);
+      set({ placeCoord: snapped }); // keep the typed-coordinate twin in sync with the snapped drop
+      const kind = PLACE_KIND_BY_TOOL[sectionTool];
+      if (!kind) return; // select / link / measure: no drop, just the readout
+      const existing = (doc as { placed?: PlacedBarDoc[] }).placed ?? [];
+      const bar = buildPlacedBar(kind, {
+        id: freshPlacedId(existing),
+        u: snapped.u,
+        v: snapped.v,
+        shapeId: paletteShape,
+        diameter: paletteDiameter,
+        geom,
+      });
+      get().setPlaced([...existing, bar]);
     },
 
     setBeamGeometry: (patch) =>
@@ -620,7 +798,17 @@ export const useStore = create<AppState>((set, get) => {
         ),
       }),
     selectCut: (id) => set({ activeCutId: id }),
-    setBottomPanel: (panel) => set({ bottomPanel: get().bottomPanel === panel ? null : panel }),
+    // N4 (U1): the docks are a session layout pref (like `rightPanels`). Min size floors keep a
+    // resized dock usable; nothing here touches the document or `.rcfg`.
+    toggleDock: (key) =>
+      set({ docks: { ...get().docks, [key]: { ...get().docks[key], open: !get().docks[key].open } } }),
+    resizeDock: (key, size) =>
+      set({
+        docks: {
+          ...get().docks,
+          [key]: { ...get().docks[key], size: Math.max(120, Math.round(size)) },
+        },
+      }),
     toggleRightPanel: (key) =>
       set({ rightPanels: { ...get().rightPanels, [key]: !get().rightPanels[key] } }),
     toggleExpandPanels: () => set({ expandPanels: !get().expandPanels }),
@@ -678,6 +866,9 @@ export const useStore = create<AppState>((set, get) => {
         sectionTool: "select",
         sectionLink: null,
         pendingLinkBar: null,
+        paletteShape: "DROITE",
+        paletteDiameter: 12,
+        placeCoord: { u: 0, v: 0 },
         selection: null,
         expert: false,
         projection: "perspective",

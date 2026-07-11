@@ -42,8 +42,8 @@ export function Navbar() {
   const toggleSection = useStore((s) => s.toggleSection);
   const debugPerf = useStore((s) => s.debugPerf);
   const toggleDebugPerf = useStore((s) => s.toggleDebugPerf);
-  const bottomPanel = useStore((s) => s.bottomPanel);
-  const setBottomPanel = useStore((s) => s.setBottomPanel);
+  const sectionDockOpen = useStore((s) => s.docks.section.open);
+  const toggleDock = useStore((s) => s.toggleDock);
   const rightPanels = useStore((s) => s.rightPanels);
   const toggleRightPanel = useStore((s) => s.toggleRightPanel);
   const loadProject = useStore((s) => s.loadProject);
@@ -163,11 +163,12 @@ export function Navbar() {
       >
         {s.expert}
       </button>
+      {/* v1.0.6 N4 (U1): the Coupes bottom dock was subsumed by the section dock — this toggles it. */}
       <button
         type="button"
-        className={bottomPanel === "coupes" ? "active" : ""}
-        onClick={() => setBottomPanel("coupes")}
-        aria-pressed={bottomPanel === "coupes"}
+        className={sectionDockOpen ? "active" : ""}
+        onClick={() => toggleDock("section")}
+        aria-pressed={sectionDockOpen}
       >
         {s.coupes.title}
       </button>

@@ -11,6 +11,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { FaconnageEditor } from "./FaconnageEditor";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { SectionDock } from "./SectionDock";
 import { useStore } from "../store/useStore";
 
 const editor = (shapeId: string) =>
@@ -58,11 +59,11 @@ describe("H18 — AddressableBars uses the i18n bundle", () => {
   beforeEach(() => useStore.getState().reset());
 
   it("renders the bundle title in both languages", () => {
-    const { container, rerender } = render(<><Navbar /><Sidebar /></>);
+    const { container, rerender } = render(<><Navbar /><Sidebar /><SectionDock /></>);
     const panel = () => container.querySelector(".addressable") as HTMLElement;
     expect(within(panel()).getByText("Détail barre par barre")).toBeInTheDocument();
     useStore.getState().toggleLang();
-    rerender(<><Navbar /><Sidebar /></>);
+    rerender(<><Navbar /><Sidebar /><SectionDock /></>);
     expect(within(panel()).getByText("Bar-by-bar detailing")).toBeInTheDocument();
   });
 });
@@ -71,7 +72,7 @@ describe("H12 — DROITE length coupled to the member with a toggle", () => {
   beforeEach(() => useStore.getState().reset());
 
   it("shows the coupled (read-only) length by default and reveals the field on toggle", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);
     const panel = container.querySelector(".addressable") as HTMLElement;
     // v1.0.6 N2: pick the bar on the ONE shared SectionCanvas (select mode) → this editor targets it.
     const canvas = container.querySelector(".section-canvas") as HTMLElement;

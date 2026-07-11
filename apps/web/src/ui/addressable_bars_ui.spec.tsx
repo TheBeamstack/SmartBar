@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, within, fireEvent } from "@testing-library/react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { SectionDock } from "./SectionDock";
 import { useStore } from "../store/useStore";
 import { placeBars } from "@rebarconfig/core";
 import { solveDoc } from "../engine/solveDoc";
@@ -20,7 +21,7 @@ describe("G2 addressable-bars editor", () => {
   beforeEach(() => useStore.getState().reset());
 
   it("removing the selected bar records a removed override and drops it from the placement", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);
     const panel = panelOf(container);
     // v1.0.6 N2: the section picker moved out of this panel into the ONE shared SectionCanvas; pick a
     // bar there (select mode by default) → this editor targets it via `selectedBars`.
@@ -38,7 +39,7 @@ describe("G2 addressable-bars editor", () => {
   });
 
   it("adds an independent extra bar to the doc", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);
     fireEvent.click(within(panelOf(container)).getByText(/Ajouter une barre|Add a bar/));
     expect((useStore.getState().doc as ColumnDoc).extraBars?.length).toBe(1);
   });

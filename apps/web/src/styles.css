@@ -76,7 +76,77 @@ html, body, #root {
   padding: 12px;
 }
 
+/* ---- N4 (U1 [REF-UI-830]) workspace shell: 3D-primary + editable 2D docks ---- */
+.workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.workspace-center { flex: 1; min-height: 0; display: flex; min-width: 0; }
 .viewport-pane { flex: 1; min-width: 0; position: relative; }
+
+/* a dock is a first-class 2D panel flanking the always-on 3D; resizable + collapsible, session-only */
+.dock {
+  position: relative;
+  background: var(--panel);
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.section-dock {
+  flex: 0 0 auto;
+  border-left: 1px solid var(--border);
+  flex-direction: row;
+}
+.elevation-dock {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  flex-direction: column;
+}
+.dock-inner { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+.dock-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+.dock-title { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.dock-note { font-size: 11px; color: var(--muted); font-style: italic; }
+.dock-collapse {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 1px 7px;
+}
+.dock-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; }
+.elevation-body { display: flex; align-items: center; justify-content: center; }
+.elevation-svg { width: 100%; height: 100%; max-height: 100%; }
+/* v1.0.6 N6 — editable elevation handles (drag → curtailment / zone boundaries). Owner-GPU-verified. */
+.elevation-svg-edit .elev-handle { cursor: ew-resize; }
+.elevation-svg-edit .elev-handle:hover { stroke: #fff; stroke-width: 1.5; }
+.elevation-svg-edit .elev-boundary { cursor: ew-resize; }
+.elevation-svg-edit .elev-boundary:hover { stroke: #8bc0ff; stroke-width: 3; }
+.elevation-svg-edit .elev-splice { pointer-events: none; }
+.elev-live { font-weight: 600; }
+
+/* resize handles — a thin draggable divider on the edge facing the 3D (keyboard arrows resize too) */
+.dock-resize { flex: 0 0 6px; background: transparent; }
+.dock-resize:hover, .dock-resize:focus-visible { background: var(--accent, #4493f8); outline: none; }
+.dock-resize-v { cursor: ew-resize; }
+.dock-resize-h { height: 6px; cursor: ns-resize; }
+
+/* the thin re-open strip shown when a dock is collapsed */
+.dock-reopen {
+  background: var(--panel-2);
+  color: var(--muted);
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  writing-mode: vertical-rl;
+}
+.dock-reopen-v { flex: 0 0 26px; border-left: 1px solid var(--border); padding: 8px 0; }
+.dock-reopen-h { flex: 0 0 26px; writing-mode: horizontal-tb; border-top: 1px solid var(--border); padding: 4px 0; text-align: center; }
 
 /* ---- F4 right column (Verification + Project + BBS) ---- */
 .right-column {
@@ -407,20 +477,6 @@ html, body, #root {
   user-select: none;
 }
 
-/* ---- bottom dock (coupes / BBS) ---- */
-.bottom-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  max-height: 46%;
-  overflow: auto;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-  padding: 12px 14px;
-  z-index: 10;
-}
-
 /* ---- BBS table ---- */
 .bbs-panel h3 { margin: 0 0 8px; font-size: 13px; }
 .review-stamp { color: var(--warn); margin: 0 0 8px; font-weight: 600; }
@@ -502,6 +558,43 @@ html, body, #root {
   border-radius: 6px;
   display: block;
 }
+.section-picker-svg.sp-placing { cursor: crosshair; }
+.sp-place-area { cursor: crosshair; }
+
+/* ---- N5 (U4 [REF-UI-560]) tool palette + place-by-pointing ---- */
+.tool-palette { margin-bottom: 8px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.tool-btn {
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tool-btn.active { color: var(--text, #e6edf3); border-color: var(--accent, #4493f8); background: rgba(68, 147, 248, 0.12); }
+.palette { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; background: var(--panel-2); }
+.palette-hint { margin: 0 0 6px; font-size: 12px; }
+.palette-coord { display: flex; gap: 8px; }
+.field-inline { flex: 1; }
+.palette-place {
+  margin-top: 8px;
+  width: 100%;
+  background: var(--accent, #4493f8);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+.placed-list { margin-top: 4px; }
+.placed-list ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.placed-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+.placed-desc { flex: 1; font-size: 12px; }
+.placed-count { display: flex; align-items: center; gap: 4px; }
+.placed-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; }
 .sp-concrete { fill: rgba(200, 204, 210, 0.10); stroke: #3a434f; stroke-width: 2; }
 .sp-bar { cursor: pointer; outline: none; }
 .sp-bar:focus-visible circle { stroke: #22d3ee; }
@@ -570,6 +663,13 @@ html, body, #root {
 .inspector-title { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .inspector-empty { font-size: 13px; }
 .inspector-extra-pos, .addressable-extra-pos { display: flex; flex-wrap: wrap; gap: 6px; }
+/* v1.0.6 N6 — the station-model numeric twins (curtailment / anchorage / splices) inside the inspector. */
+.inspector-stations { margin-top: 8px; padding: 6px 8px; border: 1px dashed var(--border, #3a4453); border-radius: 6px; }
+.inspector-stations legend { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.inspector-splices { margin-top: 6px; }
+.inspector-splice-add { display: flex; gap: 6px; margin: 4px 0; }
+.inspector-splice-list { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.inspector-splice-list li { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; }
 
 .advanced-toggle {
   width: 100%; text-align: left; font-size: 12px; padding: 5px 8px; margin: 4px 0 6px;

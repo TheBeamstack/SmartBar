@@ -205,6 +205,13 @@ export interface ReleveZone {
   count: number;
   diameter: number;
   asReq?: number;
+  /**
+   * v1.0.6 N6 ([REF-UI-811]) — the bend-up STATION (mm along the member from the near support) where
+   * the relevé lifts off the bottom face. Editable via the elevation drag (grab the bend-up point) + a
+   * numeric twin. Absent → the legacy default (0.25·L bottom leg). Adapter-only (`releveExtraBars`),
+   * no core geometry change: it just parameterises the existing `RELEVE` shape's `bottom` leg.
+   */
+  bendStation?: number;
 }
 
 /** One user-added supplemental add-on instance (§5.5), bound to base bars by STABLE indices. */

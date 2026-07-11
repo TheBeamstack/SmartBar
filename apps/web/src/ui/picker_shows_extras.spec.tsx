@@ -8,13 +8,14 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, within, fireEvent } from "@testing-library/react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { SectionDock } from "./SectionDock";
 import { useStore } from "../store/useStore";
 
 describe("H7 — extras on the section picker", () => {
   beforeEach(() => useStore.getState().reset());
 
   it("renders a pickable entry for each independent extra bar; picking it selects by id", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);
     const panel = () => container.querySelector(".addressable") as HTMLElement;
     // v1.0.6 N2: extras are added from the panel but PICKED on the ONE shared SectionCanvas.
     const canvas = () => container.querySelector(".section-canvas") as HTMLElement;
@@ -35,7 +36,7 @@ describe("H7 — extras on the section picker", () => {
   });
 
   it("selecting a layout bar clears the extra selection", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);
     const panel = () => container.querySelector(".addressable") as HTMLElement;
     const canvas = () => container.querySelector(".section-canvas") as HTMLElement;
     fireEvent.click(within(panel()).getByText(/Ajouter une barre|Add a bar/));

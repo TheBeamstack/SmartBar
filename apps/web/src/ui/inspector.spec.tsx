@@ -10,8 +10,15 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, within, fireEvent } from "@testing-library/react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { SectionDock } from "./SectionDock";
 import { useStore } from "../store/useStore";
 import type { ColumnDoc } from "../engine/document";
+
+// v1.0.6 N4 (U1): the ONE section canvas now lives in the section DOCK (around the 3D), not the
+// Sidebar; the inspector stays in the left region. Render both so the canvas + inspector are present.
+function renderShell() {
+  return render(<><Navbar /><Sidebar /><SectionDock /></>);
+}
 
 const canvasBars = (c: HTMLElement) => {
   const canvas = c.querySelector(".section-canvas") as HTMLElement;
@@ -36,7 +43,7 @@ describe("v1.0.6 U3 — contextual inspector + unified selection", () => {
   });
 
   it("selecting a bar on the canvas opens the inspector; editing there hits the store (== the form)", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     const inspector = () => container.querySelector(".inspector") as HTMLElement;
     // nothing selected → the empty hint
     expect(inspector().querySelector(".inspector-empty")).toBeTruthy();
@@ -53,7 +60,7 @@ describe("v1.0.6 U3 — contextual inspector + unified selection", () => {
   });
 
   it("selecting a cross-tie opens it in the inspector and highlights its pair", () => {
-    render(<><Navbar /><Sidebar /></>);
+    renderShell();
     // seed a cross-tie on the column tie
     useStore.getState().setCrossTies([{ barA: 0, barB: 2 }]);
     useStore.getState().select({ kind: "crosstie", index: 0, barA: 0, barB: 2 });
@@ -63,7 +70,7 @@ describe("v1.0.6 U3 — contextual inspector + unified selection", () => {
   });
 
   it("the advanced tabbed form is present by default and toggles off/on (complete fallback)", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     expect(useStore.getState().advancedForm).toBe(true);
     expect(container.querySelector('[role="tablist"]')).toBeTruthy();
     expect(container.querySelector(".readout")).toBeTruthy(); // ZoneReadout preserved
@@ -81,12 +88,12 @@ describe("v1.0.6 U3 — contextual inspector + unified selection", () => {
   });
 
   it("EXACTLY ONE section canvas mounts (the inspector reuses the N2 canvas, no second copy)", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     expect(container.querySelectorAll(".section-canvas").length).toBe(1);
   });
 
   it("the compact element-setup strip is always visible and drives the store", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     const strip = container.querySelector(".setup-strip") as HTMLElement;
     expect(strip).toBeTruthy();
     // the code-pack select in the strip mutates the doc

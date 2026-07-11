@@ -202,6 +202,47 @@ export interface Strings {
     expand: string;
     collapse: string;
     expandHint: string;
+    sectionDock: string;
+    elevationDock: string;
+    openDock: string;
+    collapseDock: string;
+    resizeDock: string;
+    elevationReadonly: string;
+  };
+  tools: {
+    title: string;
+    select: string;
+    addBar: string;
+    addRow: string;
+    addLayer: string;
+    addBundle: string;
+    link: string;
+    measure: string;
+    shape: string;
+    place: string;
+    placed: string;
+    remove: string;
+    count: string;
+    hint: string;
+    placeHint: string;
+    measureHint: string;
+  };
+  /** v1.0.6 N6 (U5) — the editable elevation: curtailment / anchorage / splices / zone boundaries. */
+  elevation: {
+    editHint: string;
+    curtailStart: string;
+    curtailEnd: string;
+    anchorage: string;
+    anchNone: string;
+    anchStraight: string;
+    anchHook: string;
+    splices: string;
+    addLap: string;
+    addCoupler: string;
+    removeSplice: string;
+    bendStation: string;
+    runsThrough: string;
+    live: string;
   };
   alerts: string;
   noAlerts: string;
@@ -474,10 +515,50 @@ const FR: Strings = {
       As_top_montage: "Montage (haut)",
     },
   },
+  tools: {
+    title: "Outils",
+    select: "Sélection",
+    addBar: "Barre",
+    addRow: "Lit",
+    addLayer: "Couche",
+    addBundle: "Paquet",
+    link: "Lier",
+    measure: "Mesure",
+    shape: "Forme",
+    place: "Placer",
+    placed: "Barres placées",
+    remove: "Retirer",
+    count: "Nombre",
+    hint: "Choisis une forme, puis clique sur la coupe (ou saisis u/v + Placer).",
+    placeHint: "Clique sur la coupe pour déposer la barre.",
+    measureHint: "Survole la coupe pour lire les coordonnées (mesure complète : N6).",
+  },
+  elevation: {
+    editHint: "Sélectionne une barre, puis glisse ses bouts (arrêt) ou les limites de zone ; valeurs saisissables à droite.",
+    curtailStart: "Arrêt départ (mm)",
+    curtailEnd: "Arrêt fin (mm)",
+    anchorage: "Ancrage au bout",
+    anchNone: "Coupé net",
+    anchStraight: "Droit",
+    anchHook: "Crochet",
+    splices: "Recouvrements / manchons",
+    addLap: "+ Recouvrement",
+    addCoupler: "+ Manchon",
+    removeSplice: "Retirer",
+    bendStation: "Point de relevé (mm)",
+    runsThrough: "Traverse l'appui",
+    live: "Station",
+  },
   workspace: {
     expand: "Élargir",
     collapse: "Réduire",
     expandHint: "Élargir la colonne sur la 3D",
+    sectionDock: "Section",
+    elevationDock: "Élévation",
+    openDock: "Ouvrir le panneau",
+    collapseDock: "Réduire le panneau",
+    resizeDock: "Redimensionner",
+    elevationReadonly: "lecture seule — édition en N6",
   },
   alerts: "Vérifications",
   noAlerts: "Aucune vérification",
@@ -749,10 +830,50 @@ const EN: Strings = {
       As_top_montage: "Top (montage)",
     },
   },
+  tools: {
+    title: "Tools",
+    select: "Select",
+    addBar: "Bar",
+    addRow: "Row",
+    addLayer: "Layer",
+    addBundle: "Bundle",
+    link: "Link",
+    measure: "Measure",
+    shape: "Shape",
+    place: "Place",
+    placed: "Placed bars",
+    remove: "Remove",
+    count: "Count",
+    hint: "Pick a shape, then click the section (or type u/v + Place).",
+    placeHint: "Click the section to drop the bar.",
+    measureHint: "Hover the section to read coordinates (full measure: N6).",
+  },
+  elevation: {
+    editHint: "Select a bar, then drag its ends (curtailment) or the zone boundaries; typed values on the right.",
+    curtailStart: "Start cut-off (mm)",
+    curtailEnd: "End cut-off (mm)",
+    anchorage: "End anchorage",
+    anchNone: "Bare cut",
+    anchStraight: "Straight",
+    anchHook: "Hook",
+    splices: "Laps / couplers",
+    addLap: "+ Lap",
+    addCoupler: "+ Coupler",
+    removeSplice: "Remove",
+    bendStation: "Bend-up point (mm)",
+    runsThrough: "Runs through support",
+    live: "Station",
+  },
   workspace: {
     expand: "Expand",
     collapse: "Shrink",
     expandHint: "Widen the column over the 3D",
+    sectionDock: "Section",
+    elevationDock: "Elevation",
+    openDock: "Open panel",
+    collapseDock: "Collapse panel",
+    resizeDock: "Resize",
+    elevationReadonly: "read-only — editing in N6",
   },
   alerts: "Checks",
   noAlerts: "No checks",

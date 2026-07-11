@@ -6,14 +6,17 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { SectionDock } from "./SectionDock";
 import { useStore } from "../store/useStore";
 import { type ColumnDoc } from "../engine/document";
 
 function renderApp() {
+  // v1.0.6 N4 (U1): the ONE section canvas lives in the section DOCK now (not the Sidebar).
   return render(
     <>
       <Navbar />
       <Sidebar />
+      <SectionDock />
     </>,
   );
 }

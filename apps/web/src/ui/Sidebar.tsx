@@ -17,7 +17,6 @@ import { CrossTieEditor } from "./CrossTieEditor";
 import { RegionEditor } from "./RegionEditor";
 import { FaconnageEditor } from "./FaconnageEditor";
 import { AddressableBars } from "./AddressableBars";
-import { SectionCanvas } from "./SectionCanvas";
 import { Inspector } from "./Inspector";
 import { ElementSetupStrip } from "./ElementSetupStrip";
 import { cm2, perZoneReadout } from "./derived";
@@ -222,22 +221,27 @@ function ReleveEditor() {
   const lang = useStore((s) => s.lang);
   const doc = useStore((s) => s.doc);
   const setReleves = useStore((s) => s.setReleves);
+  const setReleveBend = useStore((s) => s.setReleveBend);
   const s = t(lang);
   if (!isBeamDoc(doc)) return null;
   const releves = doc.releves ?? [];
+  const L = doc.geometry.L;
   const add = () =>
     setReleves([...releves, { id: `R${releves.length + 1}`, support: "left", count: 2, diameter: 12 }]);
   return (
     <>
       <h3>{s.beam.releves}</h3>
       {releves.map((r, i) => (
-        <div className="field-row" key={r.id}>
+        <div className="field-row field-row-wrap" key={r.id}>
           <select aria-label={s.beam.releveSupport} value={r.support} onChange={(e) => setReleves(releves.map((x, j) => (j === i ? { ...x, support: e.target.value as "left" | "right" } : x)))}>
             <option value="left">V1</option>
             <option value="right">V2</option>
           </select>
           <Stepper label={s.beam.releveCount} value={r.count} min={1} max={8} onChange={(v) => setReleves(releves.map((x, j) => (j === i ? { ...x, count: v } : x)))} />
           <DiameterSelect value={r.diameter} onChange={(v) => setReleves(releves.map((x, j) => (j === i ? { ...x, diameter: v } : x)))} />
+          {/* v1.0.6 N6: the bend-up STATION — the numeric twin of grabbing the relevé's bend point on
+              the elevation. Absent → the legacy 0.25·L default (shown as the current value). */}
+          <NumberInput label={s.elevation.bendStation} value={r.bendStation ?? Math.round(L * 0.25)} min={0} max={L} step={50} unit="mm" onChange={(v) => setReleveBend(r.id, v)} />
           <button type="button" className="btn-mini" onClick={() => setReleves(releves.filter((_, j) => j !== i))}>×</button>
         </div>
       ))}
@@ -547,22 +551,18 @@ export function Sidebar() {
   const [tab, setTab] = useState<Tab>("scheme");
   const s = t(lang);
 
-  // v1.0.6 N3 (U3): the drawing-first surface — the section canvas + the contextual inspector — is
-  // available for the column/beam addressable channel. The compact setup strip is always visible; the
-  // full tabbed form is kept behind the "Avancé" toggle (a complete fallback for bulk/power edits).
+  // v1.0.6 N4 (U1): the left region is now the INSPECTOR region the form used to own. The contextual
+  // inspector edits the object picked on the section dock's canvas / the 3D; the compact setup strip is
+  // always visible; the full tabbed form stays behind the "Avancé" toggle (a complete fallback). The
+  // ONE section canvas moved OUT of here into the section dock (N4 shell) — the inspector reads the
+  // unified selection, so it works whichever surface the pick came from.
   const drawingFirst = isColumnDoc(doc) || isBeamDoc(doc);
 
   return (
     <aside className="sidebar">
       <ZoneReadout />
       <ElementSetupStrip />
-      {drawingFirst && (
-        <>
-          {/* the ONE unified section canvas (N2) — the pick surface that drives the inspector */}
-          <SectionCanvas />
-          <Inspector />
-        </>
-      )}
+      {drawingFirst && <Inspector />}
       <button
         type="button"
         className="advanced-toggle"

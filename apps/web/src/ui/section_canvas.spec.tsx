@@ -11,8 +11,13 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, within, fireEvent } from "@testing-library/react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { SectionDock } from "./SectionDock";
 import { useStore } from "../store/useStore";
 import type { ColumnDoc } from "../engine/document";
+
+// v1.0.6 N4 (U1): the ONE section canvas moved into the section DOCK (around the 3D). The arming
+// buttons (cross-tie / supplement "link") stay in the Sidebar advanced form; both share the store.
+const renderShell = () => render(<><Navbar /><Sidebar /><SectionDock /></>);
 
 const canvasOf = (c: HTMLElement) => c.querySelector(".section-canvas") as HTMLElement;
 const barButtons = (c: HTMLElement) =>
@@ -22,13 +27,13 @@ describe("v1.0.6 U2 — unified section canvas + tool routing", () => {
   beforeEach(() => useStore.getState().reset());
 
   it("mounts EXACTLY ONE section canvas in the column Sidebar (the three embedded pickers retired)", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     expect(container.querySelectorAll(".section-canvas").length).toBe(1);
     expect(container.querySelectorAll(".section-picker").length).toBe(1);
   });
 
   it("SELECT tool: clicking a bar sets selectedBars and stays in select mode", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     expect(useStore.getState().sectionTool).toBe("select");
     fireEvent.click(barButtons(container)[0]!);
     expect(useStore.getState().selectedBars.length).toBe(1);
@@ -36,7 +41,7 @@ describe("v1.0.6 U2 — unified section canvas + tool routing", () => {
   });
 
   it("LINK (cross-tie): arming from the editor routes two clicks on the canvas into a cross-tie", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     const editor = container.querySelector(".crosstie-editor") as HTMLElement;
     fireEvent.click(within(editor).getByRole("button", { name: /Lier deux barres|Link two bars/ }));
     expect(useStore.getState().sectionTool).toBe("link");
@@ -52,7 +57,7 @@ describe("v1.0.6 U2 — unified section canvas + tool routing", () => {
   });
 
   it("LINK (supplement): the store router binds the armed supplement to the two picked bars", () => {
-    render(<><Navbar /><Sidebar /></>);
+    renderShell();
     const st = useStore.getState();
     st.beginLink({ kind: "supplement", supplementId: "SUPP_DIAMANT_TIE", diameter: 8 });
     expect(useStore.getState().sectionTool).toBe("link");
@@ -66,7 +71,7 @@ describe("v1.0.6 U2 — unified section canvas + tool routing", () => {
   });
 
   it("Esc on the canvas cancels an armed link and returns to select", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     // arm through the editor button (flushes the re-render so the canvas is in link mode)
     const editor = container.querySelector(".crosstie-editor") as HTMLElement;
     fireEvent.click(within(editor).getByRole("button", { name: /Lier deux barres|Link two bars/ }));
@@ -79,7 +84,7 @@ describe("v1.0.6 U2 — unified section canvas + tool routing", () => {
   });
 
   it("a11y parity: the keyboard list is the same one canvas and routes identically", () => {
-    const { container } = render(<><Navbar /><Sidebar /></>);
+    const { container } = renderShell();
     // the list buttons live inside the single canvas (not scattered across three panels)
     expect(within(canvasOf(container)).getAllByRole("button").some((b) => b.classList.contains("sp-list-btn"))).toBe(true);
     fireEvent.click(barButtons(container)[0]!);

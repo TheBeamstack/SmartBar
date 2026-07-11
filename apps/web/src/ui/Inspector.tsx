@@ -14,9 +14,69 @@ import { useStore } from "../store/useStore";
 import { t } from "../i18n/strings";
 import { isColumnDoc, isBeamDoc, type BarOverrideEdit, type BarFaconnage, type AddressableBar } from "../engine/document";
 import { barLabel } from "../engine/barLabels";
+import { selectedBarStations } from "../engine/elevation";
 import { FaconnageEditor } from "./FaconnageEditor";
 import { NumberInput } from "./NumberInput";
 import { CoupledLength } from "./AddressableBars";
+
+/**
+ * v1.0.6 N6 (U5, [REF-UI-811]) — the NUMERIC TWIN of the editable elevation, for the selected bar:
+ * curtailment start/end station, per-end anchorage, and lap/coupler splices. The elevation drag and
+ * these controls both commit through the SAME store actions (`curtailSelectedBar` / `setSelectedBarAnchorage`
+ * / add·removeSelectedBarSplice), so the drawing gesture and the typed value agree by construction
+ * (invariant §0.3.3: every gesture keeps a number + keyboard path). Rendered inside the inspector for
+ * whichever single bar (group override or independent extra) is selected.
+ */
+function StationEditor() {
+  const lang = useStore((s) => s.lang);
+  const doc = useStore((s) => s.doc);
+  const selection = useStore((s) => s.selection);
+  const curtailSelectedBar = useStore((s) => s.curtailSelectedBar);
+  const setSelectedBarAnchorage = useStore((s) => s.setSelectedBarAnchorage);
+  const addSelectedBarSplice = useStore((s) => s.addSelectedBarSplice);
+  const removeSelectedBarSplice = useStore((s) => s.removeSelectedBarSplice);
+  const se = t(lang).elevation;
+
+  const st = selectedBarStations(doc, selection);
+  if (!st) return null;
+  const { start, end, memberLen, anchorage, splices } = st;
+  const midStation = Math.round(memberLen / 2 / 10) * 10;
+
+  return (
+    <fieldset className="inspector-stations">
+      <legend>{se.live}</legend>
+      {/* start = 0 / end = memberLen mean "uncurtailed" → pass undefined to clear the field. */}
+      <NumberInput label={se.curtailStart} value={start} min={0} max={memberLen} step={10} unit="mm" onChange={(v) => curtailSelectedBar("start", v <= 0 ? undefined : v)} />
+      <NumberInput label={se.curtailEnd} value={end} min={0} max={memberLen} step={10} unit="mm" onChange={(v) => curtailSelectedBar("end", v >= memberLen ? undefined : v)} />
+      <label className="field">
+        <span className="field-label">{se.anchorage}</span>
+        <select className="field-select" value={anchorage ?? ""} onChange={(e) => setSelectedBarAnchorage(e.target.value === "" ? undefined : (e.target.value as "none" | "straight" | "hook"))}>
+          <option value="">{se.runsThrough}</option>
+          <option value="none">{se.anchNone}</option>
+          <option value="straight">{se.anchStraight}</option>
+          <option value="hook">{se.anchHook}</option>
+        </select>
+      </label>
+      <div className="inspector-splices">
+        <span className="field-label">{se.splices}</span>
+        <div className="inspector-splice-add">
+          <button type="button" className="btn-mini" onClick={() => addSelectedBarSplice(midStation, "lap")}>{se.addLap}</button>
+          <button type="button" className="btn-mini" onClick={() => addSelectedBarSplice(midStation, "coupler")}>{se.addCoupler}</button>
+        </div>
+        {splices.length > 0 && (
+          <ul className="inspector-splice-list" aria-label={se.splices}>
+            {splices.map((sp) => (
+              <li key={`${sp.kind}-${sp.at}`}>
+                <span>{sp.kind === "lap" ? se.addLap.replace("+ ", "") : se.addCoupler.replace("+ ", "")} — {sp.at} mm</span>
+                <button type="button" onClick={() => removeSelectedBarSplice(sp.at)} aria-label={`${se.removeSplice} ${sp.at}`}>×</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </fieldset>
+  );
+}
 
 export function Inspector() {
   const lang = useStore((s) => s.lang);
@@ -75,6 +135,7 @@ export function Inspector() {
                 memberLength={cur?.length ?? memberLen}
                 onChange={onFaconnage}
               />
+              <StationEditor />
             </>
           )}
           {cur && (
@@ -116,6 +177,7 @@ export function Inspector() {
             memberLength={e.length ?? memberLen}
             onChange={(p) => patch(p)}
           />
+          <StationEditor />
         </div>
       );
     }

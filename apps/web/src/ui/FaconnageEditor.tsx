@@ -17,7 +17,7 @@ import type { BarFaconnage, HookChoice, CodePackId } from "../engine/document";
 import { generateBarShape, type UserHook } from "@rebarconfig/core";
 
 /** Open, polyline shapes a longitudinal bar may take (closed ties/spirals/mesh excluded). */
-const LONGITUDINAL_SHAPES = ["DROITE", "CROCHET_L", "U_BAR", "BAIONNETTE", "RELEVE", "ATTENTE", "Z_BAR", "DOUBLE_CRANK", "STEPPED"];
+export const LONGITUDINAL_SHAPES = ["DROITE", "CROCHET_L", "U_BAR", "BAIONNETTE", "RELEVE", "ATTENTE", "Z_BAR", "DOUBLE_CRANK", "STEPPED"];
 const HOOK_CHOICES: HookChoice[] = ["none", 90, 135, 180];
 
 function toUserHooks(h: { start: HookChoice; end: HookChoice }): { start?: UserHook; end?: UserHook } {

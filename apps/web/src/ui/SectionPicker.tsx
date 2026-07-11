@@ -21,12 +21,16 @@ export function SectionPicker({
   onPickExtra,
   selectedExtraId = null,
   height = 220,
+  onPlace,
 }: {
   onPick: (index: number) => void;
   /** H7 ([v1.0.4]): when provided, standalone extra bars are rendered + pickable by their stable id. */
   onPickExtra?: (id: string) => void;
   selectedExtraId?: string | null;
   height?: number;
+  /** v1.0.6 N5 (U4): when set (an add-tool is active), a click on the section drops a bar at the mapped
+   *  `(u,v)`. The GPU/pointer path; the typed-coordinate twin in the palette is the a11y equivalent. */
+  onPlace?: (u: number, v: number) => void;
 }) {
   const result = useStore((s) => s.result);
   const selectedBars = useStore((s) => s.selectedBars);
@@ -42,9 +46,27 @@ export function SectionPicker({
   const dotR = Math.max(b, h) * 0.028 + 6;
   const vb = `${-b / 2 - pad} ${-h / 2 - pad} ${b + 2 * pad} ${h + 2 * pad}`;
 
+  // N5: map a pointer event on the SVG back to the section (u,v) frame (v flipped: cy = -v). Guarded —
+  // `getScreenCTM` is null under jsdom, so the pointer drop no-ops in tests (the typed twin is tested).
+  const handlePlace = (e: React.MouseEvent<SVGRectElement>) => {
+    if (!onPlace) return;
+    const svg = e.currentTarget.ownerSVGElement;
+    const ctm = svg?.getScreenCTM?.();
+    if (!svg || !ctm || typeof svg.createSVGPoint !== "function") return;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const loc = pt.matrixTransform(ctm.inverse());
+    onPlace(loc.x, -loc.y);
+  };
+
   return (
     <div className="section-picker">
-      <svg className="section-picker-svg" viewBox={vb} style={{ height }} role="img" aria-label="Coupe — sélecteur de barres">
+      <svg className={`section-picker-svg ${onPlace ? "sp-placing" : ""}`} viewBox={vb} style={{ height }} role="img" aria-label="Coupe — sélecteur de barres">
+        {/* N5 placement hit area — behind the bars (bar clicks still win); only active in an add-tool */}
+        {onPlace && (
+          <rect x={-b / 2 - pad} y={-h / 2 - pad} width={b + 2 * pad} height={h + 2 * pad} fill="transparent" className="sp-place-area" onClick={handlePlace} />
+        )}
         {m.envelope === "CIRCULAR" ? (
           <circle cx={0} cy={0} r={(m.D ?? 400) / 2} className="sp-concrete" />
         ) : (
