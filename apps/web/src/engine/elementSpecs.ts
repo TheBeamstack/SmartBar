@@ -48,6 +48,9 @@ export interface ZoneSpec {
   asReq?: number;
   asReqPerM?: number;
   nLegs?: number;
+  /** v1.0.6-fix R9 (F-H): the span a two-way-slab zone reinforces ("x"/"y") — lets a placed band's
+   *  `spanAxis` credit the right direction where an x-zone and a y-zone share a level. Absent → one-way. */
+  axis?: "x" | "y";
 }
 
 export interface GenericSpec {
@@ -133,10 +136,10 @@ export const GENERIC_SPECS: Record<GenericElementId, GenericSpec> = {
       g("t", "Épaisseur", "Thickness", 200, 100, 500, 10),
     ],
     zones: [
-      { zone: "As_main_x_bot", groupId: "MX", label_fr: "Aciers principaux X (bas)", label_en: "Main X bottom", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "MAIN", control: "spacing", diameter: 10, spacing: 150, asReqPerM: 400 },
-      { zone: "As_main_y_bot", groupId: "MY", label_fr: "Aciers principaux Y (bas)", label_en: "Main Y bottom", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "MAIN", control: "spacing", diameter: 10, spacing: 150, asReqPerM: 400 },
-      { zone: "As_top_x", groupId: "TX", label_fr: "Chapeaux X", label_en: "Top X", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "TOP", control: "spacing", diameter: 10, spacing: 200, asReqPerM: 200 },
-      { zone: "As_top_y", groupId: "TY", label_fr: "Chapeaux Y", label_en: "Top Y", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "TOP", control: "spacing", diameter: 10, spacing: 200, asReqPerM: 200 },
+      { zone: "As_main_x_bot", groupId: "MX", label_fr: "Aciers principaux X (bas)", label_en: "Main X bottom", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "MAIN", control: "spacing", diameter: 10, spacing: 150, asReqPerM: 400, axis: "x" },
+      { zone: "As_main_y_bot", groupId: "MY", label_fr: "Aciers principaux Y (bas)", label_en: "Main Y bottom", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "MAIN", control: "spacing", diameter: 10, spacing: 150, asReqPerM: 400, axis: "y" },
+      { zone: "As_top_x", groupId: "TX", label_fr: "Chapeaux X", label_en: "Top X", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "TOP", control: "spacing", diameter: 10, spacing: 200, asReqPerM: 200, axis: "x" },
+      { zone: "As_top_y", groupId: "TY", label_fr: "Chapeaux Y", label_en: "Top Y", role: "PRIMARY_LONGITUDINAL", shapeId: "TREILLIS_MESH", kind: "longitudinal", slabRole: "TOP", control: "spacing", diameter: 10, spacing: 200, asReqPerM: 200, axis: "y" },
     ],
     flags: { restrainedCorner: true, cornerTorsionProvided: 300 },
   },

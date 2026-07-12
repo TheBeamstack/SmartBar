@@ -41,6 +41,12 @@ export function ToolPalette() {
   const setPaletteDiameter = useStore((s) => s.setPaletteDiameter);
   const setPlaceCoord = useStore((s) => s.setPlaceCoord);
   const placeInSection = useStore((s) => s.placeInSection);
+  const measureAt = useStore((s) => s.measureAt);
+  const measureFrom = useStore((s) => s.measureFrom);
+  const measureResult = useStore((s) => s.measureResult);
+  const placeSpanAxis = useStore((s) => s.placeSpanAxis);
+  const setPlaceSpanAxis = useStore((s) => s.setPlaceSpanAxis);
+  const twoWaySlab = useStore((s) => s.doc.element) === "E-SLB-02"; // R9 (F-H): only here does span direction matter
   const s = t(lang).tools;
 
   // keyboard shortcuts (§0.3.3) — a tool key switches the mode; Esc returns to Select. Guarded so
@@ -114,6 +120,16 @@ export function ToolPalette() {
                   ))}
                 </select>
               </label>
+              {/* R9 (F-H): on a two-way slab, which span the band reinforces — so a Y band credits As_main_y. */}
+              {twoWaySlab && (
+                <label className="field">
+                  <span className="field-label">{s.spanDirection}</span>
+                  <select value={placeSpanAxis} aria-label={s.spanDirection} onChange={(e) => setPlaceSpanAxis(e.target.value as "x" | "y")}>
+                    <option value="x">{s.spanX}</option>
+                    <option value="y">{s.spanY}</option>
+                  </select>
+                </label>
+              )}
             </>
           )}
           {/* the typable coordinate twin of the on-canvas click (a11y/precision backstop) */}
@@ -132,7 +148,25 @@ export function ToolPalette() {
               {s.place}
             </button>
           )}
-          {tool === "measure" && <p className="muted">{s.measureHint}</p>}
+          {tool === "measure" && (
+            <div className="palette-measure">
+              {/* R6: the typed-coord "point" button is the a11y twin of an on-canvas measure click. */}
+              <button type="button" className="palette-place" onClick={() => measureAt(placeCoord.u, placeCoord.v)}>
+                {s.measurePoint}
+              </button>
+              {measureFrom && !measureResult && (
+                <p className="muted" role="status">
+                  {s.measureFrom} ({Math.round(measureFrom.u)}, {Math.round(measureFrom.v)}) mm
+                </p>
+              )}
+              {measureResult && (
+                <p className="palette-measure-result" role="status" aria-live="polite">
+                  {s.measureDistance}: <strong>{Math.round(measureResult.distance)} mm</strong>
+                </p>
+              )}
+              {!measureFrom && !measureResult && <p className="muted">{s.measureHint}</p>}
+            </div>
+          )}
         </div>
       )}
 

@@ -16,7 +16,11 @@ import { t } from "../i18n/strings";
 const s = t("fr"); // default lang
 
 describe("v1.0.6 U6 — control-type pass", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; this suite exercises the advanced-form controls, so opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("counts render a stepper (− N +) that drives the store", () => {
     render(<Sidebar />);

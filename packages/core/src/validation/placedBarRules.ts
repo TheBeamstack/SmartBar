@@ -217,9 +217,14 @@ function curtailmentRule(bar: PlacedLongBar, code: ExtendedCodePack, ctx: Placed
   if (!interiorStart && !interiorEnd) return undefined; // runs member-end to member-end → not curtailed
   const run = Math.max(0, e - s);
 
+  // v1.0.6-fix R8 (F-G): a curtailed/anchored bar develops on the CODE diameter — for a member expanded
+  // from a Bundle that is the equivalent Ø `φₙ` R1 minted (`equivDiameter`), not the bare single-bar Ø.
+  // Mirrors R1's `codeDia` idiom; `equivDiameter` is absent on every non-bundle bar → byte-identical. Same
+  // class as F-A's lap bug, in the sibling V-E rule R1 did not audit (EC2 §8.9 / BAEL §7.7; ⚠ G-BAEL/EC2).
+  const codeDia = bar.equivDiameter ?? bar.diameter;
   const devFor = (choice: "none" | "straight" | "hook" | undefined): { need: number; bare: boolean } => {
     if (choice === "none") return { need: Infinity, bare: true }; // a bare cut cannot develop the bar
-    const straight = code.lbd({ diameter: bar.diameter, material: ctx.material });
+    const straight = code.lbd({ diameter: codeDia, material: ctx.material });
     const need = choice === "hook" ? straight * (code.curtailmentHookedFactor ?? 1) : straight;
     return { need, bare: false };
   };

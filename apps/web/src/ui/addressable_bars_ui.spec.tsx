@@ -18,7 +18,11 @@ function panelOf(container: HTMLElement) {
 }
 
 describe("G2 addressable-bars editor", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; this suite exercises the advanced-form editor, so opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("removing the selected bar records a removed override and drops it from the placement", () => {
     const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);

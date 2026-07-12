@@ -61,6 +61,15 @@ export interface PlacedBarBody {
   autoSplice?: boolean;
   /** drop this bar from the render + schedule. */
   removed?: boolean;
+  /**
+   * **v1.0.6-fix R9 (finding F-H) — span direction on a two-way section.** Which span a placed band
+   * reinforces on a TWO-WAY slab, where an x-zone and a y-zone sit at the SAME level `v`. Absent → the
+   * credit falls back to nearest-zone-by-level (the one-way / single-direction case, byte-identical). When
+   * set, `creditPlacedPerMetre` credits the matching-axis zone, so a Y band raises `As_main_y` instead of
+   * always landing on X (owner decision O-5, 2026-07-12). Additive / forward-compat. Only meaningful on a
+   * two-way slab; ignored elsewhere (no zone declares an axis). ⚠ accounting convention → G-BAEL/EC2.
+   */
+  spanAxis?: "x" | "y";
 }
 
 /**

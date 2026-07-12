@@ -24,7 +24,12 @@ const barButtons = (c: HTMLElement) =>
   within(canvasOf(c)).getAllByRole("button").filter((b) => b.classList.contains("sp-list-btn") && !b.classList.contains("sp-list-extra"));
 
 describe("v1.0.6 U2 — unified section canvas + tool routing", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; the cross-tie/supplement "link" arm buttons live in the
+  // advanced-form panels, so this suite opts into it (the canvas itself is always visible).
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("mounts EXACTLY ONE section canvas in the column Sidebar (the three embedded pickers retired)", () => {
     const { container } = renderShell();

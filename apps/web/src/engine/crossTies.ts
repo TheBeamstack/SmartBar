@@ -17,6 +17,8 @@ import {
   type SupportZone,
   type ReleveZone,
   type BarOverrideEdit,
+  type PlacedBarDoc,
+  type PlacedRowDoc,
   isColumnDoc,
   isBeamDoc,
 } from "./document";
@@ -156,6 +158,68 @@ function foldEpingleSupplements(
     if (!crossTies.some((e) => sameTie(e, ct))) crossTies.push(ct);
   }
   return { crossTies, supplements: supplements.filter((s) => s.supplementId !== EPINGLE_SUPPLEMENT_ID) };
+}
+
+const SKIN_SUPPLEMENT_ID = "SUPP_SKIN_SIDE";
+
+/**
+ * v1.0.6-fix **R6 (F-F / DR-2): retire the DUAL skin path.** Skin steel used to be addable TWO ways —
+ * the legacy `SUPP_SKIN_SIDE` supplement (Suppléments panel) AND the v1.0.5 P-F skin `BarRow` (skin-row
+ * tool) — and each credited `As,prov` on its own accounting path, so doing both counted the same steel
+ * twice (DR-2: base 1885 → supplement 1998 → +row 2111.2). P-F required the supplement fanout be *folded
+ * into* the row model; it never was. This folds each legacy skin supplement into one `PlacedRowDoc{skin}`
+ * per lateral face — reproducing the SIDE_FACES fanout (`count_per_side` bars on each of u = ±uMax, spread
+ * evenly over the clear height, `scheme/resolve.ts`) as a counted row — so there is now exactly ONE skin
+ * path and As is credited once. Idempotent + lossless: runs only when a skin supplement is present,
+ * de-dupes by generated id, drops the migrated entries from `supplements`. Same pattern as
+ * `foldEpingleSupplements`. (`SUPP_SKIN_SIDE` is also dropped from the scheme `supplementalCatalog`s so no
+ * NEW skin supplement can be created; the manifest stays for the core `scheme/resolve` tests.)
+ */
+function foldSkinSupplements(
+  supplements: SupplementEdit[],
+  placed: PlacedBarDoc[] | undefined,
+  geom: { b: number; h: number },
+  cover: number,
+): { placed: PlacedBarDoc[] | undefined; supplements: SupplementEdit[] } {
+  const skins = supplements.filter((s) => s.supplementId === SKIN_SUPPLEMENT_ID);
+  if (skins.length === 0) return { placed, supplements };
+  const existing = placed ?? [];
+  const seen = new Set(existing.map((p) => p.id));
+  const rows: PlacedRowDoc[] = [];
+  for (const s of skins) {
+    const dia = s.diameter;
+    const n = Math.max(1, Math.round(s.params?.["count_per_side"] ?? 1));
+    // the side-face line the SIDE_FACES fanout used: bars at u = ±uMax, spread over the clear height
+    // between the corner bars. Reproduce uMax/vMax from the section (a skin bar sits at its own cover).
+    const uMax = geom.b / 2 - cover - dia / 2;
+    const vMax = geom.h / 2 - cover - dia / 2;
+    // bar k of n at v = −vMax + k/(n+1)·2vMax → as a counted BarRow, anchor at k=1 over the extent to k=n
+    // (`expandRow`'s even spread reproduces the same v's exactly). n=1 → the mid-height representative.
+    const v1 = n > 1 ? -vMax + (1 / (n + 1)) * (2 * vMax) : 0;
+    const vN = n > 1 ? -vMax + (n / (n + 1)) * (2 * vMax) : 0;
+    for (const [face, u] of [["R", uMax], ["L", -uMax]] as const) {
+      const row: PlacedRowDoc = {
+        kind: "row",
+        id: `${s.instanceId}__skin${face}`,
+        anchor: { u, v: v1 },
+        direction: "v",
+        extent: vN - v1,
+        count: n,
+        skin: true,
+        shapeId: "DROITE",
+        diameter: dia,
+      };
+      if (!seen.has(row.id)) {
+        seen.add(row.id);
+        rows.push(row);
+      }
+    }
+  }
+  const merged = [...existing, ...rows];
+  return {
+    placed: merged.length > 0 ? merged : undefined,
+    supplements: supplements.filter((s) => s.supplementId !== SKIN_SUPPLEMENT_ID),
+  };
 }
 
 /** A legacy (v1.0.2) beam `chapeau` field, folded into `supports` by `migrateBeamSupports`. */
@@ -298,11 +362,14 @@ export function migrateDoc(doc: ElementDoc): ElementDoc {
     const legacy = doc.tie as LegacyTie;
     const baseTies = legacy.crossTies ?? legacyNLegsToCrossTies(legacy.nLegs ?? 2, columnLayoutBars(doc));
     const folded = foldEpingleSupplements(doc.supplements, baseTies);
+    // R6 (F-F): fold any legacy skin supplement into the one skin-row model (drop the dual path).
+    const skin = foldSkinSupplements(folded.supplements, doc.placed, doc.geometry, doc.cover);
     const { nLegs: _drop, ...rest } = legacy;
     return {
       ...doc,
       tie: { ...(rest as ColumnDoc["tie"]), crossTies: folded.crossTies, crossTieHookAngle: legacy.crossTieHookAngle ?? 135 },
-      supplements: folded.supplements,
+      supplements: skin.supplements,
+      ...(skin.placed ? { placed: skin.placed } : {}),
     };
   }
   if (isBeamDoc(doc)) {
@@ -315,11 +382,14 @@ export function migrateDoc(doc: ElementDoc): ElementDoc {
     // legacy beam with nLegs > 2 got its épingles anchored to bars that do not exist in the solve.
     const baseTies = legacy.crossTies ?? legacyNLegsToCrossTies(legacy.nLegs ?? 2, engineBeamLayoutBars(beam));
     const folded = foldEpingleSupplements(beam.supplements, baseTies);
+    // R6 (F-F): fold any legacy skin supplement into the one skin-row model (drop the dual path).
+    const skin = foldSkinSupplements(folded.supplements, beam.placed, beam.geometry, beam.cover);
     const { nLegs: _drop, ...rest } = legacy;
     return {
       ...beam,
       stirrup: { ...(rest as BeamDoc["stirrup"]), crossTies: folded.crossTies, crossTieHookAngle: legacy.crossTieHookAngle ?? 135 },
-      supplements: folded.supplements,
+      supplements: skin.supplements,
+      ...(skin.placed ? { placed: skin.placed } : {}),
     };
   }
   return doc;

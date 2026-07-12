@@ -20,7 +20,11 @@ function boxOf(scope: HTMLElement, labelRe: RegExp): HTMLElement {
 }
 
 describe("H6 — independent extra bar exposes shape / length / axial", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; this suite exercises the advanced-form editor, so opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("an extra bar can be given a bent shape, a unique length and an axial position", () => {
     const { container } = render(<><Navbar /><Sidebar /></>);

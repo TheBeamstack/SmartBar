@@ -39,6 +39,9 @@ export interface SlabZoneInput {
   asReqPerM: number; // mm²/m
   /** v position (mm) for the rendered bar line (+t/2 top, −t/2 bottom). */
   v?: number;
+  /** v1.0.6-fix R9 (F-H): the span this zone reinforces on a two-way slab ("x"/"y"); lets a placed band's
+   *  `spanAxis` credit the right direction where an x-zone and a y-zone share a level. Absent → one-way. */
+  axis?: "x" | "y";
 }
 
 export interface SlabSolveInput {
@@ -148,6 +151,7 @@ export function solveSlab(input: SlabSolveInput): SolveResult {
         asProvPerM: z.asProvPerM,
         d: z.d,
         spacing: z.spacing,
+        ...(input.zones[i]?.axis !== undefined ? { axis: input.zones[i]!.axis } : {}), // R9 (F-H)
       })),
       { thickness: geometry.t },
     );

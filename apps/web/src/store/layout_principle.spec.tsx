@@ -16,7 +16,12 @@ const faceCount = (face: string) =>
   useStore.getState().result.bars.filter((b) => b.faceTag === face).length;
 
 describe("column layout principle (§6.1/§8)", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): the tabbed form now defaults OFF (drawing-first). These tests exercise the advanced
+  // form's controls, so they opt into it — the same path a user takes by clicking "Avancé".
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("defaults to SYMMETRIC", () => {
     const doc = useStore.getState().doc;

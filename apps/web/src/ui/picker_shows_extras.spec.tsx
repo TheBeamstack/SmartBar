@@ -12,7 +12,11 @@ import { SectionDock } from "./SectionDock";
 import { useStore } from "../store/useStore";
 
 describe("H7 — extras on the section picker", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; this suite exercises the advanced-form editor, so opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("renders a pickable entry for each independent extra bar; picking it selects by id", () => {
     const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);

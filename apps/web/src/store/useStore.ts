@@ -286,13 +286,26 @@ export interface AppState {
   paletteShape: string;
   paletteDiameter: number;
   placeCoord: { u: number; v: number };
+  /** v1.0.6-fix R9 (F-H): span direction for a placed band on a TWO-WAY slab (only used on E-SLB-02, so a
+   *  Y band credits `As_main_y`/`As_top_y` instead of always X). Session-only; ignored on every other element. */
+  placeSpanAxis: "x" | "y";
   setPaletteShape: (shapeId: string) => void;
   setPaletteDiameter: (d: number) => void;
   setPlaceCoord: (c: { u: number; v: number }) => void;
+  setPlaceSpanAxis: (axis: "x" | "y") => void;
   /** the canonical placed steel on the active doc (single / row / bundle / layer). */
   setPlaced: (placed: PlacedBarDoc[]) => void;
   /** drop the palette shape as the matching `PlacedBar` at (snapped) (u,v); no-op if not an add-tool. */
   placeInSection: (u: number, v: number) => void;
+
+  // v1.0.6-fix R6 — the `measure` tool, finished (was a coordinate-readout stub). Two section points →
+  // their distance: the FIRST click arms `measureFrom`, the SECOND resolves `measureResult` (from · to ·
+  // distance) and re-arms. Session-only (NOT in `.rcfg`); cleared on tool change + `reset()`. The
+  // on-canvas clicks are the GPU path; the typed `(u,v)` + a "point" button in the palette are the a11y twin.
+  measureFrom: { u: number; v: number } | null;
+  measureResult: { from: { u: number; v: number }; to: { u: number; v: number }; distance: number } | null;
+  /** record a measure point (the `measure` tool). First point arms, second resolves the distance. */
+  measureAt: (u: number, v: number) => void;
 
   // v1.0.6 N3 (U3, §0.3.4) — the unified selection that drives the contextual inspector. `select`
   // is the single entry point: it sets `selection` and keeps the legacy highlight channels
@@ -300,7 +313,11 @@ export interface AppState {
   selection: Selection;
   select: (sel: Selection) => void;
   // U3 — the tabbed parameter form is kept behind an "Avancé / Advanced" toggle (session-only, a
-  // layout pref like `rightPanels`; NOT reset on element `reset()`, NOT in `.rcfg`).
+  // layout pref like `rightPanels`; NOT reset on element `reset()`, NOT in `.rcfg`). v1.0.6-fix R6
+  // (owner decision O-4/A-8, 2026-07-12): defaults **OFF** — the app opens drawing-first (section
+  // canvas + inspector + editable elevation), the full form as an on-demand fallback. Safe to flip now
+  // that R2 (placed-bar selection channel) + R5 (drawing-board on all 8) both landed, so nothing the
+  // form reaches is stranded when it is collapsed (before R2 it was the only way to reach several edits).
   advancedForm: boolean;
   setAdvancedForm: (on: boolean) => void;
 
@@ -466,8 +483,11 @@ export const useStore = create<AppState>((set, get) => {
     paletteShape: "DROITE",
     paletteDiameter: 12,
     placeCoord: { u: 0, v: 0 },
+    placeSpanAxis: "x",
     selection: null,
-    advancedForm: true,
+    measureFrom: null,
+    measureResult: null,
+    advancedForm: false, // R6 (O-4/A-8): drawing-first by default; the tabbed form is the "Avancé" fallback
     expert: false,
     lang: "fr",
     showSection: false,
@@ -698,7 +718,10 @@ export const useStore = create<AppState>((set, get) => {
     // v1.0.6 N2 (U2) + N5 (U4) — the ONE section canvas tool router. Switching to any tool that is not
     // `link` clears the armed link state (so arming, then picking an add-tool, doesn't leave it dangling).
     setSectionTool: (tool) =>
-      set(tool === "link" ? { sectionTool: "link" } : { sectionTool: tool, sectionLink: null, pendingLinkBar: null }),
+      // R6: leaving `measure` clears its in-progress point + last result (stale readout otherwise).
+      set(tool === "link"
+        ? { sectionTool: "link", measureFrom: null, measureResult: null }
+        : { sectionTool: tool, sectionLink: null, pendingLinkBar: null, measureFrom: null, measureResult: null }),
     beginLink: (link) =>
       set({ sectionTool: "link", sectionLink: link, pendingLinkBar: null, selectedBars: [], selectedExtraId: null }),
     cancelLink: () => set({ sectionTool: "select", sectionLink: null, pendingLinkBar: null, selectedBars: [] }),
@@ -765,12 +788,13 @@ export const useStore = create<AppState>((set, get) => {
     setPaletteShape: (shapeId) => set({ paletteShape: shapeId }),
     setPaletteDiameter: (d) => set({ paletteDiameter: d }),
     setPlaceCoord: (c) => set({ placeCoord: c }),
+    setPlaceSpanAxis: (axis) => set({ placeSpanAxis: axis }),
     setPlaced: (placed) => {
       const doc = get().doc;
       set(edit({ ...doc, placed } as ElementDoc));
     },
     placeInSection: (u, v) => {
-      const { doc, result, sectionTool, paletteShape, paletteDiameter } = get();
+      const { doc, result, sectionTool, paletteShape, paletteDiameter, placeSpanAxis } = get();
       // R5 (F-D): the frame comes from the ENGINE's section descriptor (`result.member`), so every one of
       // the 8 elements clamps — a slab against its `Ly×t` box, a pile/circular column RADIALLY. Before R5
       // a non-column/beam doc was handed no `b`/`h` and the cover envelope was silently skipped entirely.
@@ -787,8 +811,20 @@ export const useStore = create<AppState>((set, get) => {
         shapeId: paletteShape,
         diameter: paletteDiameter,
         frame,
+        // R9 (F-H): only a two-way slab has direction-split zones, so only there does spanAxis mean
+        // anything — a Y band credits As_main_y. Elsewhere it is omitted (no zone declares an axis).
+        ...(doc.element === "E-SLB-02" ? { spanAxis: placeSpanAxis } : {}),
       });
       get().setPlaced([...existing, bar]);
+    },
+    measureAt: (u, v) => {
+      const from = get().measureFrom;
+      if (!from) {
+        set({ measureFrom: { u, v }, measureResult: null }); // first point → arm
+        return;
+      }
+      const distance = Math.hypot(u - from.u, v - from.v);
+      set({ measureFrom: null, measureResult: { from, to: { u, v }, distance } }); // second → resolve + re-arm
     },
 
     setBeamGeometry: (patch) =>
@@ -950,7 +986,10 @@ export const useStore = create<AppState>((set, get) => {
         paletteShape: "DROITE",
         paletteDiameter: 12,
         placeCoord: { u: 0, v: 0 },
+        placeSpanAxis: "x",
         selection: null,
+        measureFrom: null,
+        measureResult: null,
         expert: false,
         projection: "perspective",
         viewRequest: null,

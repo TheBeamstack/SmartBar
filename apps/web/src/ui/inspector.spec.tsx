@@ -69,22 +69,25 @@ describe("v1.0.6 U3 — contextual inspector + unified selection", () => {
     expect(st.selectedBars).toEqual([0, 2]); // both engaged bars highlighted
   });
 
-  it("the advanced tabbed form is present by default and toggles off/on (complete fallback)", () => {
+  it("defaults DRAWING-FIRST (form collapsed) and the advanced tabbed form toggles on/off (complete fallback)", () => {
+    // R6 (owner O-4/A-8): the app now opens drawing-first — `advancedForm` defaults OFF, the tabbed
+    // parameter form is an on-demand "Avancé" fallback. The drawing-first surface (canvas + inspector)
+    // is live with the form collapsed; nothing is stranded (R2 + R5 landed).
     const { container } = renderShell();
-    expect(useStore.getState().advancedForm).toBe(true);
-    expect(container.querySelector('[role="tablist"]')).toBeTruthy();
-    expect(container.querySelector(".readout")).toBeTruthy(); // ZoneReadout preserved
-
-    const toggle = container.querySelector(".advanced-toggle") as HTMLElement;
-    fireEvent.click(toggle);
     expect(useStore.getState().advancedForm).toBe(false);
-    expect(container.querySelector('[role="tablist"]')).toBeFalsy(); // form collapsed
-    // the drawing-first surface (canvas + inspector) stays available with the form collapsed
+    expect(container.querySelector('[role="tablist"]')).toBeFalsy(); // form collapsed by default
+    expect(container.querySelector(".readout")).toBeTruthy(); // ZoneReadout preserved
     expect(container.querySelector(".section-canvas")).toBeTruthy();
     expect(container.querySelector(".inspector")).toBeTruthy();
 
+    const toggle = container.querySelector(".advanced-toggle") as HTMLElement;
     fireEvent.click(toggle);
-    expect(container.querySelector('[role="tablist"]')).toBeTruthy();
+    expect(useStore.getState().advancedForm).toBe(true);
+    expect(container.querySelector('[role="tablist"]')).toBeTruthy(); // the full form is reachable
+
+    fireEvent.click(toggle);
+    expect(useStore.getState().advancedForm).toBe(false);
+    expect(container.querySelector('[role="tablist"]')).toBeFalsy(); // and collapses again
   });
 
   it("EXACTLY ONE section canvas mounts (the inspector reuses the N2 canvas, no second copy)", () => {

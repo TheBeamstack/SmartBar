@@ -13,7 +13,11 @@ import type { ColumnDoc } from "../engine/document";
 const ids = () => (useStore.getState().doc as ColumnDoc).extraBars!.map((e) => e.id);
 
 describe("H15 — collision-free extra-bar ids", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; this suite exercises the advanced-form editor, so opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("assigns unique ids and reuses a freed slot instead of colliding", () => {
     const { container } = render(<><Navbar /><Sidebar /></>);

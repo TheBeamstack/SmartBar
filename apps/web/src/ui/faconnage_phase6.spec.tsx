@@ -56,7 +56,11 @@ describe("H17 — rich invalid feedback", () => {
 });
 
 describe("H18 — AddressableBars uses the i18n bundle", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): the AddressableBars panel lives in the advanced form (now default OFF); opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("renders the bundle title in both languages", () => {
     const { container, rerender } = render(<><Navbar /><Sidebar /><SectionDock /></>);
@@ -69,7 +73,11 @@ describe("H18 — AddressableBars uses the i18n bundle", () => {
 });
 
 describe("H12 — DROITE length coupled to the member with a toggle", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): the AddressableBars panel lives in the advanced form (now default OFF); opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("shows the coupled (read-only) length by default and reveals the field on toggle", () => {
     const { container } = render(<><Navbar /><Sidebar /><SectionDock /></>);

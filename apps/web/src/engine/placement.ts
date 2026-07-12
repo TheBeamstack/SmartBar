@@ -44,13 +44,23 @@ export function freshPlacedId(existing: readonly PlacedBarDoc[]): string {
  */
 export function buildPlacedBar(
   kind: PlaceKind,
-  opts: { id: string; u: number; v: number; shapeId: string; diameter: number; frame: SectionFrame },
+  opts: {
+    id: string;
+    u: number;
+    v: number;
+    shapeId: string;
+    diameter: number;
+    frame: SectionFrame;
+    /** R9 (F-H): the span this band reinforces on a two-way slab — attached to every kind (absent → none). */
+    spanAxis?: "x" | "y";
+  },
 ): PlacedBarDoc {
-  const { id, u, v, shapeId, diameter, frame } = opts;
+  const { id, u, v, shapeId, diameter, frame, spanAxis } = opts;
   const clear = Math.max(0, frame.b - 2 * frame.cover); // available run across the section
+  const axis = spanAxis !== undefined ? { spanAxis } : {}; // R9: only present on a two-way slab placement
   switch (kind) {
     case "single": {
-      const bar: AddressableBar = { id, u, v, shapeId, diameter };
+      const bar: AddressableBar = { id, u, v, shapeId, diameter, ...axis };
       return bar;
     }
     case "row": {
@@ -63,11 +73,12 @@ export function buildPlacedBar(
         count: 3,
         shapeId,
         diameter,
+        ...axis,
       };
       return row;
     }
     case "bundle": {
-      const bundle: PlacedBundleDoc = { kind: "bundle", id, u, v, n: 2, shapeId, diameter };
+      const bundle: PlacedBundleDoc = { kind: "bundle", id, u, v, n: 2, shapeId, diameter, ...axis };
       return bundle;
     }
     case "layer": {
@@ -81,6 +92,7 @@ export function buildPlacedBar(
         span: clear,
         shapeId,
         diameter,
+        ...axis,
       };
       return layer;
     }

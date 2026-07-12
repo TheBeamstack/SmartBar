@@ -119,6 +119,8 @@ export interface AddressableBar {
   autoSplice?: boolean;
   /** v1.0.4 B1: explicit per-bar lap/coupler stations. */
   splices?: Splice[];
+  /** v1.0.6-fix R9 (F-H): span direction on a two-way slab ("x"/"y"); absent → nearest-level credit. */
+  spanAxis?: "x" | "y";
 }
 
 /**
@@ -137,6 +139,8 @@ export interface PlacedDocBody {
   anchorage?: EndAnchorageChoice;
   autoSplice?: boolean;
   splices?: Splice[];
+  /** v1.0.6-fix R9 (F-H): span direction on a two-way slab ("x"/"y"); absent → nearest-level credit. */
+  spanAxis?: "x" | "y";
 }
 
 /** v1.0.5 M3 (P-C/P-F) — a doc-level counted/spaced row (or a side-face skin row when `skin`). */
@@ -380,6 +384,9 @@ export interface ZoneEdit {
   splices?: Splice[];
   /** v1.0.5 M5: auto-split this longitudinal zone's bars at the stock length (> 12 m cages). */
   autoSplice?: boolean;
+  /** v1.0.6-fix R9 (F-H): the span this zone reinforces on a two-way slab ("x"/"y") — lets a placed
+   *  band's `spanAxis` credit the right direction where an x-zone and y-zone share a level. */
+  axis?: "x" | "y";
 }
 
 /**

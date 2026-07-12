@@ -17,6 +17,6 @@
       "placement": { "rule": "ALONG_PATH", "path": { "ref": "BEAM_LENGTH" }, "spacing": "param" }
     }
   ],
-  "supplementalCatalog": ["SUPP_SKIN_SIDE", "SUPP_DOUBLE_STIRRUP_SUPPORT"],
+  "supplementalCatalog": ["SUPP_DOUBLE_STIRRUP_SUPPORT"],
   "validationProfile": "BAEL_BEAM"
 }

@@ -22,7 +22,11 @@ function renderApp() {
 }
 
 describe("P3 catalog + supplements UI", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; this suite exercises the advanced-form panels, so opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("switching the element to the beam reveals beam-specific controls", () => {
     renderApp();

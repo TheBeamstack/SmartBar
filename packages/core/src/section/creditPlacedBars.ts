@@ -35,6 +35,12 @@ export interface PerMetreZone {
   d: number;
   /** the mat's bar spacing (mm) — the tributary width of a point-placed bar in this zone. */
   spacing: number;
+  /**
+   * v1.0.6-fix R9 (F-H): the span this zone reinforces on a TWO-WAY section (two zones can share a level
+   * `v`). Absent → level alone decides (one-way / single-direction). When set, a placed band whose
+   * `spanAxis` matches is credited here rather than to the first zone at that level (owner O-5).
+   */
+  axis?: "x" | "y";
 }
 
 /** The new per-metre steel + effective depth for a zone that received placed bars. */
@@ -74,9 +80,11 @@ export function creditPlacedPerMetre(
     const members = resolved.filter((b) => b.placedParentId === p.id && !b.removed);
     if (members.length === 0) continue;
 
-    // the object's mean level decides which zone it reinforces (its own extent decides how much).
+    // the object's mean level decides which zone it reinforces (its own extent decides how much). R9
+    // (F-H): on a two-way section the band's declared `spanAxis` disambiguates two zones that share a
+    // level — a Y band credits the Y zone instead of always the first (X) one (owner O-5).
     const meanV = members.reduce((a, b) => a + b.position.v, 0) / members.length;
-    const zone = nearestZone(zones, meanV);
+    const zone = pickZone(zones, meanV, p.spanAxis);
     if (!zone) continue;
 
     // O-2: credit over the object's OWN extent; a point object (single / bundle) over its tributary width.
@@ -103,6 +111,24 @@ export function creditPlacedPerMetre(
     out.set(z.zone, { asProvPerM: asNew, d: dNew });
   }
   return out;
+}
+
+/**
+ * R9 (F-H): the zone a placed band credits. When the band declares a `spanAxis` AND any zone carries a
+ * matching `axis`, the choice is restricted to those zones first (so a Y band on a two-way slab lands on a
+ * Y zone even though it shares a level with X); otherwise, and for every one-way / axis-less case, the
+ * nearest-level zone wins — byte-identical to pre-R9.
+ */
+function pickZone(
+  zones: readonly PerMetreZone[],
+  v: number,
+  spanAxis: "x" | "y" | undefined,
+): PerMetreZone | undefined {
+  if (spanAxis) {
+    const axial = zones.filter((z) => z.axis === spanAxis);
+    if (axial.length > 0) return nearestZone(axial, v);
+  }
+  return nearestZone(zones, v);
 }
 
 /** The zone whose level is closest to `v` (first wins a tie → deterministic, D-P0-3). */

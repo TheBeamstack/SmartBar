@@ -23,6 +23,7 @@ export function SectionCanvas() {
   const pickSectionBar = useStore((s) => s.pickSectionBar);
   const pickSectionExtra = useStore((s) => s.pickSectionExtra);
   const placeInSection = useStore((s) => s.placeInSection);
+  const measureAt = useStore((s) => s.measureAt);
   const cancelLink = useStore((s) => s.cancelLink);
   const s = t(lang).sectionCanvas;
   const tl = t(lang).tools;
@@ -34,8 +35,17 @@ export function SectionCanvas() {
   const nativeAddressable = isColumnDoc(doc) || isBeamDoc(doc);
   const linking = tool === "link" && nativeAddressable;
   const placing = ADD_TOOLS.has(tool);
+  const measuring = tool === "measure";
 
-  const hint = linking ? s.linkHint : placing ? tl.placeHint : nativeAddressable ? s.selectHint : s.placedOnlyHint;
+  const hint = linking
+    ? s.linkHint
+    : placing
+    ? tl.placeHint
+    : measuring
+    ? tl.measureHint
+    : nativeAddressable
+    ? s.selectHint
+    : s.placedOnlyHint;
 
   return (
     <div
@@ -60,7 +70,7 @@ export function SectionCanvas() {
       <SectionPicker
         onPick={nativeAddressable ? pickSectionBar : undefined}
         onPickExtra={pickSectionExtra}
-        onPlace={placing ? placeInSection : undefined}
+        onPlace={placing ? placeInSection : measuring ? measureAt : undefined}
       />
     </div>
   );

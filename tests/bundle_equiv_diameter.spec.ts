@@ -20,8 +20,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { makeBaelPack, makeEc2Pack } from "@rebarconfig/codepacks";
-import { resolvePlacedBars, generateShape, barArea } from "@rebarconfig/core";
-import type { PlacedBarInput, ResolvePlacedContext } from "@rebarconfig/core";
+import { resolvePlacedBars, generateShape, barArea, validatePlacedBarRules } from "@rebarconfig/core";
+import type { PlacedBarInput, ResolvePlacedContext, PlacedRuleCtx } from "@rebarconfig/core";
 import { computeBBS } from "@rebarconfig/exporters";
 import { loadShape } from "./p1-helpers";
 
@@ -137,5 +137,92 @@ describe("R1 / F-A — a bundle is judged on its equivalent diameter φₙ", () 
     const resolved = resolvePlacedBars([bundleOf({ n: 1 })], ctxFor(makeBaelPack()));
     expect(resolved).toHaveLength(1);
     expect(resolved[0]!.equivDiameter).toBeUndefined();
+  });
+});
+
+/**
+ * v1.0.6-fix **R8 (finding F-G, Review #2)** — the SIBLING rule R1 did not audit.
+ *
+ * R1 made φₙ drive the bundle's lap, mandrel and clear-spacing, but the V-E `curtailment_anchorage` rule
+ * (`validation/placedBarRules.ts`) still developed a curtailed/anchored bundle on the BARE Ø
+ * (`code.lbd({ diameter: bar.diameter })`). Same wrong-green class as F-A: a curtailed 4×Ø20 bundle whose
+ * run is 1323 mm reported 🟢 PASS requiring 882 mm (= l_bd of the bare Ø20) where l_bd(φₙ=40) = 1764 mm is
+ * required — ~25 % short, exported Conforme. R8 makes V-E spend `equivDiameter ?? diameter`, exactly R1's
+ * `codeDia` idiom. These assert the INVERTED defect; each FAILS on the pre-R8 code.
+ */
+const ruleCtx = (): PlacedRuleCtx => ({
+  section: "RECT",
+  b: 400,
+  h: 600,
+  cover: 30,
+  memberLength: 8000,
+  dg: 20,
+  codeRef: "BAEL §7.7",
+  material,
+  bands: { spacing: 0.05, anchorage: 0.05 },
+  includeGeometry: false,
+});
+
+const curtailmentItem = (
+  placed: PlacedBarInput,
+  code: ReturnType<typeof makeBaelPack>,
+) => {
+  const resolved = resolvePlacedBars([placed], ctxFor(code));
+  const items = validatePlacedBarRules([placed], resolved, ruleCtx(), code);
+  return { resolved, item: items.find((i) => i.rule === "curtailment_anchorage") };
+};
+
+describe("R8 / F-G — a curtailed BUNDLE develops its end-anchorage on φₙ, not the bare Ø", () => {
+  it("THE INVERTED CASE: run between l_bd(Ø20) and l_bd(φₙ=40) → FAIL, required == l_bd(φₙ) != l_bd(Ø20)", () => {
+    const code = makeBaelPack();
+    const phiN = code.bundleEquivDiameter(PHI, N); // 40
+    const lbdBare = code.lbd({ diameter: PHI, material }); // ~882
+    const lbdEquiv = code.lbd({ diameter: phiN, material }); // ~1764
+    expect(Math.round(lbdEquiv)).toBeGreaterThan(Math.round(lbdBare)); // sanity: φₙ demands a longer anchorage
+
+    const run = Math.round((lbdBare + lbdEquiv) / 2); // ~1323 — squarely BETWEEN the two lengths
+    const { resolved, item } = curtailmentItem(
+      bundleOf({ startStation: 0, endStation: run, anchorage: { end: "straight" } }),
+      code,
+    );
+    for (const b of resolved) expect(b.equivDiameter).toBe(phiN); // R1 minted φₙ on every member
+
+    expect(item).toBeDefined();
+    expect(item!.status).toBe("FAIL"); // ← was 🟢 PASS pre-R8 (the wrong-green)
+    expect(item!.limit).toBe(Math.round(lbdEquiv)); // develops on φₙ …
+    expect(item!.limit).not.toBe(Math.round(lbdBare)); // … NOT the bare-Ø 882 mm the bug reported
+  });
+
+  it("a bundle whose run DOES cover l_bd(φₙ) stays 🟢 (F1: at/above the requirement is green)", () => {
+    const code = makeBaelPack();
+    const phiN = code.bundleEquivDiameter(PHI, N);
+    const lbdEquiv = code.lbd({ diameter: phiN, material });
+    const run = Math.round(lbdEquiv) + 200; // comfortably above the φₙ requirement
+    const { item } = curtailmentItem(
+      bundleOf({ startStation: 0, endStation: run, anchorage: { end: "straight" } }),
+      code,
+    );
+    expect(item!.status).toBe("PASS");
+    expect(item!.limit).toBe(Math.round(lbdEquiv));
+  });
+
+  it("a curtailed NON-bundled bar is byte-identical — anchorage develops on the bare Ø (no φₙ leak)", () => {
+    const code = makeBaelPack();
+    const lbdBare = code.lbd({ diameter: PHI, material });
+    const single: PlacedBarInput = {
+      kind: "single",
+      id: "cs1",
+      position: { u: 0, v: -100 },
+      shape: loadShape("droite"),
+      params: { L: 8000 },
+      diameter: PHI,
+      startStation: 0,
+      endStation: Math.round(lbdBare) + 100, // covers the bare-Ø requirement → PASS as it always did
+      anchorage: { end: "straight" },
+    } as PlacedBarInput;
+    const { resolved, item } = curtailmentItem(single, code);
+    expect(resolved[0]!.equivDiameter).toBeUndefined();
+    expect(item!.limit).toBe(Math.round(lbdBare)); // required on the bare Ø, unchanged
+    expect(item!.status).toBe("PASS");
   });
 });

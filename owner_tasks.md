@@ -33,7 +33,7 @@ and the active spec. **Last updated:** 2026-07-11 (v1.0.6 N6).
 | A-5 | **Impossible-bar tiers (H8)** | ✅ **DECIDED: spacing tiered** — block outside-concrete/past-end; block below the code minimum, warn if merely tight (dg=20/k1=1.0/k2=5 defaults, confirmable §C-7/§C-2). | 1.0.4 |
 | A-6 | **Solve-error UX (H1.3)** | ✅ **DECIDED: non-blocking banner + keep last-good.** | 1.0.4 |
 | A-7 | **DROITE length field (H12)** | ✅ **DECIDED: read-only + coupled, explicit override toggle.** | 1.0.4 |
-| A-8 | **Drawing-first default vs form-first (`advancedForm`)** | 🟠 **OPEN — needs your call.** The v1.0.6 drawing-board can either open **drawing-first** (section canvas + inspector + editable elevation up top, the tabbed form collapsed behind "Avancé") or keep both visible. As-built it defaults **ON** (both visible) = zero regression. Now that N5 (place-by-pointing) **and** N6 (editable elevation) exist, the spec's drawing-**first** end-state is unblocked. **Flipping the default is a one-liner** (`advancedForm` init `true`→`false`). Recommend deciding now. | 1.0.6 (N3→N6) |
+| A-8 | **Drawing-first default vs form-first (`advancedForm`)** | ✅ **DECIDED (2026-07-12): flip to drawing-FIRST (`advancedForm` default OFF).** Done in R6 — the app opens with the section canvas + inspector + editable elevation; the full tabbed form is the "Avancé" fallback. Safe post-R2+R5 (nothing the form reaches is stranded). Advanced-form UI specs opt in via `setAdvancedForm(true)`. | 1.0.6 (N3→N6) |
 | A-9 | **Element-setup fields: compact strip vs advanced form** | 🟢 Confirm which element-level fields belong in the always-visible setup strip vs the advanced form (IA preference). As-built strip = id · code pack · b/h · H/L · cover. | 1.0.6 |
 | A-10 | **Snap-grid density + palette/tool ordering (U4/U5)** | 🟢 Confirm the section place-by-pointing snap grid (default **5 mm**) + the elevation station snap (default **10 mm**) + the default palette/tool ordering. One-line changes. | 1.0.6 (N5/N6) |
 
@@ -99,6 +99,62 @@ surface below is code-complete + headless-tested for its pure logic but awaits y
 | D-7 | **v1.0.5 new-steel render pass** — freely placed **rows / extra layers / bundles / side-face skin** and **curtailed** bars render + read in the coupe correctly on all 8 elements. | 1.0.5 | 🟠 |
 | D-8 | **v1.0.6 drawing-board feel (U1–U4)** — the 3D-primary shell reads right; the **section dock + elevation dock** resize/collapse cleanly; the **one unified section canvas** select/link feel; the **contextual inspector** + compact setup strip; the **tool palette + place-by-pointing** (click-to-drop a bar/row/bundle/layer, snap feel, tool discoverability). | 1.0.6 (N1–N5) | 🟠 |
 | D-9 | **v1.0.6 editable elevation (U5 / N6) — the largest pass.** Drag a **bar end** (curtailment — the 3D + BBS cut update live), a **runs-through/anchorage** choice at a support, **drop a lap/coupler** (splice station), **grab a bend-up point** (relevé), and **drag a stirrup-zone boundary** (regions). Confirm each gesture *feels* right and the **numeric twin agrees** (inspector curtailment/anchorage/splice fields + the `RegionEditor` table + the relevé bend field). The pure hit-test/snap + the store actions are headless-tested; only the on-canvas pointer drag needs your GPU. | 1.0.6 (N6) | 🟠 |
+
+### §D-R — Adversarial review #2 (2026-07-11, Amer) — confirmation & acceptance tests
+
+*These come out of the second adversarial review (after R1–R5). **UPDATE 2026-07-12 (Amer):** the three code defects DR-1/DR-2/DR-3 are now **FIXED** (R8/R6/R9) and DR-6's measure tool is now **implemented** — so DR-1/2/3/6 flip from "confirm the bug" to **confirm the FIX** (the CORRECT result should now be what you see; the FAILURE signature is the old bug and must be GONE). DR-4/DR-5 remain pure GPU acceptance passes. Run `cd apps/web && npm run dev`, port 5180. For every test I give the exact steps, the **CORRECT** result, and the **FAILURE signature** (what the bug looked like).*
+
+| # | What | Type | Prio |
+|---|---|---|---|
+| DR-1 | Curtailed **bundle** anchorage develops on the **bare Ø**, not φₙ → **wrong-🟢** | ✅ **FIXED in code (R8)** — confirm the fix | 🔴 |
+| DR-2 | **Dual skin path** double-counts As,prov (legacy supplement + skin row) | ✅ **FIXED in code (R6)** — confirm the fix (the peau supplement is gone from the panel) | 🟠 |
+| DR-3 | **Two-way slab**: a placed band never credits the **Y** direction | ✅ **FIXED in code (R9)** — confirm the fix (use the new span-direction toggle) | 🟠 |
+| DR-4 | **Place-by-pointing** pointer path (click-to-drop) on **all 8** — zero automated coverage | 🟠 Acceptance | 🔴 |
+| DR-5 | **Slab / joist / stair** 20:1 section render reads well (+ a WebGL stall I hit) | 🟠 Acceptance | 🟠 |
+| DR-6 | **Measure** tool — ~~confirm it is still a stub~~ **now implemented (R6)** — confirm two-point distance works | 🟢 Acceptance | 🟢 |
+
+**DR-1 — Curtailed bundle anchorage (🔴 the dangerous one).**
+*Goal: confirm the app calls a bundle's end-anchorage "OK" when it is developed on the single-bar Ø, not the bundle's equivalent Ø φₙ = φ·√n. Same class as the R1/F-A lap bug, in the V-E curtailment rule R1 did not touch (`validation/placedBarRules.ts:222` uses `bar.diameter`, never `equivDiameter`).*
+1. Select **E-BEM-01** (beam). Note the verdict is 🟢.
+2. Tool palette → **Paquet** (Bundle). Set **n = 4**, **Ø = 20**. Place it on the bottom steel (click the section low-centre, or type u=0, v≈−250 and Place).
+3. Click the placed bundle → the **Inspector** opens on it.
+4. In the inspector's curtailment fields, curtail the **end** to a station that leaves a run of **≈ 1300 mm** (e.g. start = 0, end = 1300), and set the end anchorage to **straight (droit)**.
+5. **CORRECT result:** the element should go 🟠/🔴 with a `curtailment_anchorage` alert requiring **≈ 1764 mm** (= l_bd of φₙ = 40 mm). A 1300 mm run is ~25 % short.
+6. **FAILURE signature (the bug):** the element stays **🟢 Conforme**; if you open the alert detail it reports "ancrage requis **882 mm**" (= l_bd of the bare Ø 20). *(Headlessly reproduced: run=1323 → `curtailment_anchorage: 🟢 PASS, required=882`.)*
+
+**DR-2 — Dual skin path double-count (= the open R6 item).**
+*Goal: confirm skin steel added through BOTH the legacy Supplements panel AND the new skin-row tool is counted twice in As,prov.*
+1. Select **E-COL-01**. Read the zone verdict As,prov (e.g. 18.85 cm²).
+2. Open the **Suppléments / Avancé** panel, add a **side-face (peau)** supplement, 1 bar Ø12 on a lateral face. Note As,prov rises by ~1.13 cm².
+3. Now with the **row/skin tool** add a skin **row** of the same 1 Ø12 on the same face.
+4. **CORRECT result:** if these are meant to be the *same* physical steel, adding it "again" the modern way should not stack — or the UI should make clear they are two different bars.
+5. **FAILURE signature (the bug):** As,prov rises by **~2.26 cm² (2 × 1.13)** — the same skin steel counted twice, which can flip a deficient element green. *(Headlessly reproduced: base 1885 → supplement 1998 → +row 2111.2 = +2×area(Ø12).)* This is the R6 "retire the dual skin path" item, still live.
+
+**DR-3 — Two-way slab, Y-direction band never credited.**
+*Goal: confirm that on a two-way slab a placed band only ever credits the X zone, so a Y deficiency cannot be fixed on the drawing board.*
+1. Select **E-SLB-02** (two-way slab). Set As,req for **As_main_y_bot** high enough that the **Y** zone reads **🔴** while **X** is 🟢.
+2. Place a bottom **band** (row across the width) intending to fix Y.
+3. **CORRECT result:** the Y zone's As,prov should rise and clear (or the tool should tell you it cannot place Y-direction steel).
+4. **FAILURE signature (the gap):** **As_main_x_bot** rises (already green), **As_main_y_bot** does **not move** and stays 🔴 — the band you drew and scheduled is invisible to the Y check. *(Headlessly reproduced: MX 523.6→1654.6, MY 523.6→523.6 FAIL.)* Not dangerous (stays conservative/red), but R3's "placed steel feeds As on all 8" is only 3/4 true here.
+
+**DR-4 — Place-by-pointing pointer path on all 8 (🔴 unproven).**
+*Goal: the click-to-drop gesture uses `getScreenCTM`, which is null under jsdom, so **every on-canvas placement drag has ZERO automated coverage** — only the typed-coordinate twin is tested. Prove the actual pointer drop works on real GPU. Do this for **each** of the 8 elements.*
+For each element (E-COL-01, E-BEM-01, E-COL-02, E-FND-01, E-SLB-01, E-SLB-02, E-SLB-03, E-STR-01):
+1. Select the element. Pick the **Barre** (add-single) tool.
+2. **Click** a point inside the section canvas (do **not** type a coordinate — use the mouse).
+3. **CORRECT:** a bar dot appears **at the clicked point, clamped inside the cover envelope**; it is in the placed list; clicking it opens the inspector; a curtail edit commits.
+4. **FAILURE signatures to watch:** nothing drops on click (pointer path dead); the bar lands at the wrong point (CTM/offset wrong); on **E-COL-02 / E-FND-01** (round) a bar drops **outside the disc** (radial clamp not applied); the inspector says "nothing selected" after clicking your own bar (F-C-class regression).
+   *Note: on my headless pass the section canvas mounts on all 8 and the typed-coordinate path places+clamps correctly; only the mouse gesture is unverified.*
+
+**DR-5 — Slab / joist / stair section render (+ a stall I observed).**
+1. Select **E-SLB-01**, then **E-SLB-03**, then **E-STR-01**. Look at the section canvas.
+2. **CORRECT:** the wide-thin (up to ~20:1) concrete reads as a slab, mark dots are legible and not microscopic, distribution steel draws as a **line across the width** (not stacked dots on the centreline). Judge the mark-size / margin heuristic (0.05 / 0.012 / 1.6 / 0.02) that no human has seen.
+3. **Observation to confirm/deny:** on my box, switching to **E-SLB-01** made the **3D WebGL viewport stop responding to screenshot capture for >30 s** (the DOM/section canvas stayed responsive, no console error). Please confirm whether the **3D view** of a slab renders smoothly on your GPU or stutters/hangs — it may be a heavy 20:1 flat-box render, or just my headless-capture limitation.
+
+**DR-6 — Measure tool (R6 stub).**
+1. Pick the **Mesure** tool. Click two points on the section.
+2. **CORRECT (if finished):** it reports the distance between the two points.
+3. **CURRENT (expected):** it is a **coordinate readout stub** — no two-point distance. R6 is meant to either finish it or remove the button; confirm which behaviour you see so we know if it still misleads.
 
 ---
 

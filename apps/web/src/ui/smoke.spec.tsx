@@ -19,7 +19,11 @@ function renderPanels() {
 }
 
 describe("SPA panels smoke", () => {
-  beforeEach(() => useStore.getState().reset());
+  // R6 (O-4/A-8): advancedForm defaults OFF now; this smoke test drives the advanced-form tabs, so opt in.
+  beforeEach(() => {
+    useStore.getState().reset();
+    useStore.getState().setAdvancedForm(true);
+  });
 
   it("renders the reference column's As,prov readout and rule rows", () => {
     renderPanels();

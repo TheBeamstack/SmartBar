@@ -246,6 +246,12 @@ export interface Strings {
     hint: string;
     placeHint: string;
     measureHint: string;
+    measurePoint: string;
+    measureFrom: string;
+    measureDistance: string;
+    spanDirection: string;
+    spanX: string;
+    spanY: string;
   };
   /** v1.0.6 N6 (U5) — the editable elevation: curtailment / anchorage / splices / zone boundaries. */
   elevation: {
@@ -569,7 +575,13 @@ const FR: Strings = {
     count: "Nombre",
     hint: "Choisis une forme, puis clique sur la coupe (ou saisis u/v + Placer).",
     placeHint: "Clique sur la coupe pour déposer la barre.",
-    measureHint: "Survole la coupe pour lire les coordonnées (mesure complète : N6).",
+    measureHint: "Clique deux points de la coupe pour lire la distance.",
+    measurePoint: "Point",
+    measureFrom: "Depuis",
+    measureDistance: "Distance",
+    spanDirection: "Direction de portée",
+    spanX: "Sens X",
+    spanY: "Sens Y",
   },
   elevation: {
     editHint: "Sélectionne une barre, puis glisse ses bouts (arrêt) ou les limites de zone ; valeurs saisissables à droite.",
@@ -902,7 +914,13 @@ const EN: Strings = {
     count: "Count",
     hint: "Pick a shape, then click the section (or type u/v + Place).",
     placeHint: "Click the section to drop the bar.",
-    measureHint: "Hover the section to read coordinates (full measure: N6).",
+    measureHint: "Click two section points to read the distance.",
+    measurePoint: "Point",
+    measureFrom: "From",
+    measureDistance: "Distance",
+    spanDirection: "Span direction",
+    spanX: "X span",
+    spanY: "Y span",
   },
   elevation: {
     editHint: "Select a bar, then drag its ends (curtailment) or the zone boundaries; typed values on the right.",

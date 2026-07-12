@@ -341,6 +341,7 @@ function placedDocBody(
     anchorage?: EndAnchorageChoice;
     autoSplice?: boolean;
     splices?: Splice[];
+    spanAxis?: "x" | "y";
   },
   memberLen: number,
   code: BaelPack,
@@ -360,6 +361,7 @@ function placedDocBody(
     ...(d.anchorage !== undefined ? { anchorage: { end: d.anchorage } } : {}),
     ...(d.autoSplice ? { autoSplice: true } : {}),
     ...(d.splices !== undefined ? { splices: d.splices } : {}),
+    ...(d.spanAxis !== undefined ? { spanAxis: d.spanAxis } : {}), // R9 (F-H): two-way slab span direction
   };
 }
 
@@ -834,6 +836,7 @@ function slabInput(doc: GenericDoc, code: BaelPack): SlabSolveInput {
       spacing: z.spacing ?? 150,
       asReqPerM: z.asReqPerM ?? 0,
       v: slabZoneV(doc, z),
+      ...(z.axis !== undefined ? { axis: z.axis } : {}), // R9 (F-H): two-way slab span direction
     })),
     ...(doc.restrainedCorner !== undefined ? { restrainedCorner: doc.restrainedCorner } : {}),
     ...(doc.cornerTorsionProvided !== undefined ? { cornerTorsionProvided: doc.cornerTorsionProvided } : {}),
