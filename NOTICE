@@ -1,0 +1,68 @@
+SmartBar
+https://beam-stack.com
+
+SmartBar is a Beamstack project.
+A parametric rebar-detailing and code-checking application for reinforced-concrete
+steel (BAEL 91-99, Eurocode 2, RPS 2011).
+
+Copyright (C) 2026 Beamstack. "Beamstack" is the trading name of a sole
+proprietorship of Abdellah Daoudi (Kingdom of Morocco) pending incorporation;
+"Beamstack" is a trademark registered with OMPIC. Where a natural or legal
+person is required, the copyright holder of record is Abdellah Daoudi
+<askdaoudi@gmail.com>.
+
+--------------------------------------------------------------------------------
+LICENCE
+--------------------------------------------------------------------------------
+Licensed under AGPL-3.0-only (SPDX: AGPL-3.0-only). The full text is in LICENSE.
+This project is on the Open tier of the Beamstack License Framework —
+https://github.com/TheBeamstack/beamstack-licensing.
+Trademark policy: TRADEMARKS.md (no licence grants rights in the "Beamstack" or
+"SmartBar" names or the Beamstack logo — a fork must rename).
+
+SmartBar is additionally available under a commercial licence for organisations
+that need to keep their own modifications closed: askdaoudi@gmail.com.
+
+--------------------------------------------------------------------------------
+ENGINEERING DISCLAIMER — PROVISIONAL, UNRATIFIED STRUCTURAL CONSTANTS
+--------------------------------------------------------------------------------
+SmartBar computes and checks reinforced-concrete steel detailing against code
+packs derived from BAEL 91 (rev. 99), Eurocode 2 (EN 1992-1-1:2004+AC:2010) and
+RPS 2011.
+
+The constants shipped in those code packs are PROVISIONAL and UNRATIFIED. Each
+pack in packages/codepacks — bael-constants.json, ec2-constants.json and
+rps-2011.json — is flagged "_provisional": true. No licensed or otherwise
+qualified structural engineer has reviewed, ratified, or signed off on these
+values, on the tolerance bands applied to them, or on the drawing and section
+conventions. The project's own ratification gates (G-BAEL, G-EC2, G-RPS, G-TOL,
+G-COUPE) are open.
+
+Accordingly:
+
+  * SmartBar's output is NOT a substitute for structural design, calculation, or
+    verification by a qualified engineer.
+  * A "PASS" result means only that the input satisfied a provisional rule as
+    implemented in this software. It is not a statement that a design is
+    correct, that it conforms to any standard, or that it is safe to build.
+  * SmartBar's output MUST NOT be relied upon for construction, fabrication,
+    procurement, tendering, or any other purpose with physical or financial
+    consequence, unless every governing value and result has been independently
+    verified and accepted by a qualified structural engineer who takes
+    professional responsibility for it.
+  * Nothing in this software certifies conformity with BAEL 91-99,
+    EN 1992-1-1, RPS 2011, or any other standard. Where this software and a
+    published standard disagree, the published standard governs.
+
+This notice records a known limitation of the current release. It does not
+narrow the disclaimer of warranty and limitation of liability in Sections 15-17
+of the GNU Affero General Public License v3.0, under which this software is
+provided WITHOUT ANY WARRANTY.
+
+--------------------------------------------------------------------------------
+THIRD-PARTY COMPONENTS
+--------------------------------------------------------------------------------
+See THIRD-PARTY-NOTICES.md for bundled or required third-party software and its
+licences.
+
+Commercial licences and written waivers: askdaoudi@gmail.com
