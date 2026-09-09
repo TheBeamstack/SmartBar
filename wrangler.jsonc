@@ -1,0 +1,16 @@
+{
+  // SmartBar is a pure static SPA (no server code) — this deploys it as Workers Static Assets,
+  // Cloudflare's current recommended path (the "Workers & Pages" dashboard no longer has a
+  // separate Pages product; see deployment_readiness.md §5). No `main` field: there is no Worker
+  // script, only the built assets.
+  "name": "smartbar",
+  "compatibility_date": "2026-09-09",
+  "assets": {
+    // Vite's build output (apps/web/vite.config.ts) — path is relative to this file.
+    "directory": "./apps/web/dist",
+    // Any unmatched path falls back to index.html (200, not 404) — the standard SPA default;
+    // SmartBar has no client-side router today, but this costs nothing and avoids a raw 404 page
+    // if a link or bookmark ever points at a sub-path.
+    "not_found_handling": "single-page-application"
+  }
+}

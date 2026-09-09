@@ -1,4 +1,4 @@
-# deployment_readiness.md — SmartBar → Cloudflare Pages readiness review
+# deployment_readiness.md — SmartBar → Cloudflare readiness review
 
 > **Purpose.** A deployment-focused technical review, done by reading `core_logic.md` (product intent),
 > `current_state.md` / `architecture_breakdown.md` (as-built reality), `owner_tasks.md` / `roadmap_directions.md` /
@@ -12,7 +12,9 @@
 > already name for them (`owner_tasks.md §B-1`).
 >
 > **Reviewed:** 2026-09-09, against `main` @ `6d047b6`. **Updated:** 2026-09-09 — added the "Powered by beamstack"
-> attribution footer (§3.1) and re-verified §4.2 against it.
+> attribution footer (§3.1) and re-verified §4.2 against it. **Updated again, same day:** §5 rewritten — Cloudflare
+> no longer exposes a separate Pages tab; static sites now deploy as a Worker with Static Assets. A
+> `wrangler.jsonc` was added to the repo and the whole flow re-verified locally with `npx wrangler dev`.
 
 ---
 
@@ -22,11 +24,11 @@ Three separate questions, three separate answers — the code is ready sooner th
 
 | Question | Verdict | Why |
 |---|---|---|
-| **Architecture fit for Cloudflare** | ✅ Excellent | Pure client-side SPA, zero backend, zero secrets, zero outbound network calls. Close to the ideal Cloudflare Pages workload. |
-| **Code & build health** | ✅ Green, verified live | 996/996 tests pass, purity + manifest gates pass, both typechecks pass, the production build succeeds. |
+| **Architecture fit for Cloudflare** | ✅ Excellent | Pure client-side SPA, zero backend, zero secrets, zero outbound network calls. Close to the ideal Cloudflare Workers Static Assets workload. |
+| **Code & build health** | ✅ Green, verified live | 997/997 tests pass, purity + manifest gates pass, both typechecks pass, the production build succeeds, and a local `wrangler dev` served the real build correctly. |
 | **Release readiness** | 🟠 Not yet | Engineering sign-off, licence-notice hygiene, and a handful of Cloudflare-specific setup steps stand between "builds clean" and "safe to point a domain at." |
 
-**Bottom line** — you can put this on Cloudflare Pages *this week* as a preview deployment with no code changes;
+**Bottom line** — you can put this on Cloudflare *this week* as a preview deployment with no further code changes;
 the app has no server dependency to fight. Treating it as a **public, load-bearing** product — one a real
 detailer might build from — needs the six items in §4 closed first; §6 is the difference between "runs" and "is
 what the licence, the disclaimer, and the owner's own `owner_tasks.md` say it should be."
@@ -56,10 +58,10 @@ CI-enforced invariant — and it holds. That purity is what made the checks belo
 | Server-side code | **None** — persistence is `.rcfg` file download/import + browser IndexedDB autosave |
 | Client-side routing | **None** — single view, no `react-router`; no SPA-fallback rewrite needed |
 
-There is nothing in this app that a Cloudflare Worker needs to do. It is a static bundle plus assets. The
-"Workers & Pages combined" product covers this trivially — Pages' static-asset serving is the entire requirement;
-no Worker function is needed unless a future v1.1 server jump (accounts, IFC export — already a deliberately
-separate, later phase on the roadmap) is brought forward.
+There is nothing in this app that a Cloudflare Worker needs to *do*. It is a static bundle plus assets, so it
+deploys as a Worker whose only job is serving Static Assets (§5) — no Worker script logic is needed unless a
+future v1.1 server jump (accounts, IFC export — already a deliberately separate, later phase on the roadmap) is
+brought forward.
 
 ---
 
@@ -85,7 +87,7 @@ Production bundle, measured from this build (post-footer, §3.1):
 | `index-*.js` (vendor) | 439.2 KB | 181.5 KB | React + Zustand + remaining deps |
 | `index-*.css` | 20.4 KB | 4.4 KB | app styles |
 
-≈2.4 MB uncompressed / ≈750 KB gzip total JS+CSS. No size concern for Cloudflare Pages, but larger than the
+≈2.4 MB uncompressed / ≈750 KB gzip total JS+CSS. No size concern for Cloudflare, but larger than the
 codebase's own comments expect — see §4.1.
 
 ### 3.1 — New: the "Powered by beamstack" attribution footer
@@ -149,19 +151,20 @@ Six items, verified against the actual code and config — ordered by how much t
 
 ### 4.4 — No CI gate between a push and a live deploy — **process gap**
 - **Where:** `.github/` — does not exist
-- **What:** No GitHub Actions workflow. Cloudflare Pages' own build step will run *a* build command, but nothing
-  today runs the full `npm run check` gate (purity → manifests → typecheck ×2 → 996 tests) as a required check
-  before merge — Cloudflare's build failing is the only thing that would currently stop a broken `main` from
-  going live.
+- **What:** No GitHub Actions workflow. Cloudflare's own Workers Builds step will run *a* build command, but
+  nothing today runs the full `npm run check` gate (purity → manifests → typecheck ×2 → 997 tests) as a required
+  check before merge — Cloudflare's build failing is the only thing that would currently stop a broken `main`
+  from going live.
 - **Fix:** A short workflow that runs `npm run check` on every push/PR to `main`. This protects the discipline
-  the project has clearly kept by hand so far (996 green tests, an adversarial review cycle already run and
+  the project has clearly kept by hand so far (997 green tests, an adversarial review cycle already run and
   fixed) from eroding once deploys are automatic.
 
 ### 4.5 — No security headers configured — **hardening**
 - **Where:** `apps/web/public/_headers` — does not exist
 - **What:** No CSP, no `X-Frame-Options`, no `Referrer-Policy`. Because the app makes zero outbound requests
   (§2), a strict `default-src 'self'` CSP costs nothing and is close to free security value.
-- **Fix:** Ship a Cloudflare Pages `_headers` file — see the snippet in §5.
+- **Fix:** Ship a Cloudflare `_headers` file — still supported for static-asset responses under the new Workers
+  flow (confirmed against current docs) — see the snippet in §5.4.
 
 ### 4.6 — Missing favicon, manifest and basic metadata — **polish**
 - **Where:** `apps/web/` — no `public/` directory at all
@@ -171,35 +174,72 @@ Six items, verified against the actual code and config — ordered by how much t
 
 ---
 
-## §5. Cloudflare Pages setup — the concrete steps
+## §5. Cloudflare deployment setup — the concrete steps
 
-There is no `wrangler.toml` or Cloudflare config in the repo yet. None of this is hard; it just hasn't been done.
-The npm-workspaces monorepo layout is the one thing to get right in the project settings.
+**Correction (2026-09-09).** This section originally described Cloudflare **Pages** (a separate product with a
+dedicated dashboard tab, zero config files, and a `_headers`/`_redirects`-only setup). Cloudflare has since
+folded that flow into **Workers** — the dashboard's "Workers & Pages" entry no longer offers a distinct Pages
+tab; a static site is now deployed as a **Worker with Static Assets**. Functionally this changes almost
+nothing about *what* SmartBar needs (still zero server code, zero env vars), but it does change *how* — a
+`wrangler.jsonc` now has to exist in the repo, and the dashboard fields are Workers Builds' fields, not Pages'.
+This section is rewritten against that; verified locally in this pass with `npx wrangler dev` against the real
+production build (screenshot on file — the app and the new footer both render correctly).
 
-### Pages project settings
+### 5.1 — `wrangler.jsonc` (now in the repo, at the root)
 
-| Setting | Value |
-|---|---|
-| Framework preset | None (Vite isn't auto-detected correctly across a workspace root) |
-| Build command | `npm ci && npm run build:web` |
-| Build output directory | `apps/web/dist` |
-| Root directory | `/` (repo root — the workspace lockfile lives here, not in `apps/web`) |
-| Environment variables | none required — confirmed zero `import.meta.env` reads (§2) |
-| Node version | pin explicitly — see below |
+```jsonc
+// wrangler.jsonc
+{
+  "name": "smartbar",
+  "compatibility_date": "2026-09-09",
+  "assets": {
+    "directory": "./apps/web/dist",
+    "not_found_handling": "single-page-application"
+  }
+}
+```
 
-### Pin the Node version
+No `main` field — there is no Worker *script*, only static assets. `not_found_handling` is the SPA-fallback
+default (any unmatched path serves `index.html` with a 200, not a 404); SmartBar has no client-side router
+today (§2) so it's not load-bearing yet, but it's the standard, harmless default and future-proofs against one.
+`wrangler` is now a pinned root devDependency (`^4.130.0`) and `npm run cf:dev` / `npm run cf:deploy` build then
+run/deploy it — useful for testing this locally before wiring up Git.
 
-Nothing in the repo pins one today — `current_state.md` documents the dev box as Node 20.20, this review ran
-clean on Node 22.23, and Cloudflare's build image defaults can change. Pin it so the Pages build is reproducible:
+### 5.2 — Connect the repo through the dashboard
+
+1. **dash.cloudflare.com** → left sidebar → **Workers & Pages** → **Create application**.
+2. **Import a repository** (there's no separate "Pages" choice to make anymore — this path *is* the static-site
+   path) → authorize GitHub if needed → select **`TheBeamstack/SmartBar`**, branch **`main`**.
+3. Because `wrangler.jsonc` already exists in the repo (§5.1), Cloudflare should detect it directly rather than
+   running its "autoconfig" framework-detection PR bot — check the Worker name field matches `"smartbar"` from
+   the config; the docs say a mismatch fails the build.
+4. **Build configuration** — the fields Workers Builds actually exposes:
+
+| Field | Value | Why |
+|---|---|---|
+| Root directory | *leave blank* (repo root) | ⚠️ **The monorepo gotcha carries over.** The npm-workspaces lockfile lives at the repo root; pointing this at `apps/web` breaks `npm ci`'s workspace resolution. Keep the wrangler config and the build command both rooted here — that's why `assets.directory` in §5.1 is the relative path `./apps/web/dist`, not `./dist`. |
+| Build command | `npm ci && npm run build:web` | Same as before — builds the `@rebarconfig/web` workspace from the root |
+| Deploy command | `npx wrangler deploy` (the default — leave it) | Uploads `wrangler.jsonc`'s asset directory |
+| Non-production branch deploy command | `npx wrangler versions upload` (default) | Gives every PR/branch its own preview, same role Pages' preview URLs used to play |
+| Environment variables | none required | Confirmed zero `import.meta.env`/`process.env` reads (§2) |
+
+5. Click **Save and Deploy**, watch the build log, then open the `*.workers.dev` URL it gives you.
+
+### 5.3 — Pin the Node version
+
+Still nothing in the repo pins one — add it regardless of which product ends up running the build:
 
 ```json
 // package.json (root)
 "engines": { "node": ">=20 <23" }
 ```
 
-…or drop a `.nvmrc` / set the `NODE_VERSION` build-environment variable in the Pages dashboard.
+…or set the `NODE_VERSION` build-environment variable in the same dashboard screen as §5.2.
 
-### Security headers (§4.5)
+### 5.4 — Security headers (§4.5) — unchanged
+
+`_headers` is still supported for pure static-asset responses (confirmed against current docs) — same file,
+same location, same syntax as it was under Pages:
 
 ```
 # apps/web/public/_headers
@@ -210,19 +250,18 @@ clean on Node 22.23, and Cloudflare's build image defaults can change. Pin it so
   X-Frame-Options: DENY
 ```
 
-`'unsafe-inline'` on styles covers R3F/drei's runtime style injection for the 3D canvas — tightening that
-further is a nice-to-have, not a blocker.
+`'unsafe-inline'` on styles covers R3F/drei's runtime style injection for the 3D canvas. Caveat new under
+Workers: headers from `_headers` only apply to responses **served directly from the assets directory** — if a
+`main` Worker script or `assets.run_worker_first` is ever added (the v1.1 server jump, `core_logic.md §9.2`),
+those headers would need to be set inside that script instead.
 
-### No `_redirects` needed — for now
+### 5.5 — Custom domain & preview deploys
 
-There's no client-side router (§2), so there's no deep-link-refresh 404 problem a SPA-fallback rewrite normally
-solves. Skip `_redirects` until a route-based UI actually ships.
-
-### Custom domain & preview deploys
-
-Cloudflare Pages gives every branch a preview URL for free — a natural home for the owner's GPU/visual
-acceptance passes (§6) without waiting for a production domain decision. Attach the production custom domain
-only once §4 and the release gates in §6 are closed.
+Same idea as before, different tab: the Worker's **Settings → Domains & Routes** (or **Triggers**, depending on
+current dashboard labelling) is where a custom domain like `smartbar.beam-stack.com` gets attached, and every
+non-production branch still gets its own preview URL (§5.2's "non-production branch deploy command") — a
+natural home for the owner's GPU/visual acceptance passes (§6) without waiting for a production domain
+decision. Attach the production domain only once §4 and the release gates in §6 are closed.
 
 ---
 
@@ -265,14 +304,15 @@ for our market," not for the day it first goes live.
 
 Ship the preview this week; don't attach a production domain until the second block is done.
 
-1. **Connect the repo to a Cloudflare Pages project** — root `/`, build `npm ci && npm run build:web`, output
-   `apps/web/dist` (§5). Get a preview URL live today; no code changes required for this step alone.
-2. **Pin the Node version** — an `engines` field or `NODE_VERSION` build variable (§5).
+1. **Connect the repo through Workers & Pages → Import a repository** (§5.2) — `wrangler.jsonc` is already in
+   the repo, root directory blank, build `npm ci && npm run build:web`. Get a preview URL live today; no further
+   code changes required for this step alone.
+2. **Pin the Node version** — an `engines` field or `NODE_VERSION` build variable (§5.3).
 3. **Fix the pdf-lib code-split** (§4.1) — the single highest-leverage fix; cuts real weight off every first load.
 4. **Extend the new footer with a direct source/licence link** (§4.2) — the attribution half is done (§3.1);
    ten more minutes closes the AGPL network-use gap the rest of the way.
 5. **Ship the `_headers` CSP file + a favicon** (§4.5, §4.6) — cheap, do them together.
-6. **Add a CI workflow running `npm run check`** (§4.4) — protects the 996-test discipline once deploys are
+6. **Add a CI workflow running `npm run check`** (§4.4) — protects the 997-test discipline once deploys are
    automatic.
 7. **Run the DR-4/DR-5/§D GPU acceptance passes on the live preview URL** (§6.2) — the real reason a GPU-backed
    preview link is valuable: it's the first chance anyone has had to actually test the pointer-placement gesture
