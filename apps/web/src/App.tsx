@@ -14,6 +14,7 @@ import { RightColumn } from "./ui/RightColumn";
 import { SectionDock } from "./ui/SectionDock";
 import { ElevationDock } from "./ui/ElevationDock";
 import { SolveErrorBanner } from "./ui/SolveErrorBanner";
+import { Footer } from "./ui/Footer";
 import { Viewport } from "./viewport/Viewport";
 import { useAutosave } from "./ui/useAutosave";
 
@@ -36,6 +37,7 @@ export function App() {
         </main>
         <RightColumn />
       </div>
+      <Footer />
     </div>
   );
 }

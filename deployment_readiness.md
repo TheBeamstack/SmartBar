@@ -3,15 +3,16 @@
 > **Purpose.** A deployment-focused technical review, done by reading `core_logic.md` (product intent),
 > `current_state.md` / `architecture_breakdown.md` (as-built reality), `owner_tasks.md` / `roadmap_directions.md` /
 > `structural_data.md` (open people-dependencies), and then **verifying every claim against the live repository**
-> rather than trusting the docs: a clean `npm install`, the full `npm run check` gate, a full `npx vitest run`
-> (996/996 passing), a production `vite build` with real chunk sizes, an `npm audit`, and a source-level trace of
-> the PDF-export import chain — which turned out **not** to match its own "it's lazy-loaded" documentation (§4.1).
+> rather than trusting the docs: a clean `npm install`, the full `npm run check` gate, a full `npx vitest run`,
+> a production `vite build` with real chunk sizes, an `npm audit`, and a source-level trace of the PDF-export
+> import chain — which turned out **not** to match its own "it's lazy-loaded" documentation (§4.1).
 >
 > **Scope.** This is a technical deployment review, not structural-engineering or legal advice — §6's
 > engineering-sign-off and licensing items are flagged for exactly the qualified people the project's own docs
 > already name for them (`owner_tasks.md §B-1`).
 >
-> **Reviewed:** 2026-09-09, against `main` @ `6d047b6`.
+> **Reviewed:** 2026-09-09, against `main` @ `6d047b6`. **Updated:** 2026-09-09 — added the "Powered by beamstack"
+> attribution footer (§3.1) and re-verified §4.2 against it.
 
 ---
 
@@ -71,21 +72,31 @@ Not taken from the docs — re-run live, from a clean `npm install`, against the
 | Engine purity (`packages/core` stays free of React/three/DOM) | ✅ Pass | `npm run check:purity` |
 | Manifest integrity (16 shapes, 8 elements, 10 schemes, 7 supplements, schema-valid + cross-referenced) | ✅ Pass | `npm run check:manifests` |
 | TypeScript — engine + web app | ✅ Pass, zero errors | `npm run typecheck` / `typecheck:web` |
-| Test suite — **996 tests / 162 files** | ✅ All green | `npx vitest run` (260s) |
+| Test suite — **997 tests / 163 files** | ✅ All green | `npx vitest run` (260s) |
 | Production build | ✅ Succeeds | `npm run build` (in `apps/web`) |
 | `npm audit --omit=dev` | 🟠 2 findings | see §4.3 |
 
-Production bundle, measured from this build:
+Production bundle, measured from this build (post-footer, §3.1):
 
 | Chunk | Minified | Gzip | Contents |
 |---|---|---|---|
 | `three-*.js` | 1,045.6 KB | 291.6 KB | three.js + R3F + drei — the 3D viewport vendor chunk |
-| `index-*.js` (app) | 938.8 KB | 274.2 KB | app + engine + **all** exporters, incl. pdf-lib — see §4.1 |
+| `index-*.js` (app) | 940.0 KB | 274.6 KB | app + engine + **all** exporters, incl. pdf-lib — see §4.1 |
 | `index-*.js` (vendor) | 439.2 KB | 181.5 KB | React + Zustand + remaining deps |
-| `index-*.css` | 19.8 KB | 4.3 KB | app styles |
+| `index-*.css` | 20.4 KB | 4.4 KB | app styles |
 
 ≈2.4 MB uncompressed / ≈750 KB gzip total JS+CSS. No size concern for Cloudflare Pages, but larger than the
 codebase's own comments expect — see §4.1.
+
+### 3.1 — New: the "Powered by beamstack" attribution footer
+
+Added and verified live in this pass (screenshotted against the real dev server with a headless Chromium — the
+app, including the 3D viewport, renders correctly). A slim bar now sits under the workspace on every screen:
+a small reproduction of the Beamstack mark, "beam" in the app's light text colour, "**stack**" in Beamstack's own
+brand blue (`#4C8DFF`, taken directly from beam-stack.com's shipped CSS tokens, not from SmartBar's own `--accent`
+cyan), linking to `https://beam-stack.com` in a new tab. Implementation: `apps/web/src/ui/Footer.tsx` + a small
+block of CSS in `styles.css`; covered by `apps/web/src/ui/footer.spec.tsx`. Cost: +1.2 KB minified / +0.4 KB gzip
+— negligible. This also **partially addresses §4.2** below — see that entry for what it does and doesn't cover.
 
 ---
 
@@ -107,16 +118,22 @@ Six items, verified against the actual code and config — ordered by how much t
   dynamic-import *that*, not the shared barrel — or split the barrel so BBS/DXF/rcfg (needed eagerly) and PDF
   (needed on click) are separate entry points.
 
-### 4.2 — No in-app notice of the licence or a link to source — **legal exposure**
-- **Where:** `apps/web/index.html` · no reference anywhere in `apps/web/src`
+### 4.2 — No in-app notice of the licence or a direct link to source — **legal exposure, now partially mitigated**
+- **Where:** `apps/web/index.html` · `apps/web/src/ui/Footer.tsx` (new, §3.1)
 - **What:** The repo just moved to AGPL-3.0-only (+ a commercial tier). AGPL §13 exists specifically for this
-  case — software a user interacts with *over a network* must offer them the corresponding source. The running
-  app currently has no "Source" link, version stamp, or licence mention anywhere in the UI.
-- **Impact:** As sole copyright holder you can't violate your own licence, but once this is public and others may
-  fork/host it under the same terms, the missing notice sets the wrong example — and undercuts the "Open tier"
-  positioning `NOTICE.md` already describes.
-- **Fix:** A one-line footer or About panel: version, licence name, and a link to the GitHub repo. Also a good
-  place to surface the engineering disclaimer that today only lives in `NOTICE.md`.
+  case — software a user interacts with *over a network* must offer them the corresponding source. The app now
+  has a "Powered by beamstack" footer linking to `beam-stack.com`, whose own footer in turn links to
+  `github.com/TheBeamstack/SmartBar` under an "open source" heading — so a path to the source now exists, just
+  not a direct one from inside the app.
+- **Still open:** the footer is attribution, not a source notice — it doesn't name the licence, the version, or
+  link straight to the repo/`LICENSE`. A user has to leave the app, land on the marketing site, then find the
+  GitHub link themselves.
+- **Impact:** Lower than before, but not closed. As sole copyright holder you can't violate your own licence, but
+  the two-hop path is a weak reading of §13's "convey... a copy of the Corresponding Source... by providing
+  access... in a manner generally satisfying the requirements."
+- **Fix (unchanged):** add a direct `github.com/TheBeamstack/SmartBar` link and the licence name next to (or in
+  place of) the beamstack link — an About panel is still the more complete answer, but even appending
+  `· AGPL-3.0 · source` to the existing footer closes this in a few minutes.
 
 ### 4.3 — Two known vulnerabilities ship in the production bundle — **npm audit**
 - **Where:** `mathjs` (direct dep, `packages/core`) · `fflate` (transitive, via three-stdlib)
@@ -252,7 +269,8 @@ Ship the preview this week; don't attach a production domain until the second bl
    `apps/web/dist` (§5). Get a preview URL live today; no code changes required for this step alone.
 2. **Pin the Node version** — an `engines` field or `NODE_VERSION` build variable (§5).
 3. **Fix the pdf-lib code-split** (§4.1) — the single highest-leverage fix; cuts real weight off every first load.
-4. **Add the licence/source footer** (§4.2) — ten minutes, closes the AGPL network-use gap.
+4. **Extend the new footer with a direct source/licence link** (§4.2) — the attribution half is done (§3.1);
+   ten more minutes closes the AGPL network-use gap the rest of the way.
 5. **Ship the `_headers` CSP file + a favicon** (§4.5, §4.6) — cheap, do them together.
 6. **Add a CI workflow running `npm run check`** (§4.4) — protects the 996-test discipline once deploys are
    automatic.
