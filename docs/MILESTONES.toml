@@ -1,0 +1,42 @@
+# docs/MILESTONES.toml — SmartBar's releases and milestones (grammar: diwan docs/MILESTONES-TEMPLATE.toml).
+# Proposed 2026-10-28 by the steward. Nothing here is approved: the owner writes the date in `approved`.
+# `covers` is empty: SmartBar has no backlog, so no T- row exists to cover. The `smartbar` key is not yet a lane
+# in diwan docs/lanes.toml, so `owner_files.py check --lane SmartBar` cannot accept this file until it is one.
+
+[[release]]
+id = "R-smartbar-01"
+# portfolio: revenue, because SmartBar is dual-licensed AGPL-3.0 plus a paid commercial licence (README.md § Licence).
+portfolio = "revenue"
+# Source: deployment_readiness.md §7 (steps 1-10) and owner_tasks.md §E (E-1 UAT, E-2 sign, E-3 hosting moment).
+goal = "SmartBar v1.0.7 is live on a Beamstack domain: a detailer opens it in a browser, details bars and exports the BBS, DXF and PDF."
+done_when = ["tag:SmartBar@v1.0.7", "owner:the production domain serves v1.0.7 and the E-1 end-to-end UAT passed on it"]
+covers = ["M-smartbar-01", "M-smartbar-02"]
+due = "2026-12-18"
+approved = ""
+
+[[milestone]]
+id = "M-smartbar-01"
+release = "R-smartbar-01"
+# portfolio: revenue, because it makes the commercial product deployable.
+portfolio = "revenue"
+# Source: deployment_readiness.md §4.1-4.6 (pdf-lib split, licence and source link, mathjs/fflate audit, CI gate,
+# _headers CSP, favicon) and §5.3 (pin Node); roadmap_directions.md Track F1 (enforced gate).
+goal = "Every push to main runs npm run check, and the built app ships its source link, security headers and a lazy PDF exporter."
+done_when = ["file:SmartBar:apps/web/public/_headers", "owner:a preview URL serves main and the CI check is required on main"]
+covers = []
+due = "2026-11-27"
+size = 7
+approved = ""
+
+[[milestone]]
+id = "M-smartbar-02"
+release = "R-smartbar-01"
+# portfolio: revenue, because it is the acceptance of the commercial product's flagship UI.
+portfolio = "revenue"
+# Source: deployment_readiness.md §6.2 and §7 step 7; owner_tasks.md §D (D-1…D-9) and §D-R (DR-1…DR-6).
+goal = "The v1.0.6 drawing-board is accepted on real GPU hardware, including placing a bar by pointing at the section."
+done_when = ["owner:every owner_tasks.md §D and §D-R pass is recorded as passed or fixed on the preview URL"]
+covers = []
+due = "2026-12-11"
+size = 4
+approved = ""
